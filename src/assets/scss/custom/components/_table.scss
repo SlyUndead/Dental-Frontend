@@ -1,0 +1,104 @@
+// 
+// _table.scss
+// 
+
+
+.table {
+  th {
+      font-weight: $font-weight-bold;
+  }
+  .table-light{
+    color: $body-color;
+    border-color: $table-border-color;
+    background-color: $table-head-bg;
+      
+  }
+}
+
+
+.table-bordered {
+  border: $table-border-width solid $table-border-color;
+}
+
+// .table>:not(:first-child){
+//   border-top: (0 * var(--#{$prefix}table-border-width)) solid $table-group-separator-color;
+// }
+
+.table-nowrap {
+  th, td {
+    white-space: nowrap;
+  }
+}
+
+//Table centered
+.table-centered {
+  td,th {
+      vertical-align: middle !important;
+  }
+}
+
+// table card list
+
+.table-card-list{
+  border-collapse:separate; 
+  border-spacing:0 12px; 
+  tr{
+    background-color: $card-bg;
+  }
+}
+
+$hover-background-color: #f0f0f036; // Background color on hover
+
+.table-responsive{
+  &::-webkit-scrollbar {
+    -webkit-appearance: none;
+  }
+
+  &::-webkit-scrollbar:vertical {
+    width: 12px;
+  }
+
+  &::-webkit-scrollbar:horizontal {
+    height: 9px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba($dark, .2);
+    border-radius: 10px;
+    border: 2px solid $white;
+  }
+
+  &::-webkit-scrollbar-track {
+    border-radius: 10px;  
+    background-color: $white; 
+  }
+
+  &:hover {
+    background-color: rgba($hover-background-color, .2);
+    cursor: pointer; // Change cursor to pointer on hover
+  }
+}
+
+// .table-row {
+//   position: relative; /* Required for positioning the icon */
+// }
+
+// .icon-cell {
+//   text-align: center; /* Center the icon in the cell */
+// }
+
+// .icon-cell i {
+//   display: none; /* Hide the icon by default */
+//   font-size: 1.2em;
+//   color: #007bff; /* Change to your preferred icon color */
+// }
+
+// .table-row:hover .icon-cell i {
+//   display: inline; /* Show the icon on row hover */
+//   background-color: #f0f0f020;
+// }
+
+// .table-row:hover {
+//   background-color: #f0f0f020; /* Optional: Change background on hover */
+//   cursor: pointer; /* Change cursor to pointer on hover */
+// }
