@@ -1,11 +1,9 @@
 import axios from "axios";
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from "pages/AnnotationTools/constants";
-export const getCoordinatesFromAPI = async (file, model) => {
+export const getCoordinatesFromAPI = async (file) => {
   const formData = new FormData();
   formData.append('image', file);
-  if(model==="Segmentation Model"){
-    console.log(model)
-    try {
+  try {
     // const response = await axios.post('https://agp-dental-agp_flask_server.mdbgo.io/coordinates', formData, {
     //   headers: {
     //     'Content-Type': 'multipart/form-data', // Set the correct content type for formData
@@ -17,7 +15,7 @@ export const getCoordinatesFromAPI = async (file, model) => {
     //   },
     // });
     let response;
-      if (localStorage.getItem('apiIpAdd')) {
+    if (localStorage.getItem('apiIpAdd')) {
       response = await axios.post(`http://${localStorage.getItem('apiIpAdd')}:5000/coordinates`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data', // Set the correct content type for formData
@@ -83,100 +81,18 @@ export const getCoordinatesFromAPI = async (file, model) => {
     }
     return [];
   }
-}
-  else{
-    try {
-      // const response = await axios.post('https://agp-dental-agp_flask_server.mdbgo.io/coordinates', formData, {
-      //   headers: {
-      //     'Content-Type': 'multipart/form-data', // Set the correct content type for formData
-      //   },
-      // });
-      // const response = await axios.post('https://dental-flask.onrender.com/coordinates', formData, {
-      //   headers: {
-      //     'Content-Type': 'multipart/form-data', // Set the correct content type for formData
-      //   },
-      // });
-      let response;
-        if (localStorage.getItem('apiIpAdd')) {
-        response = await axios.post(`http://${localStorage.getItem('apiIpAdd')}:5001/coordinates`, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data', // Set the correct content type for formData
-          },
-        });
-      }
-      else {
-        response = await axios.post(`http://localhost:5001/coordinates`, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data', // Set the correct content type for formData
-          },
-        });
-      }
-      if (response.status === 200) {
-        console.log(response)
-        // Axios automatically parses JSON response
-        const data = response.data;
-        console.log(data);
-  
-        // Format the response data as needed for coordinates
-        return data;
-      }
-      else {
-        console.error(response)
-      }
-    }
-    catch (error) {
-      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT") {
-        // const response = await axios.post('https://agp-dental-agp_flask_server.mdbgo.io/coordinates', formData, {
-        //   headers: {
-        //     'Content-Type': 'multipart/form-data', // Set the correct content type for formData
-        //   },
-        // });
-        // const response = await axios.post('https://dental-flask.onrender.com/coordinates', formData, {
-        //   headers: {
-        //     'Content-Type': 'multipart/form-data', // Set the correct content type for formData
-        //   },
-        // });
-        try {
-          const response = await axios.post('http://192.168.155.19:5001/coordinates', formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data', // Set the correct content type for formData
-            },
-          });
-          if (response.status === 200) {
-            console.log(response)
-            // Axios automatically parses JSON response
-            const data = response.data;
-            console.log(data);
-  
-            // Format the response data as needed for coordinates
-            return data;
-          }
-        }
-        catch (err) {
-          console.err(err)
-          return { annotations: [], status: 'OPEN' }
-        }
-      }
-      else {
-        console.error('Error fetching coordinates from API:', error);
-        throw new Error('Failed to fetch coordinates from API');
-      }
-      return [];
-    }
-  }
 };
-export const saveImageToFolder = async (file, patientID, imageNumber, model) => {
+export const saveImageToFolder = async (file, patientID, imageNumber) => {
   if (!file) return;
   console.log(file, file.name);
   const date = new Date().toISOString().replace(/:/g, '-');
   const imageFileName = `${date}_${patientID}_${imageNumber}_${file.name}`;
   console.log(imageFileName)
-  console.log(model);
   const annotationFileName = `${date}_${patientID}_${imageNumber}_${file.name.split('.').slice(0, -1).join('.')}.json`;
 
   try {
     // Process annotations (assuming getCoordinatesFromAPI is a function you have)
-    const annotations = await getCoordinatesFromAPI(file, model);
+    const annotations = await getCoordinatesFromAPI(file);
     const scaledResponse = {
       annotations: annotations,
       status: annotations.status,
@@ -204,7 +120,7 @@ export const saveImageToFolder = async (file, patientID, imageNumber, model) => 
     } catch (error) {
       if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code == "ERR_BAD_REQUEST") {
         try {
-          await axios.put('http://localhost:3000/upload/image-and-annotations', {
+          await axios.put('http://192.168.155.19:3001/upload/image-and-annotations', {
             fileName: imageFileName,
             base64Image: base64Image,
             thumbnailBase64: thumbnailBase64, //AnotatedFiles/fileName

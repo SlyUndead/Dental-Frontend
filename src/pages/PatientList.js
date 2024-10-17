@@ -14,7 +14,7 @@ const PatientList = (props) => {
         { title: "Practice List", link: "#" },
         { title: "Patient List", link: "#" },
     ]
-
+    const apiUrl = process.env.REACT_APP_NODEAPIURL;
     // const patients = [
     //     { name: "Herbert C. Patton", age: "20", gender: "Male", date: "5/12/2024" },
     //     { name: "Mathias N. Klausen", age: "32", gender: "Female", date: "10/11/2024" },
@@ -34,7 +34,7 @@ const PatientList = (props) => {
     
     useEffect(()=>{
         const practiceId = sessionStorage.getItem('practiceId');
-        const getPatientList= async()=>{const response = await axios.get('https://agp-ui-node-api.mdbgo.io/getPatient?practiceId=' + practiceId); // Adjust the API endpoint as needed
+        const getPatientList= async()=>{const response = await axios.get(`${apiUrl}/getPatient?practiceId=` + practiceId); // Adjust the API endpoint as needed
         //const getPatientList= async()=>{const response = await axios.get('http://localhost:3001/getPatient?practiceId=' + practiceId); 
         const data = response.data;
         setPatients(data.patientList);}

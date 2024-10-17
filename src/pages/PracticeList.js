@@ -7,7 +7,7 @@ import { connect } from "react-redux";
 import { Navigate } from "react-router-dom";
 import axios from 'axios';
 const PracticeList = (props) => {
-
+    const apiUrl = process.env.REACT_APP_NODEAPIURL;
     document.title = "Practice List | AGP Dental Tool";
 
     const breadcrumbItems = [
@@ -17,9 +17,11 @@ const PracticeList = (props) => {
 
     const [practices, setPractices] = useState([]);
     useEffect(() => {
+        console.log(apiUrl);
         const getPracticeList = async () => {
-            const response = await axios.get('https://agp-ui-node-api.mdbgo.io/getPracticeList'); // Adjust the API endpoint as needed
+            const response = await axios.get(`${apiUrl}/getPracticeList`); // Adjust the API endpoint as needed
             //    const getPracticeList= async()=>{const response = await axios.get('http://localhost:3001/getPracticeList');
+            console.log(response);
             const data = response.data;
             // setMainImage(data.image);
             // setAnnotations(data.annotations);

@@ -4,10 +4,18 @@
 //
 
 .popover {
-    box-shadow: $popover-box-shadow;
+    //box-shadow: $popover-box-shadow;
+    width: 520px !important;
+    max-width: 520px !important;
+    //padding: 10px !important;; /* Adjust the padding as needed */
   }
   
-  .popover-body {
-      color: var(--#{$prefix}body-color) !important;
+  .list-group-item-hover:hover {
+    background-color: #f0f0f036; /* Change to your desired hover color */
   }
+
+//   .popover-body {
+//       //color: var(--#{$prefix}body-color) !important;
+//   }
+  
   

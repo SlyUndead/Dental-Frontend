@@ -34,6 +34,7 @@ import 'flatpickr/dist/flatpickr.min.css';
 import axios from "axios"
 import { element, elementType } from "prop-types"
 const NewPatient = (props) => {
+    const apiUrl = process.env.REACT_APP_NODEAPIURL;
     document.title = "Patient Visit | AGP Dental Tool";
     const [loading, setLoading] = useState(false);
     const [dateOfXray, setDateOfXray] = useState(new Date());
@@ -82,7 +83,7 @@ const NewPatient = (props) => {
             try {
                 let response;
                 console.log('handlePatientVisitSubmit : ' + patientId);
-                response = await axios.post('https://agp-ui-node-api.mdbgo.io/add-patientVisit', {
+                response = await axios.post(`${apiUrl}/add-patientVisit`, {
                     //    response = await axios.post('http://localhost:3001/add-patientVisit', {  
                     patientId: patientId, date_of_xray: dateOfXray, notes: notes, date_of_visit: dateOfVisit, summary: summary,
                     created_by: "test"

@@ -1,5 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from "react"
-import { Table, Card, CardBody, Button, Col, Row, FormGroup, Label, Input, Container, InputGroup, InputGroupText, Dropdown, DropdownMenu, DropdownToggle, DropdownItem, Popover, PopoverBody, Modal, ModalBody, ModalFooter, ModalHeader, Spinner } from "reactstrap";
+import {
+  Table, Card, CardBody, Button, Col, Row, FormGroup, Label, Input, Container, InputGroup, InputGroupText, Dropdown,
+  DropdownMenu, DropdownToggle, DropdownItem, Popover, PopoverBody, Modal, ModalBody, ModalFooter, ModalHeader, Spinner,
+  UncontrolledTooltip} from "reactstrap";
 import AnnotationList from "./AnnotationTools/AnnotationList";
 import { MAX_HISTORY, labelColors } from "./AnnotationTools/constants";
 import { LivewireScissors } from '../helpers/DrawingTools/LivewireScissors.ts';
@@ -7,7 +10,11 @@ import axios from "axios";
 import { Navigate } from "react-router-dom";
 import { changeMode } from "../store/actions"
 import { useDispatch, useSelector } from 'react-redux';
+import imgExit from "../assets/images/exit.svg"
+import imgEdit from "../assets/images/edit.svg"
+import '../assets/scss/custom/custom.scss';
 const AnnotationPage = () => {
+  const apiUrl = process.env.REACT_APP_NODEAPIURL;
   const [exitClick, setExitClick] = useState(false);
   const [annotations, setAnnotations] = useState([]);
   const [hiddenAnnotations, setHiddenAnnotations] = useState([]);
@@ -71,10 +78,11 @@ const AnnotationPage = () => {
   const mode = useSelector((state) => state.Layout.layoutMode);
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(false);
-  const [showBoundingBox, setShowBoundingBox] = useState(true);
-  const [showSegmentation, setShowSegmentation] = useState(true);
+ // const [showBoundingBox, setShowBoundingBox] = useState(true);
+  //const [showSegmentation, setShowSegmentation] = useState(true);
   const [model, setModel] = useState("")
   const [isNegative, setIsNegative] = useState(false)
+  const [classCategories, setClassCategories] = useState({})
   // const fetchMostRecentImage = async () => {
   //     try {
   //         const response = await axios.get('https://agp-ui-node-api.mdbgo.io/most-recent-image'); // Adjust the API endpoint as needed
@@ -118,7 +126,7 @@ const AnnotationPage = () => {
   // };
   const fetchVisitDateImages = async () => {
     try {
-      const response = await axios.get('https://agp-ui-node-api.mdbgo.io/visitid-images?visitID=' + sessionStorage.getItem('visitId')); // Adjust the API endpoint as needed
+      const response = await axios.get(`${apiUrl}/visitid-images?visitID=` + sessionStorage.getItem('visitId')); // Adjust the API endpoint as needed
       const data = response.data;
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
@@ -129,7 +137,35 @@ const AnnotationPage = () => {
         const data = response.data;
         // setMainImage(data.image);
         // setAnnotations(data.annotations);
-        return data.images;
+      return data.images;
+      }
+      else {
+        console.error('Error fetching most recent image:', error);
+      }
+    }
+  };
+  const fetchClassCategories = async () => {
+    try {
+      const response = await axios.get(`${apiUrl}/get-classCategories`); // Adjust the API endpoint as needed
+      const data = response.data;
+      let updatedClassCategories={}
+      data.forEach(element => {
+        if(updatedClassCategories[element.className]===undefined){
+          updatedClassCategories[element.className]=element.category
+        }
+      });
+      setClassCategories(updatedClassCategories)
+    } catch (error) {
+      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200") {
+        const response = await axios.get('http://localhost:3000/get-classCategories'); // Adjust the API endpoint as needed
+        const data = response.data;
+        let updatedClassCategories={}
+        data.forEach(element => {
+          if(updatedClassCategories[element.className]===undefined){
+            updatedClassCategories[element.className]=element.category
+          }
+        });
+        setClassCategories(updatedClassCategories)
       }
       else {
         console.error('Error fetching most recent image:', error);
@@ -182,7 +218,23 @@ const AnnotationPage = () => {
           ctx.font = '12px Arial';
           ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
         } else {
-          if(anno.bounding_box&&showBoundingBox){
+          if(anno.segmentation){
+            ctx.beginPath();
+            ctx.moveTo(anno.segmentation[0].x * scale, anno.segmentation[0].y * scale);
+  
+            for (let i = 1; i < anno.segmentation.length; i++) {
+              ctx.lineTo(anno.segmentation[i].x * scale, anno.segmentation[i].y * scale);
+            }
+            ctx.closePath();
+            if (index === hoveredAnnotation) {
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+              ctx.fill();
+            }
+            ctx.strokeStyle = labelColors[anno.label] || 'black';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+          else if(anno.bounding_box){
           ctx.beginPath();
           ctx.moveTo(anno.bounding_box[0].x * scale, anno.bounding_box[0].y * scale);
           for (let i = 1; i < anno.bounding_box.length; i++) {
@@ -197,23 +249,6 @@ const AnnotationPage = () => {
           ctx.lineWidth = 2;
           ctx.stroke();
         }
-        if(anno.segmentation&&showSegmentation){
-          ctx.beginPath();
-          ctx.moveTo(anno.segmentation[0].x * scale, anno.segmentation[0].y * scale);
-
-          for (let i = 1; i < anno.segmentation.length; i++) {
-            ctx.lineTo(anno.segmentation[i].x * scale, anno.segmentation[i].y * scale);
-          }
-          ctx.closePath();
-          if (index === hoveredAnnotation) {
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.fill();
-          }
-          ctx.strokeStyle = labelColors[anno.label] || 'black';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
-        if(showBoundingBox||showSegmentation){
           if (selectedAnnotation !== anno) {
             const { left, top } = getBoxDimensions(anno.segmentation.map(v => ({ x: v.x * scale, y: v.y * scale })));
             const area = calculatePolygonArea(anno.segmentation.map(v => ({ x: v.x * scale, y: v.y * scale })), areaScale).toFixed(2);
@@ -222,7 +257,6 @@ const AnnotationPage = () => {
             ctx.font = '12px Arial';
             ctx.fillText(labelText, left + 5, top - 25);
           }
-        }
       }
     }
     })}
@@ -284,31 +318,31 @@ const AnnotationPage = () => {
   // };
   const handleMouseUp = () => {
     if (isEraserActive && isErasing.current) {
-    //     isErasing.current = false;
-    //     handleErase(erasePoints);
-    //     updateHistory();
-    //     setErasePoints([]);
-    // } else if (selectedAnnotation && !isEraserActive) {
-    //     isDrawingRef.current = false;
-    //     mergeEditingPathWithAnnotation();
+      //     isErasing.current = false;
+      //     handleErase(erasePoints);
+      //     updateHistory();
+      //     setErasePoints([]);
+      // } else if (selectedAnnotation && !isEraserActive) {
+      //     isDrawingRef.current = false;
+      //     mergeEditingPathWithAnnotation();
     } else if (isDrawingFreehand && isDrawingRef.current) {
-        isDrawingRef.current = false;
-        completeFreehandDrawing();
+      isDrawingRef.current = false;
+      completeFreehandDrawing();
     } else if (isHybridDrawingActive) {
-        setIsMouseDown(false);
-        if (livewirePath.length > 0) {
-            setHybridPath(prevPath => [...prevPath, ...livewirePath]);
-            setLivewirePath([]);
-        }
-        if (lastPointRef.current) {
-            livewireRef.current.startSearch(lastPointRef.current);
-        }
-    } else  if (isLineDrawingActive && lineStart && lineEnd) {
+      setIsMouseDown(false);
+      if (livewirePath.length > 0) {
+        setHybridPath(prevPath => [...prevPath, ...livewirePath]);
+        setLivewirePath([]);
+      }
+      if (lastPointRef.current) {
+        livewireRef.current.startSearch(lastPointRef.current);
+      }
+    } else if (isLineDrawingActive && lineStart && lineEnd) {
       const newLine = {
         label: 'Line',
         vertices: [
-          { x: lineStart[0], y: lineStart[1]},
-          { x: lineEnd[0], y: lineEnd[1]}
+          { x: lineStart[0], y: lineStart[1] },
+          { x: lineEnd[0], y: lineEnd[1] }
         ]
       };
       updateAnnotationsWithHistory([...annotations, newLine]);
@@ -316,7 +350,7 @@ const AnnotationPage = () => {
       setLineEnd(null);
       setIsLineDrawingActive(false);
     }
-};
+  };
   const handleMouseDown = (e) => {
     const rect = mainCanvasRef.current.getBoundingClientRect(); // Get the canvas bounds
     const zoomScale = zoom / 100;
@@ -347,28 +381,28 @@ const AnnotationPage = () => {
       //     setEditingPath([clickPoint]); // Start a new editing path
       //     isDrawingRef.current = true;
       //     setSubtractPath(e.button === 2);
-      } else if (isHybridDrawingActive) {
-          if (!isDrawingStartedRef.current) {
-              startPointRef.current = clickPoint;
-              setHybridPath([clickPoint]);
-              isDrawingStartedRef.current = true;
-          } else {
-              const distance = Math.sqrt(
-                  Math.pow(clickPoint[0] - startPointRef.current[0], 2) +
-                  Math.pow(clickPoint[1] - startPointRef.current[1], 2)
-              );
+    } else if (isHybridDrawingActive) {
+      if (!isDrawingStartedRef.current) {
+        startPointRef.current = clickPoint;
+        setHybridPath([clickPoint]);
+        isDrawingStartedRef.current = true;
+      } else {
+        const distance = Math.sqrt(
+          Math.pow(clickPoint[0] - startPointRef.current[0], 2) +
+          Math.pow(clickPoint[1] - startPointRef.current[1], 2)
+        );
 
-              if (distance <= SNAP_THRESHOLD && hybridPath.length > 2) {
-                  completeHybridDrawing();
-              } else {
-                  setHybridPath([...hybridPath, ...livewirePath, clickPoint]);
-              }
-          }
+        if (distance <= SNAP_THRESHOLD && hybridPath.length > 2) {
+          completeHybridDrawing();
+        } else {
+          setHybridPath([...hybridPath, ...livewirePath, clickPoint]);
+        }
+      }
 
-          setIsMouseDown(true);
-          livewireRef.current.startSearch(clickPoint);
-          setLivewirePath([]);
-          lastPointRef.current = clickPoint;
+      setIsMouseDown(true);
+      livewireRef.current.startSearch(clickPoint);
+      setLivewirePath([]);
+      lastPointRef.current = clickPoint;
     } if (isLiveWireTracingActive) {
       if (!isLiveWireTracing) {
         setFixedPoints([clickPoint]);
@@ -394,62 +428,62 @@ const AnnotationPage = () => {
           completePolygon();
         }
       }
-        } else if (isDrawingFreehand) {
-          isDrawingRef.current = true;
-          setDrawingPaths(prevPaths => [...prevPaths, [clickPoint]]);
-      } else if (isLineDrawingActive) {
-        setLineStart(clickPoint);
-        setLineEnd(clickPoint);
+    } else if (isDrawingFreehand) {
+      isDrawingRef.current = true;
+      setDrawingPaths(prevPaths => [...prevPaths, [clickPoint]]);
+    } else if (isLineDrawingActive) {
+      setLineStart(clickPoint);
+      setLineEnd(clickPoint);
     }
   };
 
-const handleMouseMove = (e) => {
+  const handleMouseMove = (e) => {
     e.preventDefault();
-    if(isLiveWireTracingActive || isDrawingFreehand || isLineDrawingActive || isHybridDrawingActive){
-    const rect = mainCanvasRef.current.getBoundingClientRect(); // Get the canvas bounds
+    if (isLiveWireTracingActive || isDrawingFreehand || isLineDrawingActive || isHybridDrawingActive) {
+      const rect = mainCanvasRef.current.getBoundingClientRect(); // Get the canvas bounds
       const zoomScale = zoom / 100;
-    const canvas = mainCanvasRef.current;
-    const tmpX = Math.round((e.clientX - rect.left) * (canvas.width / rect.width));
-    const tmpY = Math.round((e.clientY - rect.top) * (canvas.height / rect.height));
-    const currentPoint = [
-      tmpX, tmpY
-    ];
-    // if (!isPointInImage(currentPoint)) {
-    //   return;
-    // }
-    if (isEraserActive && isErasing.current && selectedAnnotation) {
-      // setErasePoints(prevPoints => [...prevPoints, currentPoint]);
-      // const ctx = mainCanvasRef.current.getContext('2d');
-      // ctx.beginPath();
-      // ctx.arc(currentPoint[0], currentPoint[1], eraserSize , 0, 2 * Math.PI);
-      // ctx.fillStyle = 'rgba(255, 0, 0, 0.3)'; // Adjust the color and opacity as needed
-      // ctx.fill();
-      // } else if (selectedAnnotation && isDrawingRef.current && !isEraserActive) {
-      //     setEditingPath(prevPath => [...prevPath, currentPoint]);
+      const canvas = mainCanvasRef.current;
+      const tmpX = Math.round((e.clientX - rect.left) * (canvas.width / rect.width));
+      const tmpY = Math.round((e.clientY - rect.top) * (canvas.height / rect.height));
+      const currentPoint = [
+        tmpX, tmpY
+      ];
+      // if (!isPointInImage(currentPoint)) {
+      //   return;
+      // }
+      if (isEraserActive && isErasing.current && selectedAnnotation) {
+        // setErasePoints(prevPoints => [...prevPoints, currentPoint]);
+        // const ctx = mainCanvasRef.current.getContext('2d');
+        // ctx.beginPath();
+        // ctx.arc(currentPoint[0], currentPoint[1], eraserSize , 0, 2 * Math.PI);
+        // ctx.fillStyle = 'rgba(255, 0, 0, 0.3)'; // Adjust the color and opacity as needed
+        // ctx.fill();
+        // } else if (selectedAnnotation && isDrawingRef.current && !isEraserActive) {
+        //     setEditingPath(prevPath => [...prevPath, currentPoint]);
       } else if (isHybridDrawingActive && isDrawingStartedRef.current) {
-          if (isMouseDown) {
-              setHybridPath(prevPath => [...prevPath, currentPoint]);
-              lastPointRef.current = currentPoint;
-          } else if (hybridPath.length > 0) {
-              const path = livewireRef.current.findPathToPoint(currentPoint);
-              setLivewirePath(path);
-              drawHybridPath([...hybridPath, ...path]);
-          }
-    } else if (isLiveWireTracing) {
-      const path = livewireRef.current.findPathToPoint(currentPoint);
-      setCurrentPath(path);
-      drawLivewirePath(mainCanvasRef.current.getContext('2d'));
+        if (isMouseDown) {
+          setHybridPath(prevPath => [...prevPath, currentPoint]);
+          lastPointRef.current = currentPoint;
+        } else if (hybridPath.length > 0) {
+          const path = livewireRef.current.findPathToPoint(currentPoint);
+          setLivewirePath(path);
+          drawHybridPath([...hybridPath, ...path]);
+        }
+      } else if (isLiveWireTracing) {
+        const path = livewireRef.current.findPathToPoint(currentPoint);
+        setCurrentPath(path);
+        drawLivewirePath(mainCanvasRef.current.getContext('2d'));
       } else if (isDrawingFreehand && isDrawingRef.current) {
-          setDrawingPaths(prevPaths => {
-              const lastPathIndex = prevPaths.length - 1;
-              const updatedLastPath = [...prevPaths[lastPathIndex], currentPoint];
-              return [...prevPaths.slice(0, lastPathIndex), updatedLastPath];
-          });
+        setDrawingPaths(prevPaths => {
+          const lastPathIndex = prevPaths.length - 1;
+          const updatedLastPath = [...prevPaths[lastPathIndex], currentPoint];
+          return [...prevPaths.slice(0, lastPathIndex), updatedLastPath];
+        });
       } else if (isLineDrawingActive && lineStart) {
         setLineEnd(currentPoint);
+      }
     }
-  }
-};
+  };
   const unZoomVertices = (vertices) => {
     const unzoomedVertices = vertices.map(vertex => ({
       x: vertex.x / (zoom / 100),
@@ -460,11 +494,11 @@ const handleMouseMove = (e) => {
   const completeFreehandDrawing = () => {
     const lastPath = drawingPaths[drawingPaths.length - 1];
     if (lastPath && lastPath.length > 2) {
-        const vertices = lastPath.map(point => ({ x: point[0], y: point[1]}));
-        setNewBoxVertices(unZoomVertices(vertices));
-        setShowDialog(true);
-        setDrawingPaths([]);
-        setIsDrawingFreehand(false);
+      const vertices = lastPath.map(point => ({ x: point[0], y: point[1] }));
+      setNewBoxVertices(unZoomVertices(vertices));
+      setShowDialog(true);
+      setDrawingPaths([]);
+      setIsDrawingFreehand(false);
     }
   };
   const completeHybridDrawing = () => {
@@ -501,7 +535,7 @@ const handleMouseMove = (e) => {
       ctx.strokeStyle = 'purple';
       ctx.lineWidth = 2;
       ctx.stroke();
-  
+
       // Draw start point
       // if (startPointRef.current) {
       //   ctx.beginPath();
@@ -511,11 +545,11 @@ const handleMouseMove = (e) => {
       // }
     }
   };
-  const drawLinePath =(ctx)=>{
+  const drawLinePath = (ctx) => {
     if (lineStart && lineEnd) {
       ctx.beginPath();
-      ctx.moveTo(lineStart[0], lineStart[1] );
-      ctx.lineTo(lineEnd[0] , lineEnd[1] );
+      ctx.moveTo(lineStart[0], lineStart[1]);
+      ctx.lineTo(lineEnd[0], lineEnd[1]);
       ctx.strokeStyle = 'blue';
       ctx.lineWidth = 2;
       ctx.stroke();
@@ -534,24 +568,24 @@ const handleMouseMove = (e) => {
   const drawFreehandPath = (ctx) => {
     ctx.beginPath();
     drawingPaths.forEach(path => {
-        if (path.length > 0) {
-            ctx.moveTo(path[0][0], path[0][1]); // Adjusted for x, y
-            for (let i = 1; i < path.length; i++) {
-                ctx.lineTo(path[i][0], path[i][1]); // Adjusted for x, y
-            }
+      if (path.length > 0) {
+        ctx.moveTo(path[0][0], path[0][1]); // Adjusted for x, y
+        for (let i = 1; i < path.length; i++) {
+          ctx.lineTo(path[i][0], path[i][1]); // Adjusted for x, y
         }
+      }
     });
     ctx.strokeStyle = 'blue';
     ctx.lineWidth = 2;
     ctx.stroke();
-};
+  };
   const drawLivewirePath = (ctx) => {
     const zoomScale = zoom / 100;
     const rect = mainCanvasRef.current.getBoundingClientRect()
     if (currentPath.length > 0 || fixedPoints.length > 1) {
       ctx.beginPath();
       fixedPoints.forEach((point, index) => {
-        const [px, py] = [point[0] , point[1] ];
+        const [px, py] = [point[0], point[1]];
         if (index === 0) {
           ctx.moveTo(px, py);
         } else {
@@ -559,7 +593,7 @@ const handleMouseMove = (e) => {
         }
       });
       currentPath.forEach(point => {
-        const [px, py] = [point[0] , point[1] ];
+        const [px, py] = [point[0], point[1]];
         ctx.lineTo(px, py);
       });
       ctx.strokeStyle = 'red';
@@ -581,10 +615,10 @@ const handleMouseMove = (e) => {
 
       // Clear the canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if(isNegative){
-      ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) invert(100%)`;
+      if (isNegative) {
+        ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) invert(100%)`;
       }
-      else{
+      else {
         ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`
       }
       // Draw the image at its original size
@@ -643,11 +677,10 @@ const handleMouseMove = (e) => {
     const imagesData = await fetchVisitDateImages();
     let mainImageData = [];
     // let recentImagesData = [];
-
     if (imagesData && imagesData.length > 0) {
       mainImageData = imagesData[0];
       // recentImagesData = imagesData.slice(1);
-      setAnnotations(mainImageData.annotations.annotations.annotations);
+    setAnnotations(mainImageData.annotations.annotations.annotations);
     }
 
     // Initialize smallCanvasRefs with dynamic refs based on the number of images
@@ -668,21 +701,19 @@ const handleMouseMove = (e) => {
         drawImageOnCanvas(ref.current, imagesData[index].image, null, "small");
       }
     });
-
     setSmallCanvasData(imagesData);
     setMainCanvasData(mainImageData);
   };
 
   useEffect(() => {
-    setFirstVisit(sessionStorage.getItem('first')==='true'?true:false)
-    setLastVisit(sessionStorage.getItem('last')==='true'?true:false)
+    setFirstVisit(sessionStorage.getItem('first') === 'true' ? true : false)
+    setLastVisit(sessionStorage.getItem('last') === 'true' ? true : false)
     loadImages();
+    fetchClassCategories();
     setPreLayoutMode(mode);
-    console.log(sessionStorage.getItem('first'),sessionStorage.getItem('last'))
     dispatch(changeMode('dark'));
     sessionStorage.removeItem('first')
     sessionStorage.removeItem('last')
-    console.log(firstVisit,lastVisit)
   }, []);
   useEffect(() => {
     // Draw the main image on the large canvas
@@ -695,7 +726,7 @@ const handleMouseMove = (e) => {
         drawImageOnCanvas(ref.current, smallCanvasData[index].image, null, "small");
       }
     });
-  }, [zoom, brightness, contrast, areaScale, hiddenAnnotations, annotations, hoveredAnnotation, editingMode, showBoundingBox, showSegmentation, isNegative]);
+  }, [zoom, brightness, contrast, areaScale, hiddenAnnotations, annotations, hoveredAnnotation, editingMode, isNegative]);
   useEffect(() => {
     if (image) {
       const canvas = mainCanvasRef.current;
@@ -713,17 +744,17 @@ const handleMouseMove = (e) => {
       if (isLiveWireTracingActive) {
         drawLivewirePath(ctx);
       }
-      if(isDrawingFreehand){
+      if (isDrawingFreehand) {
         drawFreehandPath(ctx);
       }
-      if(isLineDrawingActive){
+      if (isLineDrawingActive) {
         drawLinePath(ctx);
       }
-      if(isHybridDrawingActive){
+      if (isHybridDrawingActive) {
         drawHybridPath([...hybridPath, ...livewirePath]);
       }
     }
-  }, [isLiveWireTracingActive, fixedPoints, currentPath, lineEnd, lineStart, isDrawingFreehand, isLineDrawingActive, drawingPaths, 
+  }, [isLiveWireTracingActive, fixedPoints, currentPath, lineEnd, lineStart, isDrawingFreehand, isLineDrawingActive, drawingPaths,
     isHybridDrawingActive, livewirePath, hybridPath, lastPointRef, startPointRef, isDrawingRef, drawingPaths]);
 
   useEffect(() => {
@@ -796,13 +827,13 @@ const handleMouseMove = (e) => {
   //     setHistory(prevHistory => [...prevHistory.slice(0, currentStep + 1), annotations]);
   //     setCurrentStep(prevStep => Math.min(prevStep + 1, MAX_HISTORY - 1));
   //   };
-  useEffect(()=>{
-    console.log(history,currentStep,annotations)
-  },[currentStep,history])
+  useEffect(() => {
+    console.log(history, currentStep, annotations)
+  }, [currentStep, history])
   const undo = () => {
     if (currentStep > 0) {
       console.log(history, currentStep)
-      setAnnotations(history[currentStep-1]);
+      setAnnotations(history[currentStep - 1]);
       setCurrentStep(currentStep - 1);
       console.log(currentStep)
     }
@@ -810,7 +841,7 @@ const handleMouseMove = (e) => {
 
   const redo = () => {
     if (currentStep < history.length - 1) {
-      setAnnotations(history[currentStep +1]);
+      setAnnotations(history[currentStep + 1]);
       setCurrentStep(currentStep + 1);
     }
   };
@@ -829,27 +860,12 @@ const handleMouseMove = (e) => {
     setShowDialog(false);
     setIsDrawingActive(false);
   };
-  const hideBox = (id) => {
-    setHiddenAnnotations([...hiddenAnnotations, id]);
-  };
-
-  const unhideBox = (id) => {
-    setHiddenAnnotations(hiddenAnnotations.filter(hid => hid !== id));
-  };
-
-  const unhideAllBoxes = () => {
-    setHiddenAnnotations([]);
-  };
-  const hideAllBoxes = () => {
-    const allIndices = annotations.map((_, index) => index);
-    setHiddenAnnotations(allIndices);
-  };
-
+  
   const updateAnnotationsWithHistory = (newAnnotations) => {
     setAnnotations(newAnnotations);
-    setHistory([...history.slice(0,currentStep+1), newAnnotations]);
+    setHistory([...history.slice(0, currentStep + 1), newAnnotations]);
     setCurrentStep(Math.min(currentStep + 1, MAX_HISTORY - 1));
-    console.log(history,currentStep)
+    console.log(history, currentStep)
   };
   const handleAddBox = () => {
     const newAnnotation = {
@@ -877,17 +893,17 @@ const handleMouseMove = (e) => {
     drawImageOnCanvas(mainCanvasRef.current, mainCanvasData.image, "main");
   };
 
-    const startHybridTracing = () => {
-      if (!isHybridDrawingActive) {
-        setIsLiveWireTracingActive(false);
-        setIsDrawingFreehand(false);
-        setIsEraserActive(false);
-        setSelectedAnnotation(null);
-        setIsHybridDrawing(true);
-      } else {
-        setIsHybridDrawing(false);
-      }
-    };
+  const startHybridTracing = () => {
+    if (!isHybridDrawingActive) {
+      setIsLiveWireTracingActive(false);
+      setIsDrawingFreehand(false);
+      setIsEraserActive(false);
+      setSelectedAnnotation(null);
+      setIsHybridDrawing(true);
+    } else {
+      setIsHybridDrawing(false);
+    }
+  };
 
   const startLiveWireTracing = () => {
     if (!isLiveWireTracingActive) {
@@ -913,28 +929,30 @@ const handleMouseMove = (e) => {
     setDrawingPaths([]);
     setIsDrawingFreehand(false);
   };
-  const handleNextClick=async()=>{
-      setIsLoading(true)
-      try {
-      const response = await axios.get('https://agp-ui-node-api.mdbgo.io/next-previousVisit?patientId=' + sessionStorage.getItem('patientId')+ '&visitId=' + sessionStorage.getItem('visitId')+'&next=true'); 
+  const handleNextClick = async () => {
+    setIsLoading(true)
+    try {
+      const response = await axios.get(`${apiUrl}/next-previousVisit?patientId=` + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=true');
       const data = response.data;
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
-      sessionStorage.setItem('visitId',data.visitId._id)
-        console.log(data);
-        setLastVisit(data.last);
-        setFirstVisit(false);
-        loadImages();
-    } catch (error) {
-      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200" || error.code ==="ERR_BAD_REQUEST") {
-        const response = await axios.get('http://localhost:3000/next-previousVisit?patientId=' + sessionStorage.getItem('patientId')+ '&visitId=' + sessionStorage.getItem('visitId')+'&next=true');
+      sessionStorage.setItem('visitId', data.visitId._id)
+      console.log(data);
+      setLastVisit(data.last);
+      setFirstVisit(false);
+      setHiddenAnnotations([]);
+      loadImages();
+      } catch (error) {
+      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200" || error.code === "ERR_BAD_REQUEST") {
+        const response = await axios.get('http://localhost:3000/next-previousVisit?patientId=' + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=true');
         const data = response.data;
         // setMainImage(data.image);
         // setAnnotations(data.annotations);
-        sessionStorage.setItem('visitId',data.visitId._id)
+        sessionStorage.setItem('visitId', data.visitId._id)
         console.log(data);
         setLastVisit(data.last);
         setFirstVisit(false);
+        setHiddenAnnotations([]);
         loadImages();
       }
       else {
@@ -943,28 +961,30 @@ const handleMouseMove = (e) => {
     }
     setIsLoading(false)
   }
-  const handlePreviousClick=async()=>{
+  const handlePreviousClick = async () => {
     setIsLoading(true)
     try {
-      const response = await axios.get('https://agp-ui-node-api.mdbgo.io/next-previousVisit?patientId=' + sessionStorage.getItem('patientId')+ '&visitId=' + sessionStorage.getItem('visitId')+'&next=false'); 
+      const response = await axios.get(`${apiUrl}/next-previousVisit?patientId=` + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=false');
       const data = response.data;
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
-      sessionStorage.setItem('visitId',data.visitId._id)
-        console.log(data);
-        setLastVisit(false);
-        setFirstVisit(data.first)
-        loadImages();
-    } catch (error) {
-      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200" || error.code ==="ERR_BAD_REQUEST") {
-        const response = await axios.get('http://localhost:3000/next-previousVisit?patientId=' + sessionStorage.getItem('patientId')+ '&visitId=' + sessionStorage.getItem('visitId')+'&next=false');
+      sessionStorage.setItem('visitId', data.visitId._id)
+      console.log(data);
+      setLastVisit(false);
+      setFirstVisit(data.first)
+      setHiddenAnnotations([]);
+      loadImages();
+      } catch (error) {
+      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200" || error.code === "ERR_BAD_REQUEST") {
+        const response = await axios.get('http://localhost:3000/next-previousVisit?patientId=' + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=false');
         const data = response.data;
         // setMainImage(data.image);
         // setAnnotations(data.annotations);
-        sessionStorage.setItem('visitId',data.visitId._id)
+        sessionStorage.setItem('visitId', data.visitId._id)
         console.log(data);
         setLastVisit(false);
         setFirstVisit(data.first);
+        setHiddenAnnotations([]);
         loadImages();
       }
       else {
@@ -1021,18 +1041,18 @@ const handleMouseMove = (e) => {
   //   };
   if (exitClick) {
     dispatch(changeMode(preLayoutMode));
-    return <Navigate to="/patientList" />
+    return <Navigate to="/patientImagesList" />
   }
-  if(isLoading){
-    return(
+  if (isLoading) {
+    return (
       <Row className="justify-content-center align-items-center" style={{ minHeight: '80vh' }}>
         <Col xs="12" sm="8" md="6" lg="4">
-            <Card>
-                <CardBody className="text-center">
-                    <Spinner color="primary" style={{ width: '3rem', height: '3rem' }} />
-                    <p className="mt-3">Loading Please Wait...</p>
-                </CardBody>
-            </Card>
+          <Card>
+            <CardBody className="text-center">
+              <Spinner color="primary" style={{ width: '3rem', height: '3rem' }} />
+              <p className="mt-3">Loading Please Wait...</p>
+            </CardBody>
+          </Card>
         </Col>
       </Row>
     )
@@ -1040,8 +1060,7 @@ const handleMouseMove = (e) => {
   return (
     <React.Fragment>
       <Card style={{ height: '100vh', marginBottom: '0px', paddingBottom: '0px', overflow: 'hidden' }}>
-        <CardBody style={{ marginBottom: '0px', paddingBottom: '0px'}}>
-          <h4 className="card-title mb-6">Annotation Page          Model : {model!==""?model?model:"Older Model":"Older Model"}</h4>
+        <CardBody style={{ marginBottom: '0px', paddingBottom: '0px' }}>
           <Container fluid style={{ maxHeight: 'calc(100vh-75px)', overflowY: 'auto', paddingBottom: '-20px' }}>
             <Modal isOpen={showDialog} toggle={() => { setShowDialog(!showDialog) }} centered>
               <ModalHeader toggle={() => { setShowDialog(!showDialog) }}>Select a Label</ModalHeader>
@@ -1062,415 +1081,397 @@ const handleMouseMove = (e) => {
               </ModalFooter>
             </Modal>
             <Row>
-              <Col md={1}>
-                <div className="mb-4">
-                  <Button color="primary" className="mb-2 w-100" onClick={() => { setExitClick(true) }}>
+              <Col md={9}>
+                <Table>
+                  <Row>
+                    <Col md={6}>
+                      <h5 style={{padding:0}}>Name :  </h5>
+                    </Col>
+                    <Col md={6} style={{
+                      display: 'flex',
+                      justifyContent: 'flex-end', // Align content to the right
+                      alignItems: 'center',
+                      height: '100%'
+                    }}>
+
+
+                      {/* <Button color="primary" 
+               style={{ alignSelf: 'flex-start', maxWidth: '10%', marginRight: '2%' }} disabled={lastVisit}>Next</Button>
+
+               <Button color="primary" onClick={handlePreviousClick} style={{ alignSelf: 'flex-end', maxWidth: '10%' }} 
+               disabled={firstVisit}>Previous</Button> */}
+
+                      <h5 style={{padding:0}}>
+                        <Button id="btnPreVisit" type="button" color="secondary" onClick={handlePreviousClick} disabled={firstVisit}>
+                          <i class="fas fa-backward"></i>
+                          <UncontrolledTooltip placement="bottom" target="btnPreVisit">Show Previous Visit</UncontrolledTooltip>
+                        </Button>&nbsp;
+                        Xray Date : Oct 12,2024
+                        &nbsp;
+                        <Button id="btnNextVisit" type="button" color="secondary" disabled={lastVisit} onClick={handleNextClick}>
+                          <i class="fas fa-forward"></i>
+                          <UncontrolledTooltip placement="bottom" target="btnNextVisit">Show Next Visit</UncontrolledTooltip>
+                        </Button>
+                      </h5>
+
+                    </Col>
+                  </Row>
+                  <Row>
+                    <Col md={1}>
+                      {/* <Button color="primary" className="mb-2 w-100" onClick={() => { setExitClick(true) }}>
                     Exit
-                  </Button>
-                </div>
-              </Col>
-              <Col md={1}>
-                {/* Control Buttons */}
-                <div className="mb-4">
-                  <Button color="primary" className="mb-2 w-100" onClick={() => { setEditingMode(!editingMode) }}>
+                  </Button> */}
+                      <button id="btnExit" onClick={() => { setExitClick(true) }} style={{ background: 'none', border: 'none', padding: '0' }}>
+                        <img src={imgExit} alt="Exit" style={{ width: '30px', height: '30px' }} />
+                      </button> &nbsp;
+                      <UncontrolledTooltip placement="bottom" target="btnExit">Exit</UncontrolledTooltip>
+
+                      <button id="btnTrace" onClick={() => { setEditingMode(!editingMode) }} style={{ background: 'none', border: 'none', padding: '0' }}>
+                        <img src={imgEdit} alt="Trace" style={{ width: '30px', height: '30px' }} />
+                      </button>
+                      <UncontrolledTooltip placement="bottom" target="btnTrace">Trace</UncontrolledTooltip>
+                      {/* <Button color="primary" className="mb-2" onClick={() => { setEditingMode(!editingMode) }}>
                     Trace
-                  </Button>
-                </div>
-              </Col>
-              <Col
-                md={5}
-                className="d-flex flex-column"
-                style={{ position: 'relative', }}
-              >
-                {/* Container for all controls in a single line */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'right' }}>
-                  {/* Scale Input */}
-                  <FormGroup style={{ marginBottom: '0', marginRight: '10px' }}>
-                    <InputGroup>
-                      <InputGroupText for="area-calculator" style={{ marginBottom: '0', maxWidth: '30%' }}>Scale:</InputGroupText>
-                      <Input
-                        type="number"
-                        id="area-calculator"
-                        min="1"
-                        max="200"
-                        value={areaScale}
-                        onChange={(e) => setAreaScale(e.target.value)}
-                        style={{ maxWidth: '30%', paddingRight: '5%' }}
-                      />
-                      <InputGroupText>px to 1mm</InputGroupText>
-                    </InputGroup>
-                  </FormGroup>
+                  </Button> */}
+                    </Col>
+                    <Col md={11}>
+                      {/* Container for all controls in a single line */}
 
-                  {/* Zoom Label and Input */}
-                  <FormGroup style={{ marginBottom: '0' }}>
-                    <InputGroup>
-                      {/* Label for Zoom */}
-                      <InputGroupText style={{ marginRight: '5%' }}>Zoom: </InputGroupText>
-                      <Input
-                        type="range"
-                        id="zoom-slider"
-                        min="1"
-                        max="200"
-                        value={zoom}
-                        onChange={handleZoomChange}
-                        style={{ maxWidth: '30%', paddingRight: '5%' }}
-                      />
-                      {/* Input Box for Contrast Value */}
-                      <Input
-                        type="number"
-                        min="1"
-                        max="200"
-                        value={zoom}
-                        onChange={handleZoomChange}
-                        aria-label="zoom value"
-                        style={{ maxWidth: '15%', paddingRight: '0' }}
-                      />
-                      <InputGroupText>%</InputGroupText>
-                      <Dropdown isOpen={zoomDropdownOpen} toggle={() => { setZoomDropdownOpen(!zoomDropdownOpen) }}>
-                        <DropdownToggle caret style={{ borderColor: '#ced4da', borderColor: '#ced4da', borderBlock: '2px 2px' }}>
-                          <text style={{ fontSize: '1.2em', color: '#1f2431', padding: '-3px -6px', margin: '-2px -5px' }}>▼</text>
-                        </DropdownToggle>
-                        <DropdownMenu>
-                          {predefinedZooms.map(size => (
-                            <DropdownItem key={size} onClick={() => setZoom(size)}>
-                              {size}%
-                            </DropdownItem>
-                          ))}
-                        </DropdownMenu>
-                      </Dropdown>
-                      <Button
-                        id="zoomIncreaseButton"
-                        color="primary"
-                        onClick={() => setZoom(zoom + 10)}
-                        style={{ marginLeft: '10px', }}
-                      >
-                        +
-                      </Button>
-                      <Button
-                        id="zoomDecreaseButton"
-                        color="primary"
-                        onClick={() => setZoom(zoom - 10)}
-                        style={{ marginLeft: '10px', }}
-                      >
-                        -
-                      </Button>
-                    </InputGroup>
-                  </FormGroup>
+                      {/* Scale Input */}
 
-                  {/* Brightness/Contrast Button */}
-                  <Button
-                    id="brightnessContrastButton"
-                    color="primary"
-                    onClick={() => setBrightnessPopoverOpen(!brightnessPopoverOpen)}
-                    style={{ marginTop: '-2%', marginLeft: '10px' }}
-                  >
-                    +/-
-                  </Button>
+                      {/* <InputGroup> */}
+                      {/* <InputGroupText for="area-calculator" style={{ marginBottom: '0', maxWidth: '30%' }}>Scale:</InputGroupText> */}
 
-                  {/* Brightness/Contrast Popover */}
-                  <Popover
-                    placement="bottom"
-                    isOpen={brightnessPopoverOpen}
-                    target="brightnessContrastButton"
-                    toggle={() => setBrightnessPopoverOpen(!brightnessPopoverOpen)}
-                    trigger="legacy"
-                    modifiers={[
-                      {
-                      name: 'setStyle', // Custom modifier to add inline styles
-                      enabled: true,
-                      phase: 'write',
-                      fn: ({ state }) => {
-                        Object.assign(state.styles.popper, {
-                          minWidth: '300px', // Set your desired min-width
-                          maxWidth: '400px', // Optional: Set max-width if needed
-                        });
-                      },
-                    },
-                    ]}
-                  >
-                    <PopoverBody style={{ padding: '20px', width: '300px', boxShadow: '0 0 10px rgba(0,0,0,0.1)' }}>
-                      {/* Brightness Control */}
-                      <FormGroup>
-                        {/* Input Group for Contrast */}
-                        <InputGroup className="mb-2">
-                          {/* Label for Contrast */}
-                          <InputGroupText style={{ marginLeft: '-5%', marginRight: '5%' }}>Brightness:</InputGroupText>
-                          <Input
-                            type="range"
-                            id="brightness-slider"
-                            min="1"
-                            max="200"
-                            value={brightness}
-                            onChange={handleBrightnessChange}
-                            style={{ maxWidth: '30%', paddingRight: '5%' }}
-                          />
-                          {/* Input Box for Contrast Value */}
-                          <Input
-                            type="number"
-                            min="1"
-                            max="200"
-                            value={brightness}
-                            onChange={handleBrightnessChange}
-                            aria-label="Contrast value"
-                            style={{ maxWidth: '30%', paddingRight: '0' }}
-                          />
-                          <InputGroupText>%</InputGroupText>
-                        </InputGroup>
-                      </FormGroup>
 
-                      {/* Contrast Control */}
-                      <FormGroup>
-                        {/* Input Group for Contrast */}
-                        <InputGroup className="mb-2">
-                          {/* Label for Contrast */}
-                          <InputGroupText style={{ paddingRight: '9%', marginLeft: '-5%', marginRight: '5%' }}>{'Contrast:'}</InputGroupText>
-                          <Input
-                            type="range"
-                            id="contrast-slider"
-                            min="1"
-                            max="200"
-                            value={contrast}
-                            onChange={handleContrastChange}
-                            style={{ maxWidth: '30%', paddingRight: '5%' }}
-                          />
-                          {/* Input Box for Contrast Value */}
-                          <Input
-                            type="number"
-                            min="1"
-                            max="200"
-                            value={contrast}
-                            onChange={handleContrastChange}
-                            aria-label="Contrast value"
-                            style={{ maxWidth: '30%', paddingRight: '0' }}
-                          />
-                          <InputGroupText>%</InputGroupText>
-                        </InputGroup>
-                        <InputGroup className="mb-2 d-flex align-items-center">
-                          <Label className="mr-3 mb-0">Negative Image</Label>
-                          <Input
-                            type="switch"
-                            id="negative-toggle"
-                            checked={isNegative}
-                            onChange={(e)=>setIsNegative(!isNegative)}
-                            className="mx-2"
-                          />
-                        </InputGroup>
-                      </FormGroup>
-                    </PopoverBody>
-                  </Popover>
-                </div>
-              </Col>
-              <Col md={2}>
-                  <Button color="primary" style={{marginRight:'5%'}} onClick={undo} disabled={currentStep <= 0}>
-                      Undo
-                    </Button>
-                    <Button
-                      color="primary"
-                      onClick={redo}
-                      disabled={currentStep >= history.length - 1}
-                    >
-                      Redo
-                    </Button>
-              </Col>
-              <Col
-                md={3}
-                style={{
-                  position: 'fixed',
-                  right: 0,
-                  top: 0,
-                  height: '100vh',
-                  overflowY: 'auto',
-                  borderLeft: '1px solid #ccc',
-                  paddingBottom: '0px',
-                  marginBottom: '0px',
-                  zIndex: 20,
-                }}
-              >
-                <AnnotationList
-                  annotations={annotations}
-                  hiddenAnnotations={hiddenAnnotations}
-                  deleteBox={deleteBox}
-                  hideBox={hideBox}
-                  unhideBox={unhideBox}
-                  setHoveredAnnotation={setHoveredAnnotation}
-                  setSelectedAnnotation={setSelectedAnnotation}
-                  selectedAnnotation={selectedAnnotation}                  
-                  unhideAllBoxes={unhideAllBoxes}
-                  hideAllBoxes={hideAllBoxes}
-                  showBoundingBox={showBoundingBox}
-                  setShowBoundingBox={setShowBoundingBox}
-                  showSegmentation={showSegmentation}
-                  setShowSegmentation={setShowSegmentation}
-                  model={model}
-                />
-              </Col>
-            </Row>
-            <Row style={{ height: 'calc(100vh - 225px)', margin: '0px', paddingBottom: '0px', display: 'flex', flexGrow: 1, overflow: 'hidden', color: '#fff' }}
-            >
-              {editingMode ? <>
-                <Col
-                  md={1}
-                  className="d-flex flex-column"
-                  style={{ maxHeight: '100%', overflowY: 'auto'}}
-                >
-                  {/* Control Buttons */}
-                  <div className="mb-4">
-                    <Button color="primary" className="mb-2 w-100" onClick={startLiveWireTracing}>
-                      {!isLiveWireTracingActive ? 'Start LiveWire' : 'Stop LiveWire'}
-                    </Button>
-                    <Button
-                      color="primary"
-                      className="mb-2 w-100"
-                      onClick={isDrawingFreehand ? clearFreehandDrawings : startFreehandDrawing}
-                    >
-                      {!isDrawingFreehand ? 'Start Freehand' : 'Stop Freehand'}
-                    </Button>
-                    <Button
-                      color="primary"
-                      className="mb-2 w-100"
-                      onClick={() => startHybridTracing()}
-                    >
-                      {isHybridDrawingActive ? 'Stop Hybrid' : 'Start Hybrid'}
-                    </Button>
-                    <Button
-                      color="primary"
-                      className="mb-2 w-100"
-                      onClick={() => setIsLineDrawingActive(!isLineDrawingActive)}
-                    >
-                      {isLineDrawingActive ? 'Stop Line' : 'Draw Line'}
-                    </Button>
-                    {selectedAnnotation && (
-                      <Button color="primary" className="mb-2 w-100" onClick={handleEraserClick}>
-                        {isEraserActive ? 'Stop Erasing' : 'Eraser'}
-                      </Button>
-                    )}
-                  </div>
+                      <FormGroup role="group" aria-label="First group" className="d-flex flex-row" style={{ padding: 0, justifyContent: 'center', alignItems: 'center' }}>
+                        <Button id="btnScale" type="button" color="secondary"><i id="icnScale" class="fas fa-ruler"></i>
+                          <UncontrolledTooltip placement="bottom" target="btnScale">Scale: {areaScale}px to 1mm</UncontrolledTooltip>
+                        </Button>
 
-                  {/* Eraser Size Controls */}
-                  {isEraserActive && (
-                    <FormGroup>
-                      <Label for="eraserSize">Eraser Size</Label>
-                      <Row>
-                        <Col xs={9}>
-                          <Input
-                            type="range"
-                            id="eraserSize"
-                            name="eraserSize"
-                            min="1"
-                            max="50"
-                            value={eraserSize}
-                            onChange={(e) => setEraserSize(Number(e.target.value))}
-                          />
-                        </Col>
-                        <Col xs={3}>
-                          <Input
-                            type="number"
-                            min="1"
-                            max="50"
-                            value={eraserSize}
-                            onChange={(e) => setEraserSize(Number(e.target.value))}
-                            style={{ width: '100%' }}
-                          />
-                        </Col>
-                      </Row>
-                    </FormGroup>
-                  )}
-                </Col>
-                <Col
-                  md={8}
-                  className="d-flex flex-column"
-                  style={{ maxHeight: '100%' }}
-                >
-                  <Card style={{ height: '90%'}}>
-                    <CardBody
-                      style={{
-                        padding: 0,
-                        height: '100%',
-                        overflow: 'auto',  // Add scrollbars
-                        position: 'relative',  // For absolute positioning of canvas
-                      }}
-                      ref={containerRef}
-                    >
-                      <canvas
-                        ref={mainCanvasRef}
-                        style={{
-                          cursor: 'default',
-                          position: 'absolute',  // Position absolutely within container
-                          top: 0,
-                          left: 0
-                        }}
-                        onMouseDown={handleMouseDown}
-                        onMouseMove={handleMouseMove}
-                        onMouseUp={handleMouseUp}
-                      />
-                    </CardBody>
-                  </Card>
-                </Col></>
-                :
-                <>
-                  <Col md={1} />
-                  <Col
-                    md={8}
-                    className="d-flex flex-column"
-                    style={{ maxHeight: '100%' }}
-                  >
-                    <Card style={{ height: '90%'}}>
-                      <CardBody
-                        style={{
-                          padding: 0,
-                          height: '100%',
-                          overflow: 'auto',  // Add scrollbars
-                          position: 'relative',  // For absolute positioning of canvas
-                        }}
-                      >
-                        <canvas
-                          ref={mainCanvasRef}
-                          style={{
-                            cursor: 'default',
-                            position: 'absolute',  // Position absolutely within container
-                            top: 0,
-                            left: 0
-                          }}
+                        <Input
+                          type="number"
+                          id="area-calculator"
+                          min="1"
+                          max="200"
+                          value={areaScale}
+                          onChange={(e) => setAreaScale(e.target.value)}
+                          style={{ maxWidth: '60px'  ,marginRight:'5px'}}
                         />
-                      </CardBody>
-                    </Card>
-                  </Col>
-                </>}
-            </Row>
-            <Row style={{position: 'fixed', bottom: 0, width: '70%', margin: '0px', paddingBottom: '0px', zIndex: 10, color: '#fff',
-                          justifyContent: 'center', alignItems: 'center', textAlign: 'center'}}>
-                          <Col md={12}>
-                <Row style={{marginBottom:'0.5%', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-                <Button color="primary" onClick={handleNextClick} style={{alignSelf:'flex-start', maxWidth:'10%', marginRight:'2%'}} disabled={lastVisit}>Next</Button>
-                <Button color="primary" onClick={handlePreviousClick} style={{alignSelf:'flex-end', maxWidth:'10%'}} disabled={firstVisit}>Previous</Button>
-                </Row>
-                <Row style={{ overflowX: 'auto', maxWidth: '100%', maxHeight: '15vh', display: 'flex', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-                {smallCanvasData.map((image, index) => (
-                    <Col
-                      key={index}
-                      md={2}
-                      className="d-flex flex-column"
-                      style={{ height: '15vh', overflowY: 'hidden', paddingBottom: '10px' }}
-                    >
-                      <Card style={{ height: '100%' }}>
-                        <CardBody style={{ padding: 0, height: '80%' }}>
-                          {index === mainImageIndex ? <canvas
-                            ref={smallCanvasRefs[index]}
-                            width="100%"
-                            height="100%"
-                            style={{
-                              cursor: 'pointer',
-                              width: '100%',
-                              height: '100%',
-                              display: 'block',
-                              borderColor: 'yellow',
-                              borderWidth: '5px',
-                              borderStyle: 'solid',
-                            }}
-                            onClick={() => handleSmallCanvasClick(index)}
+                        <div className="slider-button-container">
+                          <Dropdown id="ddlZoom" isOpen={zoomDropdownOpen} toggle={() => { setZoomDropdownOpen(!zoomDropdownOpen) }}>
+                          <DropdownToggle id="btnZoom" className="slider-button" type="button" color="secondary"><i class="fas fa-search"></i>
+                          </DropdownToggle>
+                          <DropdownMenu>
+                            {predefinedZooms.map(size => (
+                              <DropdownItem key={size} onClick={() => setZoom(size)}>
+                                {size}%
+                              </DropdownItem>
+                            ))}
+                          </DropdownMenu>
+                        </Dropdown>
+                        <UncontrolledTooltip placement="bottom" target="ddlZoom">Select Zoom %</UncontrolledTooltip>
+                            {/* <UncontrolledTooltip placement="bottom" target="btnZoom">Zoom</UncontrolledTooltip> */}
+                          <Input
+                            type="range"
+                            id="zoom-slider"
+                            min="1"
+                            max="200"
+                            value={zoom}
+                            onChange={handleZoomChange}
+                            style={{ maxWidth: '38.6px' }}
+                            className="slider"
                           />
-                            :
+
+                        </div>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="200"
+                          value={zoom}
+                          onChange={handleZoomChange}
+                          aria-label="zoom value"
+                          style={{ maxWidth: '60px' }}
+                        />
+                        <Button
+                          id="zoomIncreaseButton"
+                          //color="primary"
+                          onClick={() => setZoom(zoom + 10)}
+                        // style={{ marginLeft: '10px', }}
+                        >
+                          +
+                        </Button>
+                        <UncontrolledTooltip placement="bottom" target="zoomIncreaseButton">Zoom In</UncontrolledTooltip>
+                        <Button
+                          id="zoomDecreaseButton"
+                          //color="primary"
+                          onClick={() => setZoom(zoom - 10)}
+                        // style={{ marginLeft: '10px', }}
+                        >
+                          -
+                        </Button>
+                        <UncontrolledTooltip placement="bottom" target="zoomDecreaseButton">Zoom Out</UncontrolledTooltip>
+                        {/* Brightness/Contrast Button */}
+                        <Button
+                          id="brightnessContrastButton"
+                          //color="primary"
+                          onClick={() => setBrightnessPopoverOpen(!brightnessPopoverOpen)}
+                          style={{marginRight:'5px', marginLeft:'5px'}}
+                        //style={{ marginTop: '-2%', marginLeft: '10px' }}
+                        >
+                          +/-
+                        </Button>
+                        <UncontrolledTooltip placement="bottom" target="brightnessContrastButton" >Change Brightness/Contrast</UncontrolledTooltip>
+                        {/* Brightness/Contrast Popover */}
+                        <Popover
+                          placement="bottom"
+                          isOpen={brightnessPopoverOpen}
+                          target="brightnessContrastButton"
+                          toggle={() => setBrightnessPopoverOpen(!brightnessPopoverOpen)}
+                          trigger="legacy"
+                          modifiers={[
+                            {
+                              name: 'setStyle', // Custom modifier to add inline styles
+                              enabled: true,
+                              phase: 'write',
+                              fn: ({ state }) => {
+                                Object.assign(state.styles.popper, {
+                                  minWidth: '300px !important', // Set your desired min-width
+                                  maxWidth: '400px !important', // Optional: Set max-width if needed
+                                });
+                              },
+                            },
+                          ]}
+                        >
+                          <PopoverBody style={{ padding: '20px', width: '300px', boxShadow: '0 0 10px rgba(0,0,0,0.1)' }}>
+                            {/* Brightness Control */}
+                            <FormGroup>
+                              {/* Input Group for Contrast */}
+                              <InputGroup className="mb-2">
+                                {/* Label for Contrast */}
+                                <InputGroupText style={{ marginLeft: '-5%', marginRight: '5%' }}>Brightness:</InputGroupText>
+                                <Input
+                                  type="range"
+                                  id="brightness-slider"
+                                  min="1"
+                                  max="200"
+                                  value={brightness}
+                                  onChange={handleBrightnessChange}
+                                  style={{ maxWidth: '30%', paddingRight: '5%' }}
+                                />
+                                {/* Input Box for Contrast Value */}
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max="200"
+                                  value={brightness}
+                                  onChange={handleBrightnessChange}
+                                  aria-label="Contrast value"
+                                  style={{ maxWidth: '30%', paddingRight: '0' }}
+                                />
+                                <InputGroupText>%</InputGroupText>
+                              </InputGroup>
+                            </FormGroup>
+
+                            {/* Contrast Control */}
+                            <FormGroup>
+                              {/* Input Group for Contrast */}
+                              <InputGroup className="mb-2">
+                                {/* Label for Contrast */}
+                                <InputGroupText style={{ paddingRight: '9%', marginLeft: '-5%', marginRight: '5%' }}>{'Contrast:'}</InputGroupText>
+                                <Input
+                                  type="range"
+                                  id="contrast-slider"
+                                  min="1"
+                                  max="200"
+                                  value={contrast}
+                                  onChange={handleContrastChange}
+                                  style={{ maxWidth: '30%', paddingRight: '5%' }}
+                                />
+                                {/* Input Box for Contrast Value */}
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max="200"
+                                  value={contrast}
+                                  onChange={handleContrastChange}
+                                  aria-label="Contrast value"
+                                  style={{ maxWidth: '30%', paddingRight: '0' }}
+                                />
+                                <InputGroupText>%</InputGroupText>
+                              </InputGroup>
+                              </FormGroup>
+                              <FormGroup>
+                              <InputGroup className="mb-2">
+                                <InputGroupText style={{ marginLeft: '-5%', marginRight: '5%' }}>Negative Image</InputGroupText>
+                                <Input
+                                  type="switch"
+                                  id="negative-toggle"
+                                  checked={isNegative}
+                                  onChange={(e) => setIsNegative(!isNegative)}
+                                  style={{ width: '10%', paddingRight: '0', height:'30px' }}
+                                />
+                              </InputGroup>
+                            </FormGroup>
+                          </PopoverBody>
+                        </Popover>
+
+                        <Button id="btnUndo" onClick={undo} disabled={currentStep <= 0}>
+                          <i id="icnScale" class="fas fa-undo"></i>
+                        </Button>
+                        <UncontrolledTooltip placement="bottom" target="btnUndo">Undo</UncontrolledTooltip>
+                        <Button onClick={redo} id="btnRedo"
+                          disabled={currentStep >= history.length - 1}
+                        >
+                          <i id="icnScale" class="fas fa-redo"></i>
+                        </Button>
+                        <UncontrolledTooltip placement="bottom" target="btnRedo">Redo</UncontrolledTooltip>
+                      </FormGroup>
+                    </Col>
+                  </Row>
+                  <Row style={{ height: 'calc(100vh - 225px)', margin: '0px', paddingBottom: '0px', display: 'flex', flexGrow: 1, overflow: 'hidden', color: '#fff' }}
+                  >
+                    {editingMode ? <>
+                      <Col
+                        md={1}
+                        //className="d-flex flex-column"
+                        style={{ marginTop: 12, padding: 0 }}
+                      >
+                        {/* Control Buttons */}
+                        <div className="mb-4" style={{ margin: 0, padding: 0 }}>
+                          <Button color="primary" className="mb-2 w-100" onClick={startLiveWireTracing}>
+                            {!isLiveWireTracingActive ? 'Start LiveWire' : 'Stop LiveWire'}
+                          </Button>
+                          <Button
+                            color="primary"
+                            className="mb-2 w-100"
+                            onClick={isDrawingFreehand ? clearFreehandDrawings : startFreehandDrawing}
+                          >
+                            {!isDrawingFreehand ? 'Start Freehand' : 'Stop Freehand'}
+                          </Button>
+                          <Button
+                            color="primary"
+                            className="mb-2 w-100"
+                            onClick={() => startHybridTracing()}
+                          >
+                            {isHybridDrawingActive ? 'Stop Hybrid' : 'Start Hybrid'}
+                          </Button>
+                          <Button
+                            color="primary"
+                            className="mb-2 w-100"
+                            onClick={() => setIsLineDrawingActive(!isLineDrawingActive)}
+                          >
+                            {isLineDrawingActive ? 'Stop Line' : 'Draw Line'}
+                          </Button>
+                          {selectedAnnotation && (
+                            <Button color="primary" className="mb-2 w-100" onClick={handleEraserClick}>
+                              {isEraserActive ? 'Stop Erasing' : 'Eraser'}
+                            </Button>
+                          )}
+                        </div>
+
+                        {/* Eraser Size Controls */}
+                        {isEraserActive && (
+                          <FormGroup>
+                            <Label for="eraserSize">Eraser Size</Label>
+                            <Row>
+                              <Col xs={9}>
+                                <Input
+                                  type="range"
+                                  id="eraserSize"
+                                  name="eraserSize"
+                                  min="1"
+                                  max="50"
+                                  value={eraserSize}
+                                  onChange={(e) => setEraserSize(Number(e.target.value))}
+                                />
+                              </Col>
+                              <Col xs={3}>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max="50"
+                                  value={eraserSize}
+                                  onChange={(e) => setEraserSize(Number(e.target.value))}
+                                  style={{ width: '100%' }}
+                                />
+                              </Col>
+                            </Row>
+                          </FormGroup>
+                        )}
+                      </Col>
+                      <Col
+                        md={11}
+                        className="d-flex flex-column"
+                        style={{ maxHeight: '100%' }}
+                      >
+                        <Card style={{ height: '100%', padding:0 }}>
+                          <CardBody
+                            style={{
+                              padding: 0,
+                              height: '100%',
+                              overflow: 'auto',  // Add scrollbars
+                              position: 'relative',  // For absolute positioning of canvas
+                            }}
+                            ref={containerRef}
+                          >
                             <canvas
+                              ref={mainCanvasRef}
+                              style={{
+                                cursor: 'default',
+                                position: 'absolute',  // Position absolutely within container
+                                top: 0,
+                                left: 0
+                              }}
+                              onMouseDown={handleMouseDown}
+                              onMouseMove={handleMouseMove}
+                              onMouseUp={handleMouseUp}
+                            />
+                          </CardBody>
+                        </Card>
+                      </Col></>
+                      :
+                      <>
+                        <Col md={1} />
+                        <Col
+                          md={11}
+                          className="d-flex flex-column"
+                          style={{ maxHeight: '100%' }}
+                        >
+                          <Card style={{ height: '100%',padding:0,margin:0 }}>
+                            <CardBody
+                              style={{
+                                padding: 0,
+                                height: '100%',
+                                overflow: 'auto',  // Add scrollbars
+                                position: 'relative',  // For absolute positioning of canvas
+                              }}
+                            >
+                              <canvas
+                                ref={mainCanvasRef}
+                                style={{
+                                  cursor: 'default',
+                                  position: 'absolute',  // Position absolutely within container
+                                  top: 0,
+                                  left: 0
+                                }}
+                              />
+                            </CardBody>
+                          </Card>
+                        </Col>
+                      </>}
+                  </Row>
+
+                  <Row style={{ overflowX: 'auto', maxWidth: '100%', maxHeight: '15vh', display: 'flex', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+                    {smallCanvasData.map((image, index) => (
+                      <Col
+                        key={index}
+                        md={2}
+                        className="d-flex flex-column"
+                        style={{ height: '15vh', overflowY: 'hidden', paddingBottom: '10px' }}
+                      >
+                        <Card style={{ height: '100%' }}>
+                          <CardBody style={{ padding: 0, height: '80%' }}>
+                            {index === mainImageIndex ? <canvas
                               ref={smallCanvasRefs[index]}
                               width="100%"
                               height="100%"
@@ -1479,16 +1480,85 @@ const handleMouseMove = (e) => {
                                 width: '100%',
                                 height: '100%',
                                 display: 'block',
+                                borderColor: 'yellow',
+                                borderWidth: '5px',
+                                borderStyle: 'solid',
                               }}
                               onClick={() => handleSmallCanvasClick(index)}
-                            />}
-                        </CardBody>
-                      </Card>
+                            />
+                              :
+                              <canvas
+                                ref={smallCanvasRefs[index]}
+                                width="100%"
+                                height="100%"
+                                style={{
+                                  cursor: 'pointer',
+                                  width: '100%',
+                                  height: '100%',
+                                  display: 'block',
+                                }}
+                                onClick={() => handleSmallCanvasClick(index)}
+                              />}
+                          </CardBody>
+                        </Card>
+                      </Col>
+                    ))}
+                  </Row>
+                </Table>
+              </Col>
+              <Col md={3} style={{
+                position: 'fixed',
+                right: 0,
+                top: 0,
+                height: '100vh',
+                overflowY: 'auto',
+                borderLeft: '1px solid #ccc',
+                paddingBottom: '0px',
+                marginBottom: '0px',
+                zIndex: 20,
+              }}>
+                <Table style={{ height: '90%' }}>
+                  <Row style={{ height: '100%' }}>
+                    <Col md={12} >
+                      <AnnotationList
+                         annotations={annotations}
+                         hiddenAnnotations={hiddenAnnotations}
+                         setHiddenAnnotations={setHiddenAnnotations}
+                         deleteBox={deleteBox}
+                         setHoveredAnnotation={setHoveredAnnotation}
+                         setSelectedAnnotation={setSelectedAnnotation}
+                         selectedAnnotation={selectedAnnotation}
+                         classCategories={classCategories}
+                         setAnnotations={setAnnotations}
+                      />
                     </Col>
-                  ))}
-                </Row>
-                </Col>
+                  </Row>
+                  <Row style={{height:'50px'}}></Row>
+                  <Row>
+                  <Col md={6} style={{
+                      display: 'flex',
+                      flexDirection: 'column', // Use column direction for flexbox
+                      justifyContent: 'flex-end', // Align content to the bottom
+                      height: '100%', // Full height of the column
+                      alignItems:'start'
+                    }}>
+                      <h4 className="card-title mb-6">Notes</h4>
+                    </Col>
+                    <Col md={6} style={{
+                      display: 'flex',
+                      flexDirection: 'column', // Use column direction for flexbox
+                      justifyContent: 'flex-end', // Align content to the bottom
+                      height: '100%', // Full height of the column
+                      alignItems:'end base'
+                    }}>
+                      <h4 className="card-title mb-6">Model : {model !== "" ? model ? model : "Object Det." : "Older Model"}</h4>
+                    </Col>
+                  </Row>
+                </Table>
+
+              </Col>
             </Row>
+
           </Container>
         </CardBody>
       </Card>

@@ -1,0 +1,26 @@
+.slider-button-container {
+    position: relative;
+    display: inline-block;
+  }
+  
+  .slider-button {
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    background-color: #007bff; /* Button color */
+    color: white;
+    cursor: pointer;
+    position: relative;
+    z-index: 0;
+  }
+  
+  .slider {
+    position: absolute;
+    height: 4px; /* Height of the slider */
+    background-color: #ff5733; /* Slider color */
+    bottom: -7px; /* Position at the bottom of the button */
+    left: 0;
+    transition: width 0.3s ease; /* Animation for smooth effect */
+    z-index: 1; /* Place the slider behind the button */
+  }
+  

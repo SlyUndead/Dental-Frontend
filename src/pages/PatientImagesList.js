@@ -13,7 +13,7 @@ const PatientImagesList = (props) => {
         { title: "Practice List", link: "#" },
         { title: "Patient Images List", link: "#" },
     ]
-
+    const apiUrl = process.env.REACT_APP_NODEAPIURL;
     // const visitDetials = [
     //     {
     //         visitDate: "2024-09-01", DateOfXray: "2024-09-01", Notes: "Initial caries lesion tooth #30",
@@ -75,7 +75,7 @@ const PatientImagesList = (props) => {
 
         const getPatientDetails = async () => {
             //console.log(sessionStorage.getItem('patientId'));
-            const response = await axios.get('https://agp-ui-node-api.mdbgo.io/getPatientByID?patientId=' + sessionStorage.getItem('patientId'));
+            const response = await axios.get(`${apiUrl}/getPatientByID?patientId=` + sessionStorage.getItem('patientId'));
             // const response = await axios.get('http://localhost:3000/getPatientByID?patientId=' + sessionStorage.getItem('patientId'));
             if (response.status === 200) {
                 const data = response.data;
@@ -104,12 +104,12 @@ const PatientImagesList = (props) => {
 
         const getPatientVisits = async () => {
             //console.log(sessionStorage.getItem('patientId'));
-            const response = await axios.get('https://agp-ui-node-api.mdbgo.io/getPatientVisitsByID?patientId=' + sessionStorage.getItem('patientId'));
+            const response = await axios.get(`${apiUrl}/getPatientVisitsByID?patientId=` + sessionStorage.getItem('patientId'));
            //  const response = await axios.get('http://localhost:3001/getPatientVisitsByID?patientId=' + sessionStorage.getItem('patientId'));
             if (response.status === 200) {
                 const visitData = response.data;
                 // const responseImages = await axios.get('http://localhost:3000/getPatientImagesByID?patientId=' + sessionStorage.getItem('patientId'));
-                const responseImages = await axios.get('https://agp-ui-node-api.mdbgo.io/getPatientImagesByID?patientId=' + sessionStorage.getItem('patientId'));
+                const responseImages = await axios.get(`${apiUrl}/getPatientImagesByID?patientId=` + sessionStorage.getItem('patientId'));
                 if (responseImages.status === 200) {
                     await visitData.patienVisits.map(visit => {
                         const visitImages = responseImages.data.patienImages.filter(image => image.visitId === visit._id)
@@ -142,13 +142,17 @@ const PatientImagesList = (props) => {
     const handleClick = (visitId,key) => {
         sessionStorage.setItem('visitId', visitId.patientImages[0].visitId);
         console.log(key)
-        if(key===0){
+        if(key===0&&key===visitDetials.length-1){
             sessionStorage.setItem('first', true)
-            sessionStorage.setItem('last',false)
+            sessionStorage.setItem('last',true)
+        }
+        else if(key===0){
+            sessionStorage.setItem('first', false)
+            sessionStorage.setItem('last',true)
         }
         else if(key===visitDetials.length-1){
-            sessionStorage.setItem('last',true)
-            sessionStorage.setItem('first',false)
+            sessionStorage.setItem('last',false)
+            sessionStorage.setItem('first',true)
         }
         else{
             sessionStorage.setItem('last',false)
@@ -276,7 +280,7 @@ const PatientImagesList = (props) => {
                                                                     </td>
                                                                     <td>
                                                                         {/* <img class='rounded avatar-sm card-img' src={`http://localhost:3000/${patient.thumbnail_url}`}></img> */}
-                                                                        <img class='rounded avatar-sm card-img' src={`https://agp-ui-node-api.mdbgo.io/${patient.thumbnail_url}`}></img>
+                                                                        <img class='rounded avatar-sm card-img' src={`${apiUrl}/${patient.thumbnail_url}`}></img>
                                                                     </td>
                                                                 </tr>
                                                             )

@@ -14,6 +14,7 @@ import Flatpickr from "react-flatpickr"
 import 'flatpickr/dist/flatpickr.min.css';
 import axios from "axios"
 const NewPatient = (props) => {
+    const apiUrl = process.env.REACT_APP_NODEAPIURL;
     document.title = "New Patient | AGP Dental Tool";
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
@@ -53,7 +54,7 @@ const NewPatient = (props) => {
                 let response;
                 if (dob !== "") {
                     console.log(dob);
-                    response = await axios.post('https://agp-ui-node-api.mdbgo.io/add-patient', {
+                    response = await axios.post(`${apiUrl}/add-patient`, {
                         //    response = await axios.post('http://localhost:3001/add-patient', {
                         first_name: firstName, last_name: lastName, email: email, telephone: telephone, gender: gender, dob: dob,
                         guardian_first_name: guardian_first_name, guardian_last_name: guardian_last_name, guardian_relationship: guardian_relationship, address: address,
@@ -61,7 +62,7 @@ const NewPatient = (props) => {
                     })
                 }
                 else {
-                    response = await axios.post('https://agp-ui-node-api.mdbgo.io/add-patient', {
+                    response = await axios.post(`${apiUrl}/add-patient`, {
                         //    response = await axios.post('http://localhost:3001/add-patient', {
                         first_name: firstName, last_name: lastName, email: email, telephone: telephone, gender: gender, reference_dob_for_age: ref_dob,
                         guardian_first_name: guardian_first_name, guardian_last_name: guardian_last_name, guardian_relationship: guardian_relationship, address: address,
