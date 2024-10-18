@@ -42,6 +42,7 @@
     "moment-timezone": "^0.5.43",
     "node-sass": "^9.0.0",
     "nouislider-react": "^3.4.1",
+    "polygon-clipping": "^0.15.7",
     "prop-types": "^15.8.1",
     "react": "^18.3.1",
     "react-apexcharts": "^1.4.1",
@@ -95,7 +96,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "npm install --legacy-peer-deps && react-scripts build",
+    "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
