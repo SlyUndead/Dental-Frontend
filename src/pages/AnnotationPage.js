@@ -13,6 +13,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import imgExit from "../assets/images/exit.svg"
 import imgEdit from "../assets/images/edit.svg"
 import '../assets/scss/custom/custom.scss';
+import { modifyPath } from "./AnnotationTools/path-utils";
 const AnnotationPage = () => {
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   const [exitClick, setExitClick] = useState(false);
@@ -58,7 +59,7 @@ const AnnotationPage = () => {
   let CANVAS_WIDTH = 0;
   const livewireRef = useRef(null);
   const [isLiveWireTracing, setIsLiveWireTracing] = useState(false);
-  const [isErasing, setIsErasing] = useState(false);
+  const isErasing = useRef(null);
   const [erasePoints, setErasePoints] = useState([]);
   const [fixedPoints, setFixedPoints] = useState([]);
   const [currentPath, setCurrentPath] = useState([]);
@@ -78,8 +79,8 @@ const AnnotationPage = () => {
   const mode = useSelector((state) => state.Layout.layoutMode);
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(false);
- // const [showBoundingBox, setShowBoundingBox] = useState(true);
-  //const [showSegmentation, setShowSegmentation] = useState(true);
+  const [editingPath, setEditingPath] = useState([]);
+  const [subtractPath, setSubtractPath] = useState([]);
   const [model, setModel] = useState("")
   const [isNegative, setIsNegative] = useState(false)
   const [classCategories, setClassCategories] = useState({})
@@ -197,7 +198,8 @@ const AnnotationPage = () => {
     if(model==="segmentation"){
       annotations.forEach((anno, index) => {
       if (!hiddenAnnotations.includes(index)) {
-        if (anno.label === 'Line') {
+        if(selectedAnnotation===null||selectedAnnotation===anno){
+          if (anno.label === 'Line') {
           // Draw line
           ctx.beginPath();
           ctx.moveTo(anno.vertices[0].x * scale, anno.vertices[0].y * scale);
@@ -259,6 +261,7 @@ const AnnotationPage = () => {
           }
       }
     }
+    }
     })}
     else{
       annotations.forEach((anno, index) => {
@@ -318,13 +321,13 @@ const AnnotationPage = () => {
   // };
   const handleMouseUp = () => {
     if (isEraserActive && isErasing.current) {
-      //     isErasing.current = false;
-      //     handleErase(erasePoints);
-      //     updateHistory();
-      //     setErasePoints([]);
-      // } else if (selectedAnnotation && !isEraserActive) {
-      //     isDrawingRef.current = false;
-      //     mergeEditingPathWithAnnotation();
+          isErasing.current = false;
+          handleErase();
+          updateHistory();
+          setErasePoints([]);
+      } else if (selectedAnnotation && !isEraserActive) {
+          isDrawingRef.current = false;
+          mergeEditingPathWithAnnotation();
     } else if (isDrawingFreehand && isDrawingRef.current) {
       isDrawingRef.current = false;
       completeFreehandDrawing();
@@ -375,12 +378,12 @@ const AnnotationPage = () => {
     //   return;
     // }
     if (isEraserActive && selectedAnnotation) {
-      // isErasing.current = true;
-      // setErasePoints([clickPoint]);
-      // } else if (selectedAnnotation && !isEraserActive) {
-      //     setEditingPath([clickPoint]); // Start a new editing path
-      //     isDrawingRef.current = true;
-      //     setSubtractPath(e.button === 2);
+      isErasing.current = true;
+      setErasePoints([clickPoint]);
+      } else if (selectedAnnotation && !isEraserActive) {
+          setEditingPath([clickPoint]); // Start a new editing path
+          isDrawingRef.current = true;
+          setSubtractPath(e.button === 2);
     } else if (isHybridDrawingActive) {
       if (!isDrawingStartedRef.current) {
         startPointRef.current = clickPoint;
@@ -439,7 +442,7 @@ const AnnotationPage = () => {
 
   const handleMouseMove = (e) => {
     e.preventDefault();
-    if (isLiveWireTracingActive || isDrawingFreehand || isLineDrawingActive || isHybridDrawingActive) {
+    if (isLiveWireTracingActive || isDrawingFreehand || isLineDrawingActive || isHybridDrawingActive || isEraserActive || selectedAnnotation) {
       const rect = mainCanvasRef.current.getBoundingClientRect(); // Get the canvas bounds
       const zoomScale = zoom / 100;
       const canvas = mainCanvasRef.current;
@@ -452,14 +455,15 @@ const AnnotationPage = () => {
       //   return;
       // }
       if (isEraserActive && isErasing.current && selectedAnnotation) {
-        // setErasePoints(prevPoints => [...prevPoints, currentPoint]);
-        // const ctx = mainCanvasRef.current.getContext('2d');
-        // ctx.beginPath();
-        // ctx.arc(currentPoint[0], currentPoint[1], eraserSize , 0, 2 * Math.PI);
-        // ctx.fillStyle = 'rgba(255, 0, 0, 0.3)'; // Adjust the color and opacity as needed
-        // ctx.fill();
-        // } else if (selectedAnnotation && isDrawingRef.current && !isEraserActive) {
-        //     setEditingPath(prevPath => [...prevPath, currentPoint]);
+        setErasePoints(prevPoints => [...prevPoints, currentPoint]);
+        const ctx = mainCanvasRef.current.getContext('2d');
+        ctx.beginPath();
+        ctx.arc(currentPoint[0], currentPoint[1], eraserSize , 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.3)'; // Adjust the color and opacity as needed
+        ctx.fill();
+        handleErase();
+        } else if (selectedAnnotation && isDrawingRef.current && !isEraserActive) {
+            setEditingPath(prevPath => [...prevPath, currentPoint]);
       } else if (isHybridDrawingActive && isDrawingStartedRef.current) {
         if (isMouseDown) {
           setHybridPath(prevPath => [...prevPath, currentPoint]);
@@ -491,6 +495,93 @@ const AnnotationPage = () => {
     }));
     return (unzoomedVertices)
   }
+  const handleErase = () => {
+    if (isEraserActive && selectedAnnotation) {
+      console.log(erasePoints)
+      let updatedVertices=[]
+      let updatedAnnotation={}
+      if(selectedAnnotation.segmentation){
+        updatedVertices = selectedAnnotation.segmentation.filter(vertex => {
+        return !erasePoints.some(erasePoint => {
+          const dx = vertex.x - erasePoint[0];
+          const dy = vertex.y - erasePoint[1];
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          return distance <= eraserSize;
+        });
+      });
+      updatedAnnotation = { ...selectedAnnotation, segmentation: updatedVertices };
+    }
+    else if(selectedAnnotation.bounding_box){
+      updatedVertices = selectedAnnotation.bounding_box.filter(vertex => {
+      return !erasePoints.some(erasePoint => {
+        const dx = vertex.x - erasePoint[0];
+        const dy = vertex.y - erasePoint[1];
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        return distance <= eraserSize;
+      });
+    });
+    updatedAnnotation = { ...selectedAnnotation, bounding_box: updatedVertices };
+  }
+    else if(selectedAnnotation.vertices){
+        updatedVertices = selectedAnnotation.vertices.filter(vertex => {
+        return !erasePoints.some(erasePoint => {
+          const dx = vertex.x - erasePoint[0];
+          const dy = vertex.y - erasePoint[1];
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          return distance <= eraserSize;
+        });
+      });
+      updatedAnnotation = { ...selectedAnnotation, vertices: updatedVertices };
+    }
+      const newAnnotations = annotations.map(anno => 
+        anno === selectedAnnotation ? updatedAnnotation : anno
+      );
+      setAnnotations(newAnnotations);
+      setSelectedAnnotation(updatedAnnotation);
+      console.log(updatedAnnotation)
+    }
+  };
+  const mergeEditingPathWithAnnotation = () => {
+    if (editingPath.length > 1 && selectedAnnotation) {
+      const editingPathVertices = editingPath.map(point => ({ x: point[0], y: point[1] }));
+      let newPath;
+      let updatedAnnotation={}
+      if(selectedAnnotation.segmentation){
+        if(!subtractPath){
+          newPath = modifyPath(selectedAnnotation.segmentation, editingPathVertices, false);
+        }
+        else{
+         newPath = modifyPath(selectedAnnotation.segmentation, editingPathVertices, true);
+        }
+        updatedAnnotation = { ...selectedAnnotation, segmentation: newPath};
+      }
+      else if(selectedAnnotation.bounding_box){
+        if(!subtractPath){
+          newPath = modifyPath(selectedAnnotation.bounding_box, editingPathVertices, false);
+        }
+        else{
+         newPath = modifyPath(selectedAnnotation.bounding_box, editingPathVertices, true);
+        }
+        updatedAnnotation = { ...selectedAnnotation, bounding_box: newPath};
+      }
+      else{
+        if(!subtractPath){
+        newPath = modifyPath(selectedAnnotation.vertices, editingPathVertices, false);
+      }
+      else{
+       newPath = modifyPath(selectedAnnotation.vertices, editingPathVertices, true);
+      }
+      updatedAnnotation = { ...selectedAnnotation, vertices: newPath};
+    }
+      const newAnnotations = annotations.map(anno => 
+        anno === selectedAnnotation ? updatedAnnotation : anno
+      );
+      updateAnnotationsWithHistory(newAnnotations);
+      setEditingPath([]);
+      console.log(newAnnotations)
+      setSelectedAnnotation(null);
+    }
+  };
   const completeFreehandDrawing = () => {
     const lastPath = drawingPaths[drawingPaths.length - 1];
     if (lastPath && lastPath.length > 2) {
@@ -523,6 +614,16 @@ const AnnotationPage = () => {
     setIsLiveWireTracingActive(false);
     setFixedPoints([]);
     setCurrentPath([]);
+  };
+  const drawEditingPath = (ctx) => {
+    ctx.beginPath();
+    ctx.moveTo(editingPath[0][0], editingPath[0][1]);
+    for (let i = 1; i < editingPath.length; i++) {
+      ctx.lineTo(editingPath[i][0], editingPath[i][1]);
+    }
+    ctx.strokeStyle = 'blue';
+    ctx.lineWidth = 2;
+    ctx.stroke();
   };
   const drawHybridPath = (path) => {
     const ctx = mainCanvasRef.current.getContext('2d');
@@ -628,7 +729,7 @@ const AnnotationPage = () => {
       const containerHeight = canvas.parentElement.clientHeight;
       let canvasWidth, canvasHeight;
       if (type === "main") {
-        drawAnnotations(ctx, img, 0, 0, 1, null, areaScale);
+        drawAnnotations(ctx, img, 0, 0, 1, selectedAnnotation, areaScale);
         // if (containerWidth / containerHeight > aspectRatio) {
         //     // Container is wider than the image
         //     canvasWidth = containerHeight * aspectRatio;
@@ -733,29 +834,60 @@ const AnnotationPage = () => {
       const ctx = canvas.getContext('2d');
       const zoomScale = zoom / 100;
 
-      ctx.clearRect(0, 0, image.width, image.height);
-      ctx.save();
-      ctx.scale(zoomScale, zoomScale);
-      ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
-      ctx.drawImage(image, 0, 0, image.width, image.height);
-      // Reset the filter for annotations
-      ctx.filter = 'none';
-      ctx.restore();
+      // ctx.clearRect(0, 0, image.width, image.height);
+      // ctx.save();
+      // ctx.scale(zoomScale, zoomScale);
+      // ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+      // ctx.drawImage(image, 0, 0, image.width, image.height);
+      // // Reset the filter for annotations
+      // ctx.filter = 'none';
+      // ctx.restore();
       if (isLiveWireTracingActive) {
+        ctx.clearRect(0, 0, image.width, image.height);
+        ctx.save();
+        ctx.scale(zoomScale, zoomScale);
+        ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+        ctx.drawImage(image, 0, 0, image.width, image.height);
+        // Reset the filter for annotations
+        ctx.filter = 'none';
+        ctx.restore();
         drawLivewirePath(ctx);
       }
       if (isDrawingFreehand) {
         drawFreehandPath(ctx);
       }
       if (isLineDrawingActive) {
+        ctx.clearRect(0, 0, image.width, image.height);
+        ctx.save();
+        ctx.scale(zoomScale, zoomScale);
+        ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+        ctx.drawImage(image, 0, 0, image.width, image.height);
+        // Reset the filter for annotations
+        ctx.filter = 'none';
+        ctx.restore();
         drawLinePath(ctx);
       }
       if (isHybridDrawingActive) {
+        ctx.clearRect(0, 0, image.width, image.height);
+        ctx.save();
+        ctx.scale(zoomScale, zoomScale);
+        ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+        ctx.drawImage(image, 0, 0, image.width, image.height);
+        // Reset the filter for annotations
+        ctx.filter = 'none';
+        ctx.restore();
         drawHybridPath([...hybridPath, ...livewirePath]);
+      }
+      if (selectedAnnotation && editingPath.length > 0&&!isEraserActive) {
+        drawEditingPath(ctx);
+        drawAnnotations(mainCanvasRef.current.getContext("2d"), image, 0,0,1,selectedAnnotation,areaScale);
+      }
+      if (isEraserActive||selectedAnnotation){
+        drawAnnotations(mainCanvasRef.current.getContext("2d"), image, 0,0,1,selectedAnnotation,areaScale);
       }
     }
   }, [isLiveWireTracingActive, fixedPoints, currentPath, lineEnd, lineStart, isDrawingFreehand, isLineDrawingActive, drawingPaths,
-    isHybridDrawingActive, livewirePath, hybridPath, lastPointRef, startPointRef, isDrawingRef, drawingPaths]);
+    isHybridDrawingActive, livewirePath, hybridPath, lastPointRef, startPointRef, isDrawingRef, drawingPaths, editingPath, erasePoints, selectedAnnotation]);
 
   useEffect(() => {
     if (!isHybridDrawingActive) {
@@ -823,13 +955,10 @@ const AnnotationPage = () => {
   const handleContrastChange = (event) => {
     setContrast(Number(event.target.value));
   };
-  //   const updateHistory = () => {
-  //     setHistory(prevHistory => [...prevHistory.slice(0, currentStep + 1), annotations]);
-  //     setCurrentStep(prevStep => Math.min(prevStep + 1, MAX_HISTORY - 1));
-  //   };
-  useEffect(() => {
-    console.log(history, currentStep, annotations)
-  }, [currentStep, history])
+    const updateHistory = () => {
+      setHistory(prevHistory => [...prevHistory.slice(0, currentStep + 1), annotations]);
+      setCurrentStep(prevStep => Math.min(prevStep + 1, MAX_HISTORY - 1));
+    };
   const undo = () => {
     if (currentStep > 0) {
       console.log(history, currentStep)
@@ -931,12 +1060,19 @@ const AnnotationPage = () => {
   };
   const handleNextClick = async () => {
     setIsLoading(true)
+    setMainCanvasData(null)
+    setAnnotations([])
+    setSmallCanvasData([])
+    setSmallCanvasRefs([])
+    mainCanvasRef.current=null
+    setHiddenAnnotations([])
     try {
       const response = await axios.get(`${apiUrl}/next-previousVisit?patientId=` + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=true');
       const data = response.data;
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
       sessionStorage.setItem('visitId', data.visitId._id)
+      sessionStorage.setItem('xrayDate',data.visitId.date_of_xray)
       console.log(data);
       setLastVisit(data.last);
       setFirstVisit(false);
@@ -949,6 +1085,7 @@ const AnnotationPage = () => {
         // setMainImage(data.image);
         // setAnnotations(data.annotations);
         sessionStorage.setItem('visitId', data.visitId._id)
+        sessionStorage.setItem('xrayDate',data.visitId.date_of_xray)
         console.log(data);
         setLastVisit(data.last);
         setFirstVisit(false);
@@ -963,12 +1100,19 @@ const AnnotationPage = () => {
   }
   const handlePreviousClick = async () => {
     setIsLoading(true)
+    setMainCanvasData(null)
+    setAnnotations([])
+    setSmallCanvasData([])
+    setSmallCanvasRefs([])
+    mainCanvasRef.current=null
+    setHiddenAnnotations([])
     try {
       const response = await axios.get(`${apiUrl}/next-previousVisit?patientId=` + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=false');
       const data = response.data;
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
       sessionStorage.setItem('visitId', data.visitId._id)
+      sessionStorage.setItem('xrayDate',data.visitId.date_of_xray)
       console.log(data);
       setLastVisit(false);
       setFirstVisit(data.first)
@@ -981,6 +1125,7 @@ const AnnotationPage = () => {
         // setMainImage(data.image);
         // setAnnotations(data.annotations);
         sessionStorage.setItem('visitId', data.visitId._id)
+        sessionStorage.setItem('xrayDate',data.visitId.date_of_xray)
         console.log(data);
         setLastVisit(false);
         setFirstVisit(data.first);
@@ -993,6 +1138,13 @@ const AnnotationPage = () => {
     }
     setIsLoading(false)
   }
+  const DateFormatter = (date ) => {
+    return new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+      }).format(date);
+}
   const handleSmallCanvasClick = (index) => {
     // const selectedImageIndex = index % smallCanvasData.length; // Cyclic access
     const selectedImageData = smallCanvasData[index];
@@ -1020,25 +1172,6 @@ const AnnotationPage = () => {
       // setSmallCanvasData(updatedThumbnails); // Update thumbnail data
     }
   };
-  //   const handleErase = (erasePoints) => {
-  //     if (isEraserActive && selectedAnnotation) {
-  //       const updatedVertices = selectedAnnotation.vertices.filter(vertex => {
-  //         return !erasePoints.some(erasePoint => {
-  //           const dx = vertex.x - erasePoint.x;
-  //           const dy = vertex.y - erasePoint.y;
-  //           const distance = Math.sqrt(dx * dx + dy * dy);
-  //           return distance <= eraserSize;
-  //         });
-  //       });
-
-  //       const updatedAnnotation = { ...selectedAnnotation, vertices: updatedVertices };
-  //       const newAnnotations = annotations.map(anno => 
-  //         anno === selectedAnnotation ? updatedAnnotation : anno
-  //       );
-  //       setAnnotations(newAnnotations);
-  //       setSelectedAnnotation(updatedAnnotation);
-  //     }
-  //   };
   if (exitClick) {
     dispatch(changeMode(preLayoutMode));
     return <Navigate to="/patientImagesList" />
@@ -1106,7 +1239,7 @@ const AnnotationPage = () => {
                           <i class="fas fa-backward"></i>
                           <UncontrolledTooltip placement="bottom" target="btnPreVisit">Show Previous Visit</UncontrolledTooltip>
                         </Button>&nbsp;
-                        Xray Date : Oct 12,2024
+                        Xray Date : {DateFormatter(new Date(sessionStorage.getItem('xrayDate')))}
                         &nbsp;
                         <Button id="btnNextVisit" type="button" color="secondary" disabled={lastVisit} onClick={handleNextClick}>
                           <i class="fas fa-forward"></i>

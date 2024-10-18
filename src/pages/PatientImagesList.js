@@ -141,6 +141,8 @@ const PatientImagesList = (props) => {
 
     const handleClick = (visitId,key) => {
         sessionStorage.setItem('visitId', visitId.patientImages[0].visitId);
+        sessionStorage.setItem('xrayDate',visitId.DateOfXray);
+        console.log(visitId.DateOfXray);
         console.log(key)
         if(key===0&&key===visitDetials.length-1){
             sessionStorage.setItem('first', true)

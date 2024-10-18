@@ -121,14 +121,12 @@ const AnnotationList = ({
         }
         updatedGroupedAnnotations['Others'].push(anno); // Add to 'Others' if no matching category
       }
-    console.log(annotations,updatedGroupedAnnotations)
     setGroupedAnnotations(updatedGroupedAnnotations);
       setHideGroup(updatedHideGroups);
     });
   },[classCategories,annotations])
   useEffect(() => {
     hiddenAnnotations.length !== annotations.length ? setHideAllAnnotations(false) : setHideAllAnnotations(true);
-    console.log(hiddenAnnotations)
     const updatedHideGroup = { ...hideGroup };
     Object.keys(groupedAnnotations).forEach((category) => {
       updatedHideGroup[category]=isCategoryHidden(category);
@@ -202,7 +200,7 @@ const AnnotationList = ({
           {/* Loop over each annotation in the current category */}
           {groupedAnnotations[category].map((anno, index) => {
             const globalIndex = annotations.findIndex(a => a === anno);
-            console.log(groupedAnnotations)
+            {/* console.log(groupedAnnotations) */}
             if(globalIndex!==-1){
             return(
             <ListGroupItem
