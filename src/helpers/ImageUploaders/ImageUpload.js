@@ -102,7 +102,8 @@ export const saveImageToFolder = async (file, patientID, imageNumber) => {
     const thumbnailBase64 = await createThumbnail(file);
     const visitId = sessionStorage.getItem('visitId');
     try {
-      await axios.put('https://agp-ui-node-api.mdbgo.io/upload/image-and-annotations', {
+      const apiUrl = process.env.REACT_APP_NODEAPIURL;
+      await axios.put(`${apiUrl}/upload/image-and-annotations`, {
       //  await axios.put('http://localhost:3001/upload/image-and-annotations', {
         fileName: imageFileName,
         base64Image: base64Image,

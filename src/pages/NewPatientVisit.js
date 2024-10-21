@@ -118,8 +118,8 @@ const NewPatient = (props) => {
             selectedFiles.map((file, index) => saveImageToFolder(file, patientId, index + 1, model))
         );
         setLoading(false)
-        sessionStorage.setItem('last', true)
-        sessionStorage.setItem('first', false)
+        sessionStorage.setItem('last', false)
+        sessionStorage.setItem('first', true)
         setRedirect(redirect || false);
     };
     const handleModelChange=()=>{

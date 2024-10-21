@@ -4,7 +4,7 @@ import {
   DropdownMenu, DropdownToggle, DropdownItem, Popover, PopoverBody, Modal, ModalBody, ModalFooter, ModalHeader, Spinner,
   UncontrolledTooltip} from "reactstrap";
 import AnnotationList from "./AnnotationTools/AnnotationList";
-import { MAX_HISTORY, labelColors } from "./AnnotationTools/constants";
+import { MAX_HISTORY } from "./AnnotationTools/constants";
 import { LivewireScissors } from '../helpers/DrawingTools/LivewireScissors.ts';
 import axios from "axios";
 import { Navigate } from "react-router-dom";
@@ -71,8 +71,7 @@ const AnnotationPage = () => {
   const isDrawingStartedRef = useRef(null);
   const [isMouseDown, setIsMouseDown] = useState(false);
   const [livewirePath, setLivewirePath] = useState([]);
-  const [boundingRect, setBoundingRect] = useState(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const [labelColors, setLabelColors] = useState({})
   const [preLayoutMode, setPreLayoutMode] = useState('');
   const [lastVisit, setLastVisit] = useState(false);
   const [firstVisit, setFirstVisit] = useState(false);
@@ -84,6 +83,8 @@ const AnnotationPage = () => {
   const [model, setModel] = useState("")
   const [isNegative, setIsNegative] = useState(false)
   const [classCategories, setClassCategories] = useState({})
+  const [isNotesOpen, setIsNotesOpen] = useState(false); // State to toggle Notes view
+  const [notesContent, setNotesContent] = useState('');
   // const fetchMostRecentImage = async () => {
   //     try {
   //         const response = await axios.get('https://agp-ui-node-api.mdbgo.io/most-recent-image'); // Adjust the API endpoint as needed
@@ -125,6 +126,27 @@ const AnnotationPage = () => {
   //       }
   //     }
   // };
+  const fetchNotesContent = async()=>{
+    try {
+      const response = await axios.get(`${apiUrl}/notes-content?visitID=` + sessionStorage.getItem('visitId')); // Adjust the API endpoint as needed
+      const data = response.data;
+      // setMainImage(data.image);
+      console.log(data)
+      // setAnnotations(data.annotations);
+      return data.notes;
+    } catch (error) {
+      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200") {
+        const response = await axios.get('http://localhost:3000/notes-content?visitID=' + sessionStorage.getItem('visitId')); // Adjust the API endpoint as needed
+        const data = response.data;
+        // setMainImage(data.image);
+        // setAnnotations(data.annotations);
+      return data.notes;
+      }
+      else {
+        console.error('Error fetching most recent image:', error);
+      }
+    }
+  }
   const fetchVisitDateImages = async () => {
     try {
       const response = await axios.get(`${apiUrl}/visitid-images?visitID=` + sessionStorage.getItem('visitId')); // Adjust the API endpoint as needed
@@ -150,28 +172,35 @@ const AnnotationPage = () => {
       const response = await axios.get(`${apiUrl}/get-classCategories`); // Adjust the API endpoint as needed
       const data = response.data;
       let updatedClassCategories={}
+      let updatedLabelColors={}
       data.forEach(element => {
         if(updatedClassCategories[element.className]===undefined){
           updatedClassCategories[element.className]=element.category
         }
+        if(updatedLabelColors[element.className]===undefined){
+          updatedLabelColors[element.className.toLowerCase()]=element.color
+        }
       });
+      setLabelColors(updatedLabelColors)
       setClassCategories(updatedClassCategories)
     } catch (error) {
       if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200") {
         const response = await axios.get('http://localhost:3000/get-classCategories'); // Adjust the API endpoint as needed
         const data = response.data;
         let updatedClassCategories={}
+        let updatedLabelColors={}
         data.forEach(element => {
           if(updatedClassCategories[element.className]===undefined){
             updatedClassCategories[element.className]=element.category
           }
+          if(updatedLabelColors[element.className]===undefined){
+            updatedLabelColors[element.className.toLowerCase()]=element.color
+          }
         });
+        setLabelColors(updatedLabelColors)
         setClassCategories(updatedClassCategories)
-      }
-      else {
-        console.error('Error fetching most recent image:', error);
-      }
     }
+  }
   };
   const getBoxDimensions = (vertices) => {
     const xCoords = vertices.map(v => v.x);
@@ -204,7 +233,7 @@ const AnnotationPage = () => {
           ctx.beginPath();
           ctx.moveTo(anno.vertices[0].x * scale, anno.vertices[0].y * scale);
           ctx.lineTo(anno.vertices[1].x * scale, anno.vertices[1].y * scale);
-          ctx.strokeStyle = labelColors[anno.label] || 'black';
+          ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
           ctx.lineWidth = 2;
           ctx.stroke();
 
@@ -216,7 +245,7 @@ const AnnotationPage = () => {
           // Display length
           const midX = ((anno.vertices[0].x + anno.vertices[1].x) / 2) * scale;
           const midY = ((anno.vertices[0].y + anno.vertices[1].y) / 2) * scale;
-          ctx.fillStyle = labelColors[anno.label] || 'black';
+          ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
           ctx.font = '12px Arial';
           ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
         } else {
@@ -232,7 +261,7 @@ const AnnotationPage = () => {
               ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
               ctx.fill();
             }
-            ctx.strokeStyle = labelColors[anno.label] || 'black';
+            ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
             ctx.lineWidth = 2;
             ctx.stroke();
           }
@@ -247,14 +276,14 @@ const AnnotationPage = () => {
             ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.fill();
           }
-          ctx.strokeStyle = labelColors[anno.label] || 'black';
+          ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
           ctx.lineWidth = 2;
           ctx.stroke();
         }
           if (selectedAnnotation !== anno) {
             const { left, top } = getBoxDimensions(anno.segmentation.map(v => ({ x: v.x * scale, y: v.y * scale })));
             const area = calculatePolygonArea(anno.segmentation.map(v => ({ x: v.x * scale, y: v.y * scale })), areaScale).toFixed(2);
-            ctx.fillStyle = labelColors[anno.label]||'black';
+            ctx.fillStyle = labelColors[anno.label.toLowerCase()]||'white';
             const labelText = `${anno.label} (${area} mm²)`;
             ctx.font = '12px Arial';
             ctx.fillText(labelText, left + 5, top - 25);
@@ -271,7 +300,7 @@ const AnnotationPage = () => {
             ctx.beginPath();
             ctx.moveTo(anno.vertices[0].x * scale, anno.vertices[0].y * scale);
             ctx.lineTo(anno.vertices[1].x * scale, anno.vertices[1].y * scale);
-            ctx.strokeStyle = labelColors[anno.label] || 'black';
+            ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
             ctx.lineWidth = 2;
             ctx.stroke();
   
@@ -283,7 +312,7 @@ const AnnotationPage = () => {
             // Display length
             const midX = ((anno.vertices[0].x + anno.vertices[1].x) / 2) * scale;
             const midY = ((anno.vertices[0].y + anno.vertices[1].y) / 2) * scale;
-            ctx.fillStyle = labelColors[anno.label] || 'black';
+            ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
             ctx.font = '12px Arial';
             ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
           } else {
@@ -300,12 +329,12 @@ const AnnotationPage = () => {
               ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
               ctx.fill();
             }
-            ctx.strokeStyle = labelColors[anno.label] || 'black';
+            ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
             ctx.lineWidth = 2;
             ctx.stroke();
             if (selectedAnnotation !== anno) {
               const area = calculatePolygonArea(anno.vertices.map(v => ({ x: v.x * scale, y: v.y * scale })), areaScale).toFixed(2);
-              ctx.fillStyle = labelColors[anno.label]||'black';
+              ctx.fillStyle = labelColors[anno.label.toLowerCase()]||'white';
               const labelText = `${anno.label} (${area} mm²)`;
               ctx.font = '12px Arial';
               ctx.fillText(labelText, left + 5, top - 25);
@@ -775,6 +804,10 @@ const AnnotationPage = () => {
     }
   }, [image, isLiveWireTracingActive]);
   const loadImages = async () => {
+    setIsNotesOpen(false);
+    const visitNotes = await fetchNotesContent();
+    console.log(visitNotes)
+    setNotesContent(visitNotes)
     const imagesData = await fetchVisitDateImages();
     let mainImageData = [];
     // let recentImagesData = [];
@@ -827,7 +860,7 @@ const AnnotationPage = () => {
         drawImageOnCanvas(ref.current, smallCanvasData[index].image, null, "small");
       }
     });
-  }, [zoom, brightness, contrast, areaScale, hiddenAnnotations, annotations, hoveredAnnotation, editingMode, isNegative]);
+  }, [zoom, brightness, contrast, areaScale, hiddenAnnotations, annotations, hoveredAnnotation, editingMode, isNegative, selectedAnnotation]);
   useEffect(() => {
     if (image) {
       const canvas = mainCanvasRef.current;
@@ -996,11 +1029,49 @@ const AnnotationPage = () => {
     setCurrentStep(Math.min(currentStep + 1, MAX_HISTORY - 1));
     console.log(history, currentStep)
   };
+  const saveNotes = async()=>{
+    try {
+    const response = await axios.get(`${apiUrl}/save-notes?visitID=` + sessionStorage.getItem('visitId')+'&notes='+notesContent); // Adjust the API endpoint as needed
+    const data = response.data;
+    // setMainImage(data.image);
+    console.log(data)
+    // setAnnotations(data.annotations);
+    return data.notes;
+  } catch (error) {
+    if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200") {
+      const response = await axios.get('http://localhost:3000/save-notes?visitID=' + sessionStorage.getItem('visitId')+'&notes='+notesContent); // Adjust the API endpoint as needed
+      const data = response.data;
+      // setMainImage(data.image);
+      // setAnnotations(data.annotations);
+    return data.notes;
+    }
+    else {
+      console.error('Error fetching most recent image:', error);
+    }
+  }}
+  const handleNotesClick=()=>{
+    if(!isNotesOpen){
+      setIsNotesOpen(true);
+    }
+    else{
+      saveNotes();
+      setIsNotesOpen(false);
+    }
+  }
   const handleAddBox = () => {
-    const newAnnotation = {
+    let newAnnotation={}
+    if(model==="segmentation"){
+      newAnnotation = {
+      label: newBoxLabel,
+      segmentation: newBoxVertices
+    };
+  }
+  else{
+    newAnnotation = {
       label: newBoxLabel,
       vertices: newBoxVertices
     };
+  }
     setShowDialog(false);
     setIsDrawingActive(false);
     setNewBoxLabel('');
@@ -1075,6 +1146,7 @@ const AnnotationPage = () => {
       sessionStorage.setItem('xrayDate',data.visitId.date_of_xray)
       console.log(data);
       setLastVisit(data.last);
+      setMainImageIndex(0);
       setFirstVisit(false);
       setHiddenAnnotations([]);
       loadImages();
@@ -1088,6 +1160,7 @@ const AnnotationPage = () => {
         sessionStorage.setItem('xrayDate',data.visitId.date_of_xray)
         console.log(data);
         setLastVisit(data.last);
+        setMainImageIndex(0);
         setFirstVisit(false);
         setHiddenAnnotations([]);
         loadImages();
@@ -1115,6 +1188,7 @@ const AnnotationPage = () => {
       sessionStorage.setItem('xrayDate',data.visitId.date_of_xray)
       console.log(data);
       setLastVisit(false);
+      setMainImageIndex(0);
       setFirstVisit(data.first)
       setHiddenAnnotations([]);
       loadImages();
@@ -1129,6 +1203,7 @@ const AnnotationPage = () => {
         console.log(data);
         setLastVisit(false);
         setFirstVisit(data.first);
+        setMainImageIndex(0);
         setHiddenAnnotations([]);
         loadImages();
       }
@@ -1453,11 +1528,47 @@ const AnnotationPage = () => {
                         </Button>
                         <UncontrolledTooltip placement="bottom" target="btnUndo">Undo</UncontrolledTooltip>
                         <Button onClick={redo} id="btnRedo"
-                          disabled={currentStep >= history.length - 1}
+                          disabled={currentStep >= history.length - 1} style={{marginRight:'5px'}}
                         >
                           <i id="icnScale" class="fas fa-redo"></i>
                         </Button>
                         <UncontrolledTooltip placement="bottom" target="btnRedo">Redo</UncontrolledTooltip>
+                        {selectedAnnotation && (
+                            <Button onClick={handleEraserClick}>
+                              <i class="fa fa-eraser" aria-hidden={isEraserActive}></i>
+                            </Button>
+                          )}
+                          {/* Eraser Size Controls */}
+                        {isEraserActive && selectedAnnotation && (
+                          <FormGroup>
+                            <Row style={{alignContent:'baseline', alignItems:'baseline', marginBottom:'-5%'}}>
+                            <Col xs={4}>
+                            <Label for="eraserSize">Eraser Size</Label>
+                            </Col>
+                            <Col xs={4}>
+                                <Input
+                                  type="range"
+                                  id="eraserSize"
+                                  name="eraserSize"
+                                  min="1"
+                                  max="50"
+                                  value={eraserSize}
+                                  onChange={(e) => setEraserSize(Number(e.target.value))}
+                                />
+                              </Col>
+                              <Col xs={4}>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max="50"
+                                  value={eraserSize}
+                                  onChange={(e) => setEraserSize(Number(e.target.value))}
+                                  style={{ width: '100%' }}
+                                />
+                              </Col>
+                            </Row>
+                          </FormGroup>
+                        )}
                       </FormGroup>
                     </Col>
                   </Row>
@@ -1495,42 +1606,7 @@ const AnnotationPage = () => {
                           >
                             {isLineDrawingActive ? 'Stop Line' : 'Draw Line'}
                           </Button>
-                          {selectedAnnotation && (
-                            <Button color="primary" className="mb-2 w-100" onClick={handleEraserClick}>
-                              {isEraserActive ? 'Stop Erasing' : 'Eraser'}
-                            </Button>
-                          )}
                         </div>
-
-                        {/* Eraser Size Controls */}
-                        {isEraserActive && (
-                          <FormGroup>
-                            <Label for="eraserSize">Eraser Size</Label>
-                            <Row>
-                              <Col xs={9}>
-                                <Input
-                                  type="range"
-                                  id="eraserSize"
-                                  name="eraserSize"
-                                  min="1"
-                                  max="50"
-                                  value={eraserSize}
-                                  onChange={(e) => setEraserSize(Number(e.target.value))}
-                                />
-                              </Col>
-                              <Col xs={3}>
-                                <Input
-                                  type="number"
-                                  min="1"
-                                  max="50"
-                                  value={eraserSize}
-                                  onChange={(e) => setEraserSize(Number(e.target.value))}
-                                  style={{ width: '100%' }}
-                                />
-                              </Col>
-                            </Row>
-                          </FormGroup>
-                        )}
                       </Col>
                       <Col
                         md={11}
@@ -1587,6 +1663,9 @@ const AnnotationPage = () => {
                                   top: 0,
                                   left: 0
                                 }}
+                                onMouseDown={handleMouseDown}
+                                onMouseMove={handleMouseMove}
+                                onMouseUp={handleMouseUp}
                               />
                             </CardBody>
                           </Card>
@@ -1652,18 +1731,34 @@ const AnnotationPage = () => {
               }}>
                 <Table style={{ height: '90%' }}>
                   <Row style={{ height: '100%' }}>
-                    <Col md={12} >
-                      <AnnotationList
-                         annotations={annotations}
-                         hiddenAnnotations={hiddenAnnotations}
-                         setHiddenAnnotations={setHiddenAnnotations}
-                         deleteBox={deleteBox}
-                         setHoveredAnnotation={setHoveredAnnotation}
-                         setSelectedAnnotation={setSelectedAnnotation}
-                         selectedAnnotation={selectedAnnotation}
-                         classCategories={classCategories}
-                         setAnnotations={setAnnotations}
-                      />
+                     <Col>
+                      {/* AnnotationList with conditional height */}
+                      <div style={{ height: isNotesOpen ? '50%' : '100%', overflowY: 'auto' }}>
+                        <AnnotationList 
+                          annotations={annotations}
+                          hiddenAnnotations={hiddenAnnotations}
+                          setHiddenAnnotations={setHiddenAnnotations}
+                          deleteBox={deleteBox}
+                          setHoveredAnnotation={setHoveredAnnotation}
+                          setSelectedAnnotation={setSelectedAnnotation}
+                          selectedAnnotation={selectedAnnotation}
+                          classCategories={classCategories}
+                          setIsEraserActive={setIsEraserActive}
+                        />
+                      </div>
+
+                      {/* Notes Input with conditional rendering and height */}
+                      {isNotesOpen && (
+                        <div style={{ height: '50%', marginTop: '10px' }}>
+                          <Input
+                            type="textarea"
+                            value={notesContent}
+                            onChange={(e) => setNotesContent(e.target.value)}
+                            style={{ width: '100%', height: '100%' }}
+                            placeholder="Type your notes here..."
+                          />
+                        </div>
+                      )}
                     </Col>
                   </Row>
                   <Row style={{height:'50px'}}></Row>
@@ -1675,7 +1770,9 @@ const AnnotationPage = () => {
                       height: '100%', // Full height of the column
                       alignItems:'start'
                     }}>
-                      <h4 className="card-title mb-6">Notes</h4>
+                      <Button onClick={()=>handleNotesClick()} color="primary">
+                        {isNotesOpen ? 'Close Notes' : 'Open Notes'}
+                      </Button>
                     </Col>
                     <Col md={6} style={{
                       display: 'flex',

@@ -15,7 +15,7 @@ const AnnotationList = ({
   setSelectedAnnotation,
   selectedAnnotation,
   classCategories,
-  setAnnotations
+  setIsEraserActive
 }) => {
   // Check if setHoveredAnnotation is a function, if not, use a no-op function
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
@@ -97,6 +97,10 @@ const AnnotationList = ({
       setPopoverOpen(null);
     }
   };
+  const handleSelectAnnotation =()=>{
+    setSelectedAnnotation(null); 
+    setIsEraserActive(false);
+  }
   useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
@@ -121,7 +125,7 @@ const AnnotationList = ({
         }
         updatedGroupedAnnotations['Others'].push(anno); // Add to 'Others' if no matching category
       }
-    setGroupedAnnotations(updatedGroupedAnnotations);
+      setGroupedAnnotations(updatedGroupedAnnotations);
       setHideGroup(updatedHideGroups);
     });
   },[classCategories,annotations])
@@ -257,7 +261,7 @@ const AnnotationList = ({
                   className="btn"
                   onClick={(e) => {
                     e.stopPropagation();
-                    selectedAnnotation === anno ? setSelectedAnnotation(null) : setSelectedAnnotation(anno);
+                    selectedAnnotation === anno ? handleSelectAnnotation(anno) : setSelectedAnnotation(anno);
                   }}
                 >
                   <i className={`mdi ${selectedAnnotation === anno ? 'mdi-lead-pencil' : 'mdi-pencil-box-outline'}`}></i>
