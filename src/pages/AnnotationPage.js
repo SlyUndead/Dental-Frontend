@@ -85,6 +85,10 @@ const AnnotationPage = () => {
   const [classCategories, setClassCategories] = useState({})
   const [isNotesOpen, setIsNotesOpen] = useState(false); // State to toggle Notes view
   const [notesContent, setNotesContent] = useState('');
+  const [oldNotesContent, setOldNotesContent] = useState('');
+  const AUTO_SAVE_DELAY = 1000;
+  const [saveTimeout, setSaveTimeout] = useState(null); // Timeout for debounced auto-save
+  const [autoSaveInterval, setAutoSaveInterval] = useState(null)
   // const fetchMostRecentImage = async () => {
   //     try {
   //         const response = await axios.get('https://agp-ui-node-api.mdbgo.io/most-recent-image'); // Adjust the API endpoint as needed
@@ -806,7 +810,6 @@ const AnnotationPage = () => {
   const loadImages = async () => {
     setIsNotesOpen(false);
     const visitNotes = await fetchNotesContent();
-    console.log(visitNotes)
     setNotesContent(visitNotes)
     const imagesData = await fetchVisitDateImages();
     let mainImageData = [];
@@ -816,7 +819,6 @@ const AnnotationPage = () => {
       // recentImagesData = imagesData.slice(1);
     setAnnotations(mainImageData.annotations.annotations.annotations);
     }
-
     // Initialize smallCanvasRefs with dynamic refs based on the number of images
     const refsArray = imagesData.map(() => React.createRef());
     setSmallCanvasRefs(refsArray);
@@ -969,6 +971,31 @@ const AnnotationPage = () => {
       }
     };
   }, [zoom, mainCanvasRef]);
+  useEffect(() => {
+    if (isNotesOpen) {
+      // Start the 5-second auto-save interval when notes are open
+      const intervalId = setInterval(() => {
+        saveNotes(); // Save notes every 5 seconds
+      }, 30000); // 30000 ms = 30 seconds
+  
+      setAutoSaveInterval(intervalId);
+    } else {
+      // Clear the interval when notes are closed
+      if (autoSaveInterval) {
+        clearInterval(autoSaveInterval);
+      }
+    }
+  
+    // Clear the interval when the component unmounts
+    return () => {
+      if (autoSaveInterval) {
+        clearInterval(autoSaveInterval);
+      }
+    };
+  }, [isNotesOpen]);
+  // useEffect(()=>{
+  //   saveAnnotations();
+  // },[annotations])
   const eraserSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${eraserSize}" height="${eraserSize}" fill="white" class="bi bi-eraser-fill" viewBox="0 0 ${eraserSize} ${eraserSize}">
     <path transform="scale(${eraserSize / 16})" d="M8.086 2.207a2 2 0 0 1 2.828 0l3.879 3.879a2 2 0 0 1 0 2.828l-5.5 5.5A2 2 0 0 1 7.879 15H5.12a2 2 0 0 1-1.414-.586l-2.5-2.5a2 2 0 0 1 0-2.828zm.66 11.34L3.453 8.254 1.914 9.793a1 1 0 0 0 0 1.414l2.5 2.5a1 1 0 0 0 .707.293H7.88a1 1 0 0 0 .707-.293z"/>
     </svg>`;
@@ -1007,20 +1034,11 @@ const AnnotationPage = () => {
       setCurrentStep(currentStep + 1);
     }
   };
-
-  const createBoxes = (label) => {
-    const newAnnotations = annotations.filter(coord => {
-      return coord.label === label && !annotations.some(anno =>
-        JSON.stringify(anno.vertices) === JSON.stringify(coord.vertices)
-      );
-    });
-    setAnnotations([...annotations, ...newAnnotations]);
-  };
-
   const deleteBox = (id) => {
     updateAnnotationsWithHistory(annotations.filter((_, index) => index !== id));
     setShowDialog(false);
     setIsDrawingActive(false);
+    saveAnnotations(annotations.filter((_, index) => index !== id));
   };
   
   const updateAnnotationsWithHistory = (newAnnotations) => {
@@ -1030,25 +1048,70 @@ const AnnotationPage = () => {
     console.log(history, currentStep)
   };
   const saveNotes = async()=>{
-    try {
-    const response = await axios.get(`${apiUrl}/save-notes?visitID=` + sessionStorage.getItem('visitId')+'&notes='+notesContent); // Adjust the API endpoint as needed
+    if(notesContent!==oldNotesContent){
+      try {
+    const encodedNotes = encodeURIComponent(notesContent);
+    const response = await axios.put(`${apiUrl}/save-notes?visitID=` + sessionStorage.getItem('visitId')+'&notes='+encodedNotes); // Adjust the API endpoint as needed
     const data = response.data;
-    // setMainImage(data.image);
-    console.log(data)
-    // setAnnotations(data.annotations);
     return data.notes;
   } catch (error) {
     if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200") {
-      const response = await axios.get('http://localhost:3000/save-notes?visitID=' + sessionStorage.getItem('visitId')+'&notes='+notesContent); // Adjust the API endpoint as needed
+      const encodedNotes = encodeURIComponent(notesContent);
+      const response = await axios.get('http://localhost:3000/save-notes?visitID=' + sessionStorage.getItem('visitId')+'&notes='+encodedNotes); // Adjust the API endpoint as needed
       const data = response.data;
-      // setMainImage(data.image);
-      // setAnnotations(data.annotations);
     return data.notes;
     }
     else {
-      console.error('Error fetching most recent image:', error);
+      console.error('Error saving notes:', error);
     }
   }}
+  }
+  const saveAnnotations = async(newAnnotations)=>{
+    try {
+      const scaledResponse={
+          annotations:{
+            model:model,
+            status:"OPEN",
+            annotations:newAnnotations
+          },
+          status:"OPEN"
+      }
+      const response = await axios.put(`${apiUrl}/save-annotations`, 
+        {
+          patientId: sessionStorage.getItem('patientId'),
+          visitId: sessionStorage.getItem('visitId'),
+          scaledResponse: scaledResponse,
+          imageNumber: (mainImageIndex + 1)
+        }
+      );
+      const data = response.data;
+      return data;
+    } catch (error) {
+      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200") {
+        const scaledResponse={
+            annotations:{
+              model:model,
+              status:"OPEN",
+              annotations:newAnnotations
+            },
+            status:"OPEN"
+        }
+        const response = await axios.put(`http://localhost:3000/save-annotations`, 
+          {
+            patientId: sessionStorage.getItem('patientId'),
+            visitId: sessionStorage.getItem('visitId'),
+            scaledResponse: scaledResponse,
+            imageNumber: (mainImageIndex + 1)
+          }
+        );
+        const data = response.data;
+        return data;
+      }
+      else {
+        console.error('Error saving annotations:', error);
+      }
+    }
+  }
   const handleNotesClick=()=>{
     if(!isNotesOpen){
       setIsNotesOpen(true);
@@ -1058,6 +1121,21 @@ const AnnotationPage = () => {
       setIsNotesOpen(false);
     }
   }
+  const handleNotesChange = (e) => {
+    setNotesContent(e.target.value);  
+    // Clear the previous timeout if the user keeps typing
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+    }
+  
+    // Set a new timeout to auto-save notes after the delay
+    const newTimeout = setTimeout(() => {
+      saveNotes();
+    }, AUTO_SAVE_DELAY);
+  
+    setSaveTimeout(newTimeout);
+  };
+  
   const handleAddBox = () => {
     let newAnnotation={}
     if(model==="segmentation"){
@@ -1072,6 +1150,7 @@ const AnnotationPage = () => {
       vertices: newBoxVertices
     };
   }
+    saveAnnotations([...annotations, newAnnotation])
     setShowDialog(false);
     setIsDrawingActive(false);
     setNewBoxLabel('');
@@ -1221,6 +1300,7 @@ const AnnotationPage = () => {
       }).format(date);
 }
   const handleSmallCanvasClick = (index) => {
+    console.log(smallCanvasData)
     // const selectedImageIndex = index % smallCanvasData.length; // Cyclic access
     const selectedImageData = smallCanvasData[index];
     setMainImageIndex(index)
@@ -1351,7 +1431,7 @@ const AnnotationPage = () => {
                       {/* <InputGroupText for="area-calculator" style={{ marginBottom: '0', maxWidth: '30%' }}>Scale:</InputGroupText> */}
 
 
-                      <FormGroup role="group" aria-label="First group" className="d-flex flex-row" style={{ padding: 0, justifyContent: 'center', alignItems: 'center' }}>
+                      <FormGroup role="group" aria-label="First group" className="d-flex flex-row" style={{ padding: 0, justifyContent: 'center', alignItems: 'flex-start' }}>
                         <Button id="btnScale" type="button" color="secondary"><i id="icnScale" class="fas fa-ruler"></i>
                           <UncontrolledTooltip placement="bottom" target="btnScale">Scale: {areaScale}px to 1mm</UncontrolledTooltip>
                         </Button>
@@ -1366,9 +1446,9 @@ const AnnotationPage = () => {
                           style={{ maxWidth: '60px'  ,marginRight:'5px'}}
                         />
                         <div className="slider-button-container">
+                        <FormGroup role="group" className="slider-button d-flex flex-row" aria-label="second group" style={{ paddingTop: 0, background:'none', marginBottom:0, paddingBottom:0}}>
                           <Dropdown id="ddlZoom" isOpen={zoomDropdownOpen} toggle={() => { setZoomDropdownOpen(!zoomDropdownOpen) }}>
-                          <DropdownToggle id="btnZoom" className="slider-button" type="button" color="secondary"><i class="fas fa-search"></i>
-                          </DropdownToggle>
+                          <DropdownToggle id="btnZoom" type="button"><i class="fas fa-search"></i></DropdownToggle>
                           <DropdownMenu>
                             {predefinedZooms.map(size => (
                               <DropdownItem key={size} onClick={() => setZoom(size)}>
@@ -1377,20 +1457,6 @@ const AnnotationPage = () => {
                             ))}
                           </DropdownMenu>
                         </Dropdown>
-                        <UncontrolledTooltip placement="bottom" target="ddlZoom">Select Zoom %</UncontrolledTooltip>
-                            {/* <UncontrolledTooltip placement="bottom" target="btnZoom">Zoom</UncontrolledTooltip> */}
-                          <Input
-                            type="range"
-                            id="zoom-slider"
-                            min="1"
-                            max="200"
-                            value={zoom}
-                            onChange={handleZoomChange}
-                            style={{ maxWidth: '38.6px' }}
-                            className="slider"
-                          />
-
-                        </div>
                         <Input
                           type="number"
                           min="1"
@@ -1400,6 +1466,20 @@ const AnnotationPage = () => {
                           aria-label="zoom value"
                           style={{ maxWidth: '60px' }}
                         />
+                        </FormGroup>
+                        <UncontrolledTooltip placement="bottom" target="ddlZoom">Select Zoom %</UncontrolledTooltip>
+                            {/* <UncontrolledTooltip placement="bottom" target="btnZoom">Zoom</UncontrolledTooltip> */}
+                          <Input
+                            type="range"
+                            id="zoom-slider"
+                            min="1"
+                            max="200"
+                            value={zoom}
+                            onChange={handleZoomChange}
+                            style={{ maxWidth: '90%', paddingTop:0 }}
+                            className="slider"
+                          />
+                        </div>
                         <Button
                           id="zoomIncreaseButton"
                           //color="primary"
@@ -1729,7 +1809,12 @@ const AnnotationPage = () => {
                 marginBottom: '0px',
                 zIndex: 20,
               }}>
-                <Table style={{ height: '90%' }}>
+              <div style={{
+                  display: 'flex',
+                  flexDirection: 'column', // Column layout for the entire page
+                  justifyContent: 'space-between', // Ensure bottom alignment
+                  height: '100vh' // Full viewport height
+                }}>
                   <Row style={{ height: '100%' }}>
                      <Col>
                       {/* AnnotationList with conditional height */}
@@ -1753,7 +1838,7 @@ const AnnotationPage = () => {
                           <Input
                             type="textarea"
                             value={notesContent}
-                            onChange={(e) => setNotesContent(e.target.value)}
+                            onChange={(e) => handleNotesChange(e)}
                             style={{ width: '100%', height: '100%' }}
                             placeholder="Type your notes here..."
                           />
@@ -1761,34 +1846,31 @@ const AnnotationPage = () => {
                       )}
                     </Col>
                   </Row>
-                  <Row style={{height:'50px'}}></Row>
-                  <Row>
-                  <Col md={6} style={{
+                  <Row style={{ marginTop: 'auto', width: '100%' }}> {/* Push to bottom */}
+                    <Col md={6} style={{
                       display: 'flex',
-                      flexDirection: 'column', // Use column direction for flexbox
-                      justifyContent: 'flex-end', // Align content to the bottom
-                      height: '100%', // Full height of the column
-                      alignItems:'start'
+                      flexDirection: 'column',
+                      justifyContent: 'flex-end',
+                      height: '100%',
+                      alignItems: 'start'
                     }}>
-                      <Button onClick={()=>handleNotesClick()} color="primary">
+                      <Button onClick={() => handleNotesClick()} color="primary">
                         {isNotesOpen ? 'Close Notes' : 'Open Notes'}
                       </Button>
                     </Col>
                     <Col md={6} style={{
                       display: 'flex',
-                      flexDirection: 'column', // Use column direction for flexbox
-                      justifyContent: 'flex-end', // Align content to the bottom
-                      height: '100%', // Full height of the column
-                      alignItems:'end base'
+                      flexDirection: 'column',
+                      justifyContent: 'flex-end',
+                      height: '100%',
+                      alignItems: 'end'
                     }}>
                       <h4 className="card-title mb-6">Model : {model !== "" ? model ? model : "Object Det." : "Older Model"}</h4>
                     </Col>
                   </Row>
-                </Table>
-
-              </Col>
+                </div>
+                </Col>
             </Row>
-
           </Container>
         </CardBody>
       </Card>
