@@ -45,6 +45,7 @@ const PatientImagesList = (props) => {
     const [patient_add, setpatient_add] = useState('');
     const [patient_age, setpatient_age] = useState('');
     const [visitDetials, setVisitDetails] = useState([]);
+    const [error, setError] = useState('');
     useEffect(() => {
         props.setBreadcrumbItems('Patient Images List', breadcrumbItems)
         setPatientId(sessionStorage.getItem('patientId'));
@@ -94,18 +95,18 @@ const PatientImagesList = (props) => {
 
         getPatientDetails();
 
-        const DateFormatter = (date ) => {
+        const DateFormatter = (date) => {
             return new Intl.DateTimeFormat('en-US', {
                 month: 'short',
                 day: '2-digit',
                 year: 'numeric',
-              }).format(date);
+            }).format(date);
         }
 
         const getPatientVisits = async () => {
             //console.log(sessionStorage.getItem('patientId'));
             const response = await axios.get(`${apiUrl}/getPatientVisitsByID?patientId=` + sessionStorage.getItem('patientId'));
-           //  const response = await axios.get('http://localhost:3001/getPatientVisitsByID?patientId=' + sessionStorage.getItem('patientId'));
+            //  const response = await axios.get('http://localhost:3001/getPatientVisitsByID?patientId=' + sessionStorage.getItem('patientId'));
             if (response.status === 200) {
                 const visitData = response.data;
                 // const responseImages = await axios.get('http://localhost:3000/getPatientImagesByID?patientId=' + sessionStorage.getItem('patientId'));
@@ -121,7 +122,6 @@ const PatientImagesList = (props) => {
                         }];
                         setVisitDetails(prevDetails => [...prevDetails, newVisit[0]]);
                     });
-                    console.log(visitDetials);
                 }
             }
         }
@@ -139,28 +139,34 @@ const PatientImagesList = (props) => {
         return <Navigate to="/newPatientVisit" />;
     }
 
-    const handleClick = (visitId,key) => {
-        sessionStorage.setItem('visitId', visitId.patientImages[0].visitId);
-        sessionStorage.setItem('xrayDate',visitId.DateOfXray);
-        console.log(visitId.DateOfXray);
-        console.log(key)
-        if(key===0&&key===visitDetials.length-1){
-            sessionStorage.setItem('first', true)
-            sessionStorage.setItem('last',true)
-        }
-        else if(key===0){
-            sessionStorage.setItem('first', false)
-            sessionStorage.setItem('last',true)
-        }
-        else if(key===visitDetials.length-1){
-            sessionStorage.setItem('last',false)
-            sessionStorage.setItem('first',true)
+    const handleClick = (visitId, key) => {
+        setError("");
+        if (visitId.patientImages.length > 0) {
+            sessionStorage.setItem('visitId', visitId.patientImages[0].visitId);
+            sessionStorage.setItem('xrayDate', visitId.DateOfXray);
+            console.log(visitId.DateOfXray);
+            console.log(key)
+            if (key === 0 && key === visitDetials.length - 1) {
+                sessionStorage.setItem('first', true)
+                sessionStorage.setItem('last', true)
+            }
+            else if (key === 0) {
+                sessionStorage.setItem('first', false)
+                sessionStorage.setItem('last', true)
+            }
+            else if (key === visitDetials.length - 1) {
+                sessionStorage.setItem('last', false)
+                sessionStorage.setItem('first', true)
+            }
+            else {
+                sessionStorage.setItem('last', false)
+                sessionStorage.setItem('first', false)
+            }
+            setRedirectToAnnotationPage(true);
         }
         else{
-            sessionStorage.setItem('last',false)
-            sessionStorage.setItem('first',false)
+            setError("No images are available to annotate for this visit.")
         }
-        setRedirectToAnnotationPage(true);
     };
 
     if (redirectToAnnotationPage) {
@@ -182,6 +188,7 @@ const PatientImagesList = (props) => {
                         </Col>
 
                     </Row><br></br>
+                    {error && <p style={{ color: 'red' }}>{error}</p>}
                     <Row>
                         <Col sm={4} className='card'>
                             <table>
@@ -263,7 +270,7 @@ const PatientImagesList = (props) => {
                             <tbody>
                                 {
                                     visitDetials.map((visit, key) =>
-                                        <tr key={key} onClick={() => handleClick(visit,key)}>
+                                        <tr key={key} onClick={() => handleClick(visit, key)}>
                                             <td>{visit.visitDate}</td>
                                             <td>{visit.DateOfXray}</td>
                                             <td>{visit.Summary}</td>

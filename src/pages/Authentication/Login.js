@@ -1,64 +1,75 @@
-import React from 'react'
+import React, {  useState,useEffect } from 'react'
 import { Link } from 'react-router-dom';
-import { Container, Row, Col, Card, CardBody, Label, Form, Alert, Input, FormFeedback } from 'reactstrap';
+import { Container, Row, Col, Card, CardBody, Label } from 'reactstrap';
 import logoDark from "../../assets/images/logo-dark.png";
 import logoLight from "../../assets/images/logo-dark.png";
-import { useSelector, useDispatch } from "react-redux";
-import { createSelector } from "reselect";
-import PropTypes from "prop-types";
-
+// import { useSelector, useDispatch } from "react-redux";
+// import { createSelector } from "reselect";
+// import PropTypes, { resetWarningCache } from "prop-types";
+import { Navigate } from "react-router-dom";
 // Formik validation
-import * as Yup from "yup";
-import { useFormik } from "formik";
-import withRouter from 'components/Common/withRouter';
-
+//import * as Yup from "yup";
+//import { useFormik } from "formik";
+// import withRouter from 'components/Common/withRouter';
+import { AvForm, AvField } from "availity-reactstrap-validation"
 // actions
-import { loginUser, socialLogin } from "../../store/actions";
+//import { loginUser, socialLogin, loginSuccess } from "../../store/actions";
+import axios from "axios"
 
 const Login = props => {
+  const apiUrl = process.env.REACT_APP_NODEAPIURL;
   document.title = "Login | AGP Dental Tool";
+  const [redirect, setRedirect] = useState(false);
+  //const dispatch = useDispatch();
 
-  const dispatch = useDispatch();
+  //create user
+  // useEffect(() => {
+  //   const createUser = async () => {
+  //     const response = await axios.post(`${apiUrl}/user-register`, {
+  //       first_name: 'Imaran', last_name: 'Qureshi', email: 'imran.qureshi@gmail.com', role: '671770529d3ce13d7fdae2db',
+  //       password: 'Imaran@123', client_id: '6718e36c9d3ce13d7fdae2ee'
+  //     });
+  //     console.log(response);
+  //   }
+  //   createUser();
+  // }, [])
+  //-----------
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
-  const validation = useFormik({
-    // enableReinitialize : use this  flag when initial values needs to be changed
-    enableReinitialize: true,
+  const handleSubmit = async () => {
+    //e.preventDefault();
+    setError('');
+      try {
+        //console.log("calling api");
+        const response = await axios.post(`${apiUrl}/login`, {
+          username: username, password: password
+        });
+        console.log(response);
+        if (response.status === 200) {
+          //console.log(response);
+          sessionStorage.setItem('token', response.data.token);
+          sessionStorage.setItem('clientId',response.data.clientId);
+          // localStorage.setItem('authUser',response.data.token);
+          setError('');          
+          setRedirect(true);
+        }
+        else
+          throw new Error(response.data || 'Login failed');
+      }
+      catch (error) {
+        if (error instanceof Error) {
+          setError(error.response.data);
+        } else {
+          setError('An unexpected error occurred');
+        }
+      }
+  }
 
-    initialValues: {
-      email: "admin@agp.com" || '',
-      //password: "Agp@123" || '',
-    },
-    validationSchema: Yup.object({
-      email: Yup.string().required("Please Enter Your Email"),
-      password: Yup.string().required("Please Enter Your Password"),
-    }),
-    onSubmit: (values) => {
-      dispatch(loginUser(values, props.router.navigate));
-    }
-  });
-
-
-  const selectLoginState = (state) => state.Login;
-  const LoginProperties = createSelector(
-    selectLoginState,
-    (login) => ({
-      error: login.error
-    })
-  );
-
-  const {
-    error
-  } = useSelector(LoginProperties);
-
-  const signIn = type => {
-    dispatch(socialLogin(type, props.router.navigate));
-  };
-
-  //for facebook and google authentication
-  const socialResponse = type => {
-    signIn(type);
-  };
-
+  if (redirect) {
+      return <Navigate to="/practiceList" />;
+  }
 
   return (
     <React.Fragment>
@@ -70,7 +81,7 @@ const Login = props => {
                 <CardBody className="pt-0">
 
                   <h3 className="text-center mt-5 mb-4">
-                    <Link to="/practiceList" className="d-block auth-logo">
+                    <Link to="/" className="d-block auth-logo">
                       <img src={logoDark} alt="" height="55" className="auth-logo-dark" />
                       <img src={logoLight} alt="" height="55" className="auth-logo-light" />
                     </Link>
@@ -79,18 +90,25 @@ const Login = props => {
                   <div className="p-3">
                     <h4 className="text-muted font-size-18 mb-1 text-center">Welcome Back !</h4>
                     <p className="text-muted text-center">Sign in to continue to AGP Dental Tool.</p>
-                    <Form
-                      className="form-horizontal mt-4"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        validation.handleSubmit();
-                        return false;
-                      }}
+                    <AvForm
+                      className="form-horizontal mt-4 needs-validation"
+                      onValidSubmit={handleSubmit}
                     >
-                      {error ? <Alert color="danger">{error}</Alert> : null}
+                      {error && <p style={{ color: 'red' }}>{error}</p>}
                       <div className="mb-3">
-                        <Label htmlFor="username">Username</Label>
-                        <Input
+                        <Label htmlFor="validationCustom01">Username</Label>
+                        <AvField
+                          name="firstname"
+                          placeholder="User name"
+                          type="text"
+                          errorMessage="Enter User Name"
+                          className="form-control"
+                          validate={{ required: { value: true } }}
+                          id="validationCustom01"
+                          onChange={(e) => setUsername(e.target.value)} 
+                          value={username} 
+                        />
+                        {/* <Input
                           name="email"
                           className="form-control"
                           placeholder="Enter email"
@@ -104,11 +122,22 @@ const Login = props => {
                         />
                         {validation.touched.email && validation.errors.email ? (
                           <FormFeedback type="invalid">{validation.errors.email}</FormFeedback>
-                        ) : null}
+                        ) : null} */}
                       </div>
                       <div className="mb-3">
-                        <Label htmlFor="userpassword">Password</Label>
-                        <Input
+                        <Label htmlFor="validationCustom02">Password</Label>
+                        <AvField
+                          name="password"
+                          placeholder="Password"
+                          type="password"
+                          errorMessage="Enter Password"
+                          className="form-control"
+                          validate={{ required: { value: true } }}
+                          id="validationCustom02"
+                          value={password} 
+                          onChange={(e) => setPassword(e.target.value)} 
+                        />
+                        {/* <Input
                           name="password"
                           value={validation.values.password || ""}
                           type="password"
@@ -121,7 +150,7 @@ const Login = props => {
                         />
                         {validation.touched.password && validation.errors.password ? (
                           <FormFeedback type="invalid">{validation.errors.password}</FormFeedback>
-                        ) : null}
+                        ) : null} */}
                       </div>
                       <Row className="mb-3 mt-4">
                         <div className="col-6">
@@ -150,7 +179,7 @@ const Login = props => {
                           </Link>
                         </div> */}
                       </Row>
-                    </Form>
+                    </AvForm>
                   </div>
                 </CardBody>
               </Card>
@@ -168,8 +197,8 @@ const Login = props => {
   )
 }
 
-export default withRouter(Login);
+export default Login;
 
-Login.propTypes = {
-  history: PropTypes.object,
-};
+// Login.propTypes = {
+//   history: PropTypes.object,
+// };

@@ -1,5 +1,4 @@
 import axios from "axios";
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from "pages/AnnotationTools/constants";
 export const getCoordinatesFromAPI = async (file) => {
   const formData = new FormData();
   formData.append('image', file);
@@ -71,15 +70,14 @@ export const getCoordinatesFromAPI = async (file) => {
         }
       }
       catch (err) {
-        console.err(err)
-        return { annotations: [], status: 'OPEN' }
+        console.error(err)
+        return { error:`${file.name} - Error running model` }
       }
     }
     else {
       console.error('Error fetching coordinates from API:', error);
-      throw new Error('Failed to fetch coordinates from API');
+      return { error: `${file.name} - Error running model`};
     }
-    return [];
   }
 };
 export const saveImageToFolder = async (file, patientID, imageNumber) => {
@@ -93,6 +91,9 @@ export const saveImageToFolder = async (file, patientID, imageNumber) => {
   try {
     // Process annotations (assuming getCoordinatesFromAPI is a function you have)
     const annotations = await getCoordinatesFromAPI(file);
+    if(annotations.error){
+      return {success:false, error:annotations.error}
+    }
     const scaledResponse = {
       annotations: annotations,
       status: annotations.status,
@@ -117,7 +118,7 @@ export const saveImageToFolder = async (file, patientID, imageNumber) => {
         headers: { 'Content-Type': 'application/json' }
       });
       console.log('Image, annotations and thumbnail uploaded successfully');
-      return true;
+      return {success:true};
     } catch (error) {
       if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code == "ERR_BAD_REQUEST") {
         try {
@@ -133,19 +134,20 @@ export const saveImageToFolder = async (file, patientID, imageNumber) => {
             headers: { 'Content-Type': 'application/json' }
           });
           console.log('Image, annotations and thumbnail uploaded successfully');
-          return true;
+          return {success:true};
         }
         catch (err) {
           console.log(err)
+          return {success:false, error:`${imageFileName} - Error uploading image and annotations`}
         }
       } else {
         console.error('Error uploading image and annotations:', error);
-        throw error;
+        return {success:false, error:`${imageFileName} - Error uploading image and annotations`}
       }
     }
   } catch (error) {
     console.error('Error processing image and annotations:', error);
-    throw error;
+    return {success:false, error:`${imageFileName} - Error uploading image and annotations`}
   }
 };
 

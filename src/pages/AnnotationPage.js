@@ -570,8 +570,11 @@ const AnnotationPage = () => {
         anno === selectedAnnotation ? updatedAnnotation : anno
       );
       setAnnotations(newAnnotations);
+      saveAnnotations(newAnnotations);
+      let updatedSmallCanvasData=smallCanvasData
+      updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations= newAnnotations
+      setSmallCanvasData(updatedSmallCanvasData)
       setSelectedAnnotation(updatedAnnotation);
-      console.log(updatedAnnotation)
     }
   };
   const mergeEditingPathWithAnnotation = () => {
@@ -610,6 +613,10 @@ const AnnotationPage = () => {
         anno === selectedAnnotation ? updatedAnnotation : anno
       );
       updateAnnotationsWithHistory(newAnnotations);
+      saveAnnotations(newAnnotations);
+      let updatedSmallCanvasData=smallCanvasData
+      updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations= newAnnotations
+      setSmallCanvasData(updatedSmallCanvasData)
       setEditingPath([]);
       console.log(newAnnotations)
       setSelectedAnnotation(null);
@@ -975,7 +982,7 @@ const AnnotationPage = () => {
     if (isNotesOpen) {
       // Start the 5-second auto-save interval when notes are open
       const intervalId = setInterval(() => {
-        saveNotes(); // Save notes every 5 seconds
+        saveNotes(notesContent); // Save notes every 30 seconds
       }, 30000); // 30000 ms = 30 seconds
   
       setAutoSaveInterval(intervalId);
@@ -1039,6 +1046,10 @@ const AnnotationPage = () => {
     setShowDialog(false);
     setIsDrawingActive(false);
     saveAnnotations(annotations.filter((_, index) => index !== id));
+    let updatedSmallCanvasData=smallCanvasData
+    updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations= annotations.filter((_, index) => index !== id)
+    console.log(updatedSmallCanvasData)
+    setSmallCanvasData(updatedSmallCanvasData)
   };
   
   const updateAnnotationsWithHistory = (newAnnotations) => {
@@ -1047,25 +1058,35 @@ const AnnotationPage = () => {
     setCurrentStep(Math.min(currentStep + 1, MAX_HISTORY - 1));
     console.log(history, currentStep)
   };
-  const saveNotes = async()=>{
-    if(notesContent!==oldNotesContent){
+  const saveNotes = async (notesContent) => {
+    if (notesContent !== oldNotesContent) {
       try {
-    const encodedNotes = encodeURIComponent(notesContent);
-    const response = await axios.put(`${apiUrl}/save-notes?visitID=` + sessionStorage.getItem('visitId')+'&notes='+encodedNotes); // Adjust the API endpoint as needed
-    const data = response.data;
-    return data.notes;
-  } catch (error) {
-    if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200") {
-      const encodedNotes = encodeURIComponent(notesContent);
-      const response = await axios.get('http://localhost:3000/save-notes?visitID=' + sessionStorage.getItem('visitId')+'&notes='+encodedNotes); // Adjust the API endpoint as needed
-      const data = response.data;
-    return data.notes;
+        const response = await axios.put(`${apiUrl}/save-notes`, {
+          visitID: sessionStorage.getItem('visitId'),
+          notes: notesContent  // Send notes in the body instead of query string
+        });
+        const data = response.data;
+        setOldNotesContent(notesContent);
+        return data.notes;
+      } catch (error) {
+        // Fallback logic if connection fails
+        if (["ECONNREFUSED", "ERR_NETWORK", "ERR_CONNECTION_TIMED_OUT", "ERR_SSL_PROTOCOL_ERROR"].includes(error.code)) {
+          const response = await axios.get('http://localhost:3000/save-notes', {
+            params: {
+              visitID: sessionStorage.getItem('visitId'),
+              notes: notesContent
+            }
+          });
+          const data = response.data;
+          setOldNotesContent(notesContent);
+          return data.notes;
+        } else {
+          console.error('Error saving notes:', error);
+        }
+      }
     }
-    else {
-      console.error('Error saving notes:', error);
-    }
-  }}
-  }
+  };
+  
   const saveAnnotations = async(newAnnotations)=>{
     try {
       const scaledResponse={
@@ -1117,12 +1138,12 @@ const AnnotationPage = () => {
       setIsNotesOpen(true);
     }
     else{
-      saveNotes();
+      saveNotes(notesContent);
       setIsNotesOpen(false);
     }
   }
   const handleNotesChange = (e) => {
-    setNotesContent(e.target.value);  
+    setNotesContent(e.target.value);
     // Clear the previous timeout if the user keeps typing
     if (saveTimeout) {
       clearTimeout(saveTimeout);
@@ -1130,7 +1151,7 @@ const AnnotationPage = () => {
   
     // Set a new timeout to auto-save notes after the delay
     const newTimeout = setTimeout(() => {
-      saveNotes();
+      saveNotes(e.target.value);
     }, AUTO_SAVE_DELAY);
   
     setSaveTimeout(newTimeout);
@@ -1151,6 +1172,10 @@ const AnnotationPage = () => {
     };
   }
     saveAnnotations([...annotations, newAnnotation])
+    let updatedSmallCanvasData=smallCanvasData
+    updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations= [...annotations, newAnnotation]
+    console.log(smallCanvasData[mainImageIndex])
+    setSmallCanvasData(updatedSmallCanvasData)
     setShowDialog(false);
     setIsDrawingActive(false);
     setNewBoxLabel('');
@@ -1300,7 +1325,7 @@ const AnnotationPage = () => {
       }).format(date);
 }
   const handleSmallCanvasClick = (index) => {
-    console.log(smallCanvasData)
+    // console.log(smallCanvasData)
     // const selectedImageIndex = index % smallCanvasData.length; // Cyclic access
     const selectedImageData = smallCanvasData[index];
     setMainImageIndex(index)

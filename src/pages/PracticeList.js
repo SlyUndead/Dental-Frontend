@@ -19,7 +19,7 @@ const PracticeList = (props) => {
     useEffect(() => {
         console.log(apiUrl);
         const getPracticeList = async () => {
-            const response = await axios.get(`${apiUrl}/getPracticeList`); // Adjust the API endpoint as needed
+            const response = await axios.get(`${apiUrl}/getPracticeList?clientId=` + sessionStorage.getItem('clientId')); // Adjust the API endpoint as needed
             //    const getPracticeList= async()=>{const response = await axios.get('http://localhost:3001/getPracticeList');
             console.log(response);
             const data = response.data;

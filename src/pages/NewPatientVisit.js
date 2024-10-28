@@ -111,17 +111,27 @@ const NewPatient = (props) => {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i]
     }
     const [redirect, setRedirect] = useState(false);
-
+    const [message, setMessage] = useState('')
+    const [cancelRedirect, setCancelRedirect] = useState(false)
     const handleSubmit = async () => {
-        setLoading(true)
-        const redirect = await Promise.all(
-            selectedFiles.map((file, index) => saveImageToFolder(file, patientId, index + 1, model))
+        setLoading(true);
+        const results = await Promise.all(
+          selectedFiles.map((file, index) => saveImageToFolder(file, patientId, index + 1, model))
         );
-        setLoading(false)
-        sessionStorage.setItem('last', false)
-        sessionStorage.setItem('first', true)
-        setRedirect(redirect || false);
-    };
+        const errors = results.filter(result => !result.success).map(result => result.error);
+        setLoading(false);
+        if (errors.length > 0) {
+          console.error('Errors:', errors); // Optionally log errors for debugging
+          setMessage(`${errors.length} files failed to upload:\n${errors.join('\n')}`);
+          return;
+        }
+      
+        // Set success states if no errors occurred
+        sessionStorage.setItem('last', true);
+        sessionStorage.setItem('first', false);
+        setRedirect(true);
+      };
+      
     const handleModelChange=()=>{
         if(model==="Old Model"){
             setModel("Segmentation Model")
@@ -132,6 +142,9 @@ const NewPatient = (props) => {
     }
     if (redirect) {
         return <Navigate to="/annotationPage" />;
+    }
+    if(cancelRedirect){
+        return <Navigate to="/patientImagesList"/>;
     }
     return (
         <React.Fragment>
@@ -390,8 +403,20 @@ const NewPatient = (props) => {
                                                 >
                                                     Submit
                                                 </button>
+                                                {message!==''?<button onClick={()=>{setCancelRedirect(true)}}
+                                                    type="button"
+                                                    className="btn btn-primary waves-effect waves-light"
+                                                    style={{marginLeft:'1%'}}
+                                                >
+                                                    Cancel
+                                                </button>:<></>}
                                             </div>
                                         </Row>
+                                        {message!==''?<Row>
+                                            <div className="text-center mt-4" style={{color:'red', whiteSpace:'pre-line'}}>
+                                                {message}
+                                            </div>
+                                        </Row>:<></>}
                                     </TabPane>
                                 </TabContent>
                             </CardBody>
