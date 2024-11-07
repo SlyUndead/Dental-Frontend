@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect, useCallback } from "react"
 import {
   Table, Card, CardBody, Button, Col, Row, FormGroup, Label, Input, Container, InputGroup, InputGroupText, Dropdown,
   DropdownMenu, DropdownToggle, DropdownItem, Popover, PopoverBody, Modal, ModalBody, ModalFooter, ModalHeader, Spinner,
-  UncontrolledTooltip} from "reactstrap";
+  UncontrolledTooltip
+} from "reactstrap";
 import AnnotationList from "./AnnotationTools/AnnotationList";
 import { MAX_HISTORY } from "./AnnotationTools/constants";
 import { LivewireScissors } from '../helpers/DrawingTools/LivewireScissors.ts';
@@ -130,7 +131,7 @@ const AnnotationPage = () => {
   //       }
   //     }
   // };
-  const fetchNotesContent = async()=>{
+  const fetchNotesContent = async () => {
     try {
       const response = await axios.get(`${apiUrl}/notes-content?visitID=` + sessionStorage.getItem('visitId')); // Adjust the API endpoint as needed
       const data = response.data;
@@ -144,7 +145,7 @@ const AnnotationPage = () => {
         const data = response.data;
         // setMainImage(data.image);
         // setAnnotations(data.annotations);
-      return data.notes;
+        return data.notes;
       }
       else {
         console.error('Error fetching most recent image:', error);
@@ -164,7 +165,7 @@ const AnnotationPage = () => {
         const data = response.data;
         // setMainImage(data.image);
         // setAnnotations(data.annotations);
-      return data.images;
+        return data.images;
       }
       else {
         console.error('Error fetching most recent image:', error);
@@ -175,14 +176,14 @@ const AnnotationPage = () => {
     try {
       const response = await axios.get(`${apiUrl}/get-classCategories`); // Adjust the API endpoint as needed
       const data = response.data;
-      let updatedClassCategories={}
-      let updatedLabelColors={}
+      let updatedClassCategories = {}
+      let updatedLabelColors = {}
       data.forEach(element => {
-        if(updatedClassCategories[element.className]===undefined){
-          updatedClassCategories[element.className]=element.category
+        if (updatedClassCategories[element.className] === undefined) {
+          updatedClassCategories[element.className] = element.category
         }
-        if(updatedLabelColors[element.className]===undefined){
-          updatedLabelColors[element.className.toLowerCase()]=element.color
+        if (updatedLabelColors[element.className] === undefined) {
+          updatedLabelColors[element.className.toLowerCase()] = element.color
         }
       });
       setLabelColors(updatedLabelColors)
@@ -191,20 +192,20 @@ const AnnotationPage = () => {
       if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200") {
         const response = await axios.get('http://localhost:3000/get-classCategories'); // Adjust the API endpoint as needed
         const data = response.data;
-        let updatedClassCategories={}
-        let updatedLabelColors={}
+        let updatedClassCategories = {}
+        let updatedLabelColors = {}
         data.forEach(element => {
-          if(updatedClassCategories[element.className]===undefined){
-            updatedClassCategories[element.className]=element.category
+          if (updatedClassCategories[element.className] === undefined) {
+            updatedClassCategories[element.className] = element.category
           }
-          if(updatedLabelColors[element.className]===undefined){
-            updatedLabelColors[element.className.toLowerCase()]=element.color
+          if (updatedLabelColors[element.className] === undefined) {
+            updatedLabelColors[element.className.toLowerCase()] = element.color
           }
         });
         setLabelColors(updatedLabelColors)
         setClassCategories(updatedClassCategories)
+      }
     }
-  }
   };
   const getBoxDimensions = (vertices) => {
     const xCoords = vertices.map(v => v.x);
@@ -228,75 +229,83 @@ const AnnotationPage = () => {
     return Math.abs(area / 2) / areaScale;
   };
   const drawAnnotations = (ctx, image, x, y, scale, selectedAnnotation, areaScale) => {
-    if(model==="segmentation"){
+    if (model === "segmentation") {
       annotations.forEach((anno, index) => {
-      if (!hiddenAnnotations.includes(index)) {
-        if(selectedAnnotation===null||selectedAnnotation===anno){
-          if (anno.label === 'Line') {
-          // Draw line
-          ctx.beginPath();
-          ctx.moveTo(anno.vertices[0].x * scale, anno.vertices[0].y * scale);
-          ctx.lineTo(anno.vertices[1].x * scale, anno.vertices[1].y * scale);
-          ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
-          ctx.lineWidth = 2;
-          ctx.stroke();
+        if (!hiddenAnnotations.includes(index)) {
+          if (selectedAnnotation === null || selectedAnnotation === anno) {
+            if (anno.label === 'Line') {
+              // Draw line
+              ctx.beginPath();
+              ctx.moveTo(anno.vertices[0].x * scale, anno.vertices[0].y * scale);
+              ctx.lineTo(anno.vertices[1].x * scale, anno.vertices[1].y * scale);
+              ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
+              ctx.lineWidth = 2;
+              ctx.stroke();
 
-          // Calculate length
-          const dx = (anno.vertices[1].x - anno.vertices[0].x) * scale;
-          const dy = (anno.vertices[1].y - anno.vertices[0].y) * scale;
-          const length = Math.sqrt(dx * dx + dy * dy) / areaScale;
+              // Calculate length
+              const dx = (anno.vertices[1].x - anno.vertices[0].x) * scale;
+              const dy = (anno.vertices[1].y - anno.vertices[0].y) * scale;
+              const length = Math.sqrt(dx * dx + dy * dy) / areaScale;
 
-          // Display length
-          const midX = ((anno.vertices[0].x + anno.vertices[1].x) / 2) * scale;
-          const midY = ((anno.vertices[0].y + anno.vertices[1].y) / 2) * scale;
-          ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
-          ctx.font = '12px Arial';
-          ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
-        } else {
-          if(anno.segmentation){
-            ctx.beginPath();
-            ctx.moveTo(anno.segmentation[0].x * scale, anno.segmentation[0].y * scale);
-  
-            for (let i = 1; i < anno.segmentation.length; i++) {
-              ctx.lineTo(anno.segmentation[i].x * scale, anno.segmentation[i].y * scale);
+              // Display length
+              const midX = ((anno.vertices[0].x + anno.vertices[1].x) / 2) * scale;
+              const midY = ((anno.vertices[0].y + anno.vertices[1].y) / 2) * scale;
+              ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
+              ctx.font = '12px Arial';
+              ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
+            } else {
+              if (anno.segmentation) {
+                ctx.beginPath();
+                ctx.moveTo(anno.segmentation[0].x * scale, anno.segmentation[0].y * scale);
+
+                for (let i = 1; i < anno.segmentation.length; i++) {
+                  ctx.lineTo(anno.segmentation[i].x * scale, anno.segmentation[i].y * scale);
+                }
+                ctx.closePath();
+                if (index === hoveredAnnotation) {
+                  ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                  ctx.fill();
+                }
+                ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+              }
+              else if (anno.bounding_box) {
+                ctx.beginPath();
+                ctx.moveTo(anno.bounding_box[0].x * scale, anno.bounding_box[0].y * scale);
+                for (let i = 1; i < anno.bounding_box.length; i++) {
+                  ctx.lineTo(anno.bounding_box[i].x * scale, anno.bounding_box[i].y * scale);
+                }
+                ctx.closePath();
+                if (index === hoveredAnnotation) {
+                  ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                  ctx.fill();
+                }
+                ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+              }
+              if (selectedAnnotation !== anno) {
+                const { left, top } = getBoxDimensions(anno.segmentation.map(v => ({ x: v.x * scale, y: v.y * scale })));
+                const area = calculatePolygonArea(anno.segmentation.map(v => ({ x: v.x * scale, y: v.y * scale })), areaScale).toFixed(2);
+                ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
+                const labelText = `${anno.label} (${area} mm²)`;
+                ctx.font = '12px Arial';
+
+                // Measure the text width and height
+                const textMetrics = ctx.measureText(labelText);
+                const textHeight = parseInt(ctx.font, 10); // Get the font size as height
+                ctx.fillRect(left, top - 28 - textHeight, textMetrics.width + 10, textHeight + 10); // Draw background
+
+                ctx.fillStyle = 'black'; // Set text color
+                ctx.fillText(labelText, left + 5, top - 25);
+              }
             }
-            ctx.closePath();
-            if (index === hoveredAnnotation) {
-              ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-              ctx.fill();
-            }
-            ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
-            ctx.lineWidth = 2;
-            ctx.stroke();
           }
-          else if(anno.bounding_box){
-          ctx.beginPath();
-          ctx.moveTo(anno.bounding_box[0].x * scale, anno.bounding_box[0].y * scale);
-          for (let i = 1; i < anno.bounding_box.length; i++) {
-            ctx.lineTo(anno.bounding_box[i].x * scale, anno.bounding_box[i].y * scale);
-          }
-          ctx.closePath();
-          if (index === hoveredAnnotation) {
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.fill();
-          }
-          ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
-          ctx.lineWidth = 2;
-          ctx.stroke();
         }
-          if (selectedAnnotation !== anno) {
-            const { left, top } = getBoxDimensions(anno.segmentation.map(v => ({ x: v.x * scale, y: v.y * scale })));
-            const area = calculatePolygonArea(anno.segmentation.map(v => ({ x: v.x * scale, y: v.y * scale })), areaScale).toFixed(2);
-            ctx.fillStyle = labelColors[anno.label.toLowerCase()]||'white';
-            const labelText = `${anno.label} (${area} mm²)`;
-            ctx.font = '12px Arial';
-            ctx.fillText(labelText, left + 5, top - 25);
-          }
-      }
+      })
     }
-    }
-    })}
-    else{
+    else {
       annotations.forEach((anno, index) => {
         if (!hiddenAnnotations.includes(index)) {
           if (anno.label === 'Line') {
@@ -307,12 +316,12 @@ const AnnotationPage = () => {
             ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
             ctx.lineWidth = 2;
             ctx.stroke();
-  
+
             // Calculate length
             const dx = (anno.vertices[1].x - anno.vertices[0].x) * scale;
             const dy = (anno.vertices[1].y - anno.vertices[0].y) * scale;
             const length = Math.sqrt(dx * dx + dy * dy) / areaScale;
-  
+
             // Display length
             const midX = ((anno.vertices[0].x + anno.vertices[1].x) / 2) * scale;
             const midY = ((anno.vertices[0].y + anno.vertices[1].y) / 2) * scale;
@@ -321,10 +330,10 @@ const AnnotationPage = () => {
             ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
           } else {
             const { left, top } = getBoxDimensions(anno.vertices.map(v => ({ x: v.x * scale, y: v.y * scale })));
-  
+
             ctx.beginPath();
             ctx.moveTo(anno.vertices[0].x * scale, anno.vertices[0].y * scale);
-  
+
             for (let i = 1; i < anno.vertices.length; i++) {
               ctx.lineTo(anno.vertices[i].x * scale, anno.vertices[i].y * scale);
             }
@@ -338,9 +347,16 @@ const AnnotationPage = () => {
             ctx.stroke();
             if (selectedAnnotation !== anno) {
               const area = calculatePolygonArea(anno.vertices.map(v => ({ x: v.x * scale, y: v.y * scale })), areaScale).toFixed(2);
-              ctx.fillStyle = labelColors[anno.label.toLowerCase()]||'white';
+              ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
               const labelText = `${anno.label} (${area} mm²)`;
               ctx.font = '12px Arial';
+              // Measure the text width and height
+              const textMetrics = ctx.measureText(labelText);
+              const textHeight = parseInt(ctx.font, 10); // Get the font size as height
+              ctx.fillRect(left, top - 28 - textHeight, textMetrics.width + 10, textHeight + 10); // Draw background
+
+              ctx.fillStyle = 'black'; // Set text color
+
               ctx.fillText(labelText, left + 5, top - 25);
             }
           }
@@ -354,13 +370,13 @@ const AnnotationPage = () => {
   // };
   const handleMouseUp = () => {
     if (isEraserActive && isErasing.current) {
-          isErasing.current = false;
-          handleErase();
-          updateHistory();
-          setErasePoints([]);
-      } else if (selectedAnnotation && !isEraserActive) {
-          isDrawingRef.current = false;
-          mergeEditingPathWithAnnotation();
+      isErasing.current = false;
+      handleErase();
+      updateHistory();
+      setErasePoints([]);
+    } else if (selectedAnnotation && !isEraserActive) {
+      isDrawingRef.current = false;
+      mergeEditingPathWithAnnotation();
     } else if (isDrawingFreehand && isDrawingRef.current) {
       isDrawingRef.current = false;
       completeFreehandDrawing();
@@ -413,10 +429,10 @@ const AnnotationPage = () => {
     if (isEraserActive && selectedAnnotation) {
       isErasing.current = true;
       setErasePoints([clickPoint]);
-      } else if (selectedAnnotation && !isEraserActive) {
-          setEditingPath([clickPoint]); // Start a new editing path
-          isDrawingRef.current = true;
-          setSubtractPath(e.button === 2);
+    } else if (selectedAnnotation && !isEraserActive) {
+      setEditingPath([clickPoint]); // Start a new editing path
+      isDrawingRef.current = true;
+      setSubtractPath(e.button === 2);
     } else if (isHybridDrawingActive) {
       if (!isDrawingStartedRef.current) {
         startPointRef.current = clickPoint;
@@ -491,12 +507,12 @@ const AnnotationPage = () => {
         setErasePoints(prevPoints => [...prevPoints, currentPoint]);
         const ctx = mainCanvasRef.current.getContext('2d');
         ctx.beginPath();
-        ctx.arc(currentPoint[0], currentPoint[1], eraserSize , 0, 2 * Math.PI);
+        ctx.arc(currentPoint[0], currentPoint[1], eraserSize, 0, 2 * Math.PI);
         ctx.fillStyle = 'rgba(255, 0, 0, 0.3)'; // Adjust the color and opacity as needed
         ctx.fill();
         handleErase();
-        } else if (selectedAnnotation && isDrawingRef.current && !isEraserActive) {
-            setEditingPath(prevPath => [...prevPath, currentPoint]);
+      } else if (selectedAnnotation && isDrawingRef.current && !isEraserActive) {
+        setEditingPath(prevPath => [...prevPath, currentPoint]);
       } else if (isHybridDrawingActive && isDrawingStartedRef.current) {
         if (isMouseDown) {
           setHybridPath(prevPath => [...prevPath, currentPoint]);
@@ -531,48 +547,48 @@ const AnnotationPage = () => {
   const handleErase = () => {
     if (isEraserActive && selectedAnnotation) {
       console.log(erasePoints)
-      let updatedVertices=[]
-      let updatedAnnotation={}
-      if(selectedAnnotation.segmentation){
+      let updatedVertices = []
+      let updatedAnnotation = {}
+      if (selectedAnnotation.segmentation) {
         updatedVertices = selectedAnnotation.segmentation.filter(vertex => {
-        return !erasePoints.some(erasePoint => {
-          const dx = vertex.x - erasePoint[0];
-          const dy = vertex.y - erasePoint[1];
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          return distance <= eraserSize;
+          return !erasePoints.some(erasePoint => {
+            const dx = vertex.x - erasePoint[0];
+            const dy = vertex.y - erasePoint[1];
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            return distance <= eraserSize;
+          });
         });
-      });
-      updatedAnnotation = { ...selectedAnnotation, segmentation: updatedVertices };
-    }
-    else if(selectedAnnotation.bounding_box){
-      updatedVertices = selectedAnnotation.bounding_box.filter(vertex => {
-      return !erasePoints.some(erasePoint => {
-        const dx = vertex.x - erasePoint[0];
-        const dy = vertex.y - erasePoint[1];
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        return distance <= eraserSize;
-      });
-    });
-    updatedAnnotation = { ...selectedAnnotation, bounding_box: updatedVertices };
-  }
-    else if(selectedAnnotation.vertices){
+        updatedAnnotation = { ...selectedAnnotation, segmentation: updatedVertices };
+      }
+      else if (selectedAnnotation.bounding_box) {
+        updatedVertices = selectedAnnotation.bounding_box.filter(vertex => {
+          return !erasePoints.some(erasePoint => {
+            const dx = vertex.x - erasePoint[0];
+            const dy = vertex.y - erasePoint[1];
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            return distance <= eraserSize;
+          });
+        });
+        updatedAnnotation = { ...selectedAnnotation, bounding_box: updatedVertices };
+      }
+      else if (selectedAnnotation.vertices) {
         updatedVertices = selectedAnnotation.vertices.filter(vertex => {
-        return !erasePoints.some(erasePoint => {
-          const dx = vertex.x - erasePoint[0];
-          const dy = vertex.y - erasePoint[1];
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          return distance <= eraserSize;
+          return !erasePoints.some(erasePoint => {
+            const dx = vertex.x - erasePoint[0];
+            const dy = vertex.y - erasePoint[1];
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            return distance <= eraserSize;
+          });
         });
-      });
-      updatedAnnotation = { ...selectedAnnotation, vertices: updatedVertices };
-    }
-      const newAnnotations = annotations.map(anno => 
+        updatedAnnotation = { ...selectedAnnotation, vertices: updatedVertices };
+      }
+      const newAnnotations = annotations.map(anno =>
         anno === selectedAnnotation ? updatedAnnotation : anno
       );
       setAnnotations(newAnnotations);
       saveAnnotations(newAnnotations);
-      let updatedSmallCanvasData=smallCanvasData
-      updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations= newAnnotations
+      let updatedSmallCanvasData = smallCanvasData
+      updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations = newAnnotations
       setSmallCanvasData(updatedSmallCanvasData)
       setSelectedAnnotation(updatedAnnotation);
     }
@@ -581,41 +597,41 @@ const AnnotationPage = () => {
     if (editingPath.length > 1 && selectedAnnotation) {
       const editingPathVertices = editingPath.map(point => ({ x: point[0], y: point[1] }));
       let newPath;
-      let updatedAnnotation={}
-      if(selectedAnnotation.segmentation){
-        if(!subtractPath){
+      let updatedAnnotation = {}
+      if (selectedAnnotation.segmentation) {
+        if (!subtractPath) {
           newPath = modifyPath(selectedAnnotation.segmentation, editingPathVertices, false);
         }
-        else{
-         newPath = modifyPath(selectedAnnotation.segmentation, editingPathVertices, true);
+        else {
+          newPath = modifyPath(selectedAnnotation.segmentation, editingPathVertices, true);
         }
-        updatedAnnotation = { ...selectedAnnotation, segmentation: newPath};
+        updatedAnnotation = { ...selectedAnnotation, segmentation: newPath };
       }
-      else if(selectedAnnotation.bounding_box){
-        if(!subtractPath){
+      else if (selectedAnnotation.bounding_box) {
+        if (!subtractPath) {
           newPath = modifyPath(selectedAnnotation.bounding_box, editingPathVertices, false);
         }
-        else{
-         newPath = modifyPath(selectedAnnotation.bounding_box, editingPathVertices, true);
+        else {
+          newPath = modifyPath(selectedAnnotation.bounding_box, editingPathVertices, true);
         }
-        updatedAnnotation = { ...selectedAnnotation, bounding_box: newPath};
+        updatedAnnotation = { ...selectedAnnotation, bounding_box: newPath };
       }
-      else{
-        if(!subtractPath){
-        newPath = modifyPath(selectedAnnotation.vertices, editingPathVertices, false);
+      else {
+        if (!subtractPath) {
+          newPath = modifyPath(selectedAnnotation.vertices, editingPathVertices, false);
+        }
+        else {
+          newPath = modifyPath(selectedAnnotation.vertices, editingPathVertices, true);
+        }
+        updatedAnnotation = { ...selectedAnnotation, vertices: newPath };
       }
-      else{
-       newPath = modifyPath(selectedAnnotation.vertices, editingPathVertices, true);
-      }
-      updatedAnnotation = { ...selectedAnnotation, vertices: newPath};
-    }
-      const newAnnotations = annotations.map(anno => 
+      const newAnnotations = annotations.map(anno =>
         anno === selectedAnnotation ? updatedAnnotation : anno
       );
       updateAnnotationsWithHistory(newAnnotations);
       saveAnnotations(newAnnotations);
-      let updatedSmallCanvasData=smallCanvasData
-      updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations= newAnnotations
+      let updatedSmallCanvasData = smallCanvasData
+      updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations = newAnnotations
       setSmallCanvasData(updatedSmallCanvasData)
       setEditingPath([]);
       console.log(newAnnotations)
@@ -824,7 +840,7 @@ const AnnotationPage = () => {
     if (imagesData && imagesData.length > 0) {
       mainImageData = imagesData[0];
       // recentImagesData = imagesData.slice(1);
-    setAnnotations(mainImageData.annotations.annotations.annotations);
+      setAnnotations(mainImageData.annotations.annotations.annotations);
     }
     // Initialize smallCanvasRefs with dynamic refs based on the number of images
     const refsArray = imagesData.map(() => React.createRef());
@@ -920,12 +936,12 @@ const AnnotationPage = () => {
         ctx.restore();
         drawHybridPath([...hybridPath, ...livewirePath]);
       }
-      if (selectedAnnotation && editingPath.length > 0&&!isEraserActive) {
+      if (selectedAnnotation && editingPath.length > 0 && !isEraserActive) {
         drawEditingPath(ctx);
-        drawAnnotations(mainCanvasRef.current.getContext("2d"), image, 0,0,1,selectedAnnotation,areaScale);
+        drawAnnotations(mainCanvasRef.current.getContext("2d"), image, 0, 0, 1, selectedAnnotation, areaScale);
       }
-      if (isEraserActive||selectedAnnotation){
-        drawAnnotations(mainCanvasRef.current.getContext("2d"), image, 0,0,1,selectedAnnotation,areaScale);
+      if (isEraserActive || selectedAnnotation) {
+        drawAnnotations(mainCanvasRef.current.getContext("2d"), image, 0, 0, 1, selectedAnnotation, areaScale);
       }
     }
   }, [isLiveWireTracingActive, fixedPoints, currentPath, lineEnd, lineStart, isDrawingFreehand, isLineDrawingActive, drawingPaths,
@@ -984,7 +1000,7 @@ const AnnotationPage = () => {
       const intervalId = setInterval(() => {
         saveNotes(notesContent); // Save notes every 30 seconds
       }, 30000); // 30000 ms = 30 seconds
-  
+
       setAutoSaveInterval(intervalId);
     } else {
       // Clear the interval when notes are closed
@@ -992,7 +1008,7 @@ const AnnotationPage = () => {
         clearInterval(autoSaveInterval);
       }
     }
-  
+
     // Clear the interval when the component unmounts
     return () => {
       if (autoSaveInterval) {
@@ -1022,10 +1038,10 @@ const AnnotationPage = () => {
   const handleContrastChange = (event) => {
     setContrast(Number(event.target.value));
   };
-    const updateHistory = () => {
-      setHistory(prevHistory => [...prevHistory.slice(0, currentStep + 1), annotations]);
-      setCurrentStep(prevStep => Math.min(prevStep + 1, MAX_HISTORY - 1));
-    };
+  const updateHistory = () => {
+    setHistory(prevHistory => [...prevHistory.slice(0, currentStep + 1), annotations]);
+    setCurrentStep(prevStep => Math.min(prevStep + 1, MAX_HISTORY - 1));
+  };
   const undo = () => {
     if (currentStep > 0) {
       console.log(history, currentStep)
@@ -1046,12 +1062,12 @@ const AnnotationPage = () => {
     setShowDialog(false);
     setIsDrawingActive(false);
     saveAnnotations(annotations.filter((_, index) => index !== id));
-    let updatedSmallCanvasData=smallCanvasData
-    updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations= annotations.filter((_, index) => index !== id)
+    let updatedSmallCanvasData = smallCanvasData
+    updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations = annotations.filter((_, index) => index !== id)
     console.log(updatedSmallCanvasData)
     setSmallCanvasData(updatedSmallCanvasData)
   };
-  
+
   const updateAnnotationsWithHistory = (newAnnotations) => {
     setAnnotations(newAnnotations);
     setHistory([...history.slice(0, currentStep + 1), newAnnotations]);
@@ -1086,18 +1102,18 @@ const AnnotationPage = () => {
       }
     }
   };
-  
-  const saveAnnotations = async(newAnnotations)=>{
+
+  const saveAnnotations = async (newAnnotations) => {
     try {
-      const scaledResponse={
-          annotations:{
-            model:model,
-            status:"OPEN",
-            annotations:newAnnotations
-          },
-          status:"OPEN"
+      const scaledResponse = {
+        annotations: {
+          model: model,
+          status: "OPEN",
+          annotations: newAnnotations
+        },
+        status: "OPEN"
       }
-      const response = await axios.put(`${apiUrl}/save-annotations`, 
+      const response = await axios.put(`${apiUrl}/save-annotations`,
         {
           patientId: sessionStorage.getItem('patientId'),
           visitId: sessionStorage.getItem('visitId'),
@@ -1109,15 +1125,15 @@ const AnnotationPage = () => {
       return data;
     } catch (error) {
       if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200") {
-        const scaledResponse={
-            annotations:{
-              model:model,
-              status:"OPEN",
-              annotations:newAnnotations
-            },
-            status:"OPEN"
+        const scaledResponse = {
+          annotations: {
+            model: model,
+            status: "OPEN",
+            annotations: newAnnotations
+          },
+          status: "OPEN"
         }
-        const response = await axios.put(`http://localhost:3000/save-annotations`, 
+        const response = await axios.put(`http://localhost:3000/save-annotations`,
           {
             patientId: sessionStorage.getItem('patientId'),
             visitId: sessionStorage.getItem('visitId'),
@@ -1133,11 +1149,11 @@ const AnnotationPage = () => {
       }
     }
   }
-  const handleNotesClick=()=>{
-    if(!isNotesOpen){
+  const handleNotesClick = () => {
+    if (!isNotesOpen) {
       setIsNotesOpen(true);
     }
-    else{
+    else {
       saveNotes(notesContent);
       setIsNotesOpen(false);
     }
@@ -1148,32 +1164,32 @@ const AnnotationPage = () => {
     if (saveTimeout) {
       clearTimeout(saveTimeout);
     }
-  
+
     // Set a new timeout to auto-save notes after the delay
     const newTimeout = setTimeout(() => {
       saveNotes(e.target.value);
     }, AUTO_SAVE_DELAY);
-  
+
     setSaveTimeout(newTimeout);
   };
-  
+
   const handleAddBox = () => {
-    let newAnnotation={}
-    if(model==="segmentation"){
+    let newAnnotation = {}
+    if (model === "segmentation") {
       newAnnotation = {
-      label: newBoxLabel,
-      segmentation: newBoxVertices
-    };
-  }
-  else{
-    newAnnotation = {
-      label: newBoxLabel,
-      vertices: newBoxVertices
-    };
-  }
+        label: newBoxLabel,
+        segmentation: newBoxVertices
+      };
+    }
+    else {
+      newAnnotation = {
+        label: newBoxLabel,
+        vertices: newBoxVertices
+      };
+    }
     saveAnnotations([...annotations, newAnnotation])
-    let updatedSmallCanvasData=smallCanvasData
-    updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations= [...annotations, newAnnotation]
+    let updatedSmallCanvasData = smallCanvasData
+    updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations = [...annotations, newAnnotation]
     console.log(smallCanvasData[mainImageIndex])
     setSmallCanvasData(updatedSmallCanvasData)
     setShowDialog(false);
@@ -1239,7 +1255,7 @@ const AnnotationPage = () => {
     setAnnotations([])
     setSmallCanvasData([])
     setSmallCanvasRefs([])
-    mainCanvasRef.current=null
+    mainCanvasRef.current = null
     setHiddenAnnotations([])
     try {
       const response = await axios.get(`${apiUrl}/next-previousVisit?patientId=` + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=true');
@@ -1247,21 +1263,21 @@ const AnnotationPage = () => {
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
       sessionStorage.setItem('visitId', data.visitId._id)
-      sessionStorage.setItem('xrayDate',data.visitId.date_of_xray)
+      sessionStorage.setItem('xrayDate', data.visitId.date_of_xray)
       console.log(data);
       setLastVisit(data.last);
       setMainImageIndex(0);
       setFirstVisit(false);
       setHiddenAnnotations([]);
       loadImages();
-      } catch (error) {
+    } catch (error) {
       if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200" || error.code === "ERR_BAD_REQUEST") {
         const response = await axios.get('http://localhost:3000/next-previousVisit?patientId=' + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=true');
         const data = response.data;
         // setMainImage(data.image);
         // setAnnotations(data.annotations);
         sessionStorage.setItem('visitId', data.visitId._id)
-        sessionStorage.setItem('xrayDate',data.visitId.date_of_xray)
+        sessionStorage.setItem('xrayDate', data.visitId.date_of_xray)
         console.log(data);
         setLastVisit(data.last);
         setMainImageIndex(0);
@@ -1281,7 +1297,7 @@ const AnnotationPage = () => {
     setAnnotations([])
     setSmallCanvasData([])
     setSmallCanvasRefs([])
-    mainCanvasRef.current=null
+    mainCanvasRef.current = null
     setHiddenAnnotations([])
     try {
       const response = await axios.get(`${apiUrl}/next-previousVisit?patientId=` + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=false');
@@ -1289,21 +1305,21 @@ const AnnotationPage = () => {
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
       sessionStorage.setItem('visitId', data.visitId._id)
-      sessionStorage.setItem('xrayDate',data.visitId.date_of_xray)
+      sessionStorage.setItem('xrayDate', data.visitId.date_of_xray)
       console.log(data);
       setLastVisit(false);
       setMainImageIndex(0);
       setFirstVisit(data.first)
       setHiddenAnnotations([]);
       loadImages();
-      } catch (error) {
+    } catch (error) {
       if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200" || error.code === "ERR_BAD_REQUEST") {
         const response = await axios.get('http://localhost:3000/next-previousVisit?patientId=' + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=false');
         const data = response.data;
         // setMainImage(data.image);
         // setAnnotations(data.annotations);
         sessionStorage.setItem('visitId', data.visitId._id)
-        sessionStorage.setItem('xrayDate',data.visitId.date_of_xray)
+        sessionStorage.setItem('xrayDate', data.visitId.date_of_xray)
         console.log(data);
         setLastVisit(false);
         setFirstVisit(data.first);
@@ -1317,13 +1333,13 @@ const AnnotationPage = () => {
     }
     setIsLoading(false)
   }
-  const DateFormatter = (date ) => {
+  const DateFormatter = (date) => {
     return new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: '2-digit',
-        year: 'numeric',
-      }).format(date);
-}
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric',
+    }).format(date);
+  }
   const handleSmallCanvasClick = (index) => {
     // console.log(smallCanvasData)
     // const selectedImageIndex = index % smallCanvasData.length; // Cyclic access
@@ -1398,7 +1414,7 @@ const AnnotationPage = () => {
                 <Table>
                   <Row>
                     <Col md={6}>
-                      <h5 style={{padding:0}}>Name :  </h5>
+                      <h5 style={{ padding: 0 }}>Name :  </h5>
                     </Col>
                     <Col md={6} style={{
                       display: 'flex',
@@ -1414,7 +1430,7 @@ const AnnotationPage = () => {
                <Button color="primary" onClick={handlePreviousClick} style={{ alignSelf: 'flex-end', maxWidth: '10%' }} 
                disabled={firstVisit}>Previous</Button> */}
 
-                      <h5 style={{padding:0}}>
+                      <h5 style={{ padding: 0 }}>
                         <Button id="btnPreVisit" type="button" color="secondary" onClick={handlePreviousClick} disabled={firstVisit}>
                           <i class="fas fa-backward"></i>
                           <UncontrolledTooltip placement="bottom" target="btnPreVisit">Show Previous Visit</UncontrolledTooltip>
@@ -1468,32 +1484,32 @@ const AnnotationPage = () => {
                           max="200"
                           value={areaScale}
                           onChange={(e) => setAreaScale(e.target.value)}
-                          style={{ maxWidth: '60px'  ,marginRight:'5px'}}
+                          style={{ maxWidth: '60px', marginRight: '5px' }}
                         />
                         <div className="slider-button-container">
-                        <FormGroup role="group" className="slider-button d-flex flex-row" aria-label="second group" style={{ paddingTop: 0, background:'none', marginBottom:0, paddingBottom:0}}>
-                          <Dropdown id="ddlZoom" isOpen={zoomDropdownOpen} toggle={() => { setZoomDropdownOpen(!zoomDropdownOpen) }}>
-                          <DropdownToggle id="btnZoom" type="button"><i class="fas fa-search"></i></DropdownToggle>
-                          <DropdownMenu>
-                            {predefinedZooms.map(size => (
-                              <DropdownItem key={size} onClick={() => setZoom(size)}>
-                                {size}%
-                              </DropdownItem>
-                            ))}
-                          </DropdownMenu>
-                        </Dropdown>
-                        <Input
-                          type="number"
-                          min="1"
-                          max="200"
-                          value={zoom}
-                          onChange={handleZoomChange}
-                          aria-label="zoom value"
-                          style={{ maxWidth: '60px' }}
-                        />
-                        </FormGroup>
-                        <UncontrolledTooltip placement="bottom" target="ddlZoom">Select Zoom %</UncontrolledTooltip>
-                            {/* <UncontrolledTooltip placement="bottom" target="btnZoom">Zoom</UncontrolledTooltip> */}
+                          <FormGroup role="group" className="slider-button d-flex flex-row" aria-label="second group" style={{ paddingTop: 0, background: 'none', marginBottom: 0, paddingBottom: 0 }}>
+                            <Dropdown id="ddlZoom" isOpen={zoomDropdownOpen} toggle={() => { setZoomDropdownOpen(!zoomDropdownOpen) }}>
+                              <DropdownToggle id="btnZoom" type="button"><i class="fas fa-search"></i></DropdownToggle>
+                              <DropdownMenu>
+                                {predefinedZooms.map(size => (
+                                  <DropdownItem key={size} onClick={() => setZoom(size)}>
+                                    {size}%
+                                  </DropdownItem>
+                                ))}
+                              </DropdownMenu>
+                            </Dropdown>
+                            <Input
+                              type="number"
+                              min="1"
+                              max="200"
+                              value={zoom}
+                              onChange={handleZoomChange}
+                              aria-label="zoom value"
+                              style={{ maxWidth: '60px' }}
+                            />
+                          </FormGroup>
+                          <UncontrolledTooltip placement="bottom" target="ddlZoom">Select Zoom %</UncontrolledTooltip>
+                          {/* <UncontrolledTooltip placement="bottom" target="btnZoom">Zoom</UncontrolledTooltip> */}
                           <Input
                             type="range"
                             id="zoom-slider"
@@ -1501,7 +1517,7 @@ const AnnotationPage = () => {
                             max="200"
                             value={zoom}
                             onChange={handleZoomChange}
-                            style={{ maxWidth: '90%', paddingTop:0 }}
+                            style={{ maxWidth: '90%', paddingTop: 0 }}
                             className="slider"
                           />
                         </div>
@@ -1528,7 +1544,7 @@ const AnnotationPage = () => {
                           id="brightnessContrastButton"
                           //color="primary"
                           onClick={() => setBrightnessPopoverOpen(!brightnessPopoverOpen)}
-                          style={{marginRight:'5px', marginLeft:'5px'}}
+                          style={{ marginRight: '5px', marginLeft: '5px' }}
                         //style={{ marginTop: '-2%', marginLeft: '10px' }}
                         >
                           +/-
@@ -1612,8 +1628,8 @@ const AnnotationPage = () => {
                                 />
                                 <InputGroupText>%</InputGroupText>
                               </InputGroup>
-                              </FormGroup>
-                              <FormGroup>
+                            </FormGroup>
+                            <FormGroup>
                               <InputGroup className="mb-2">
                                 <InputGroupText style={{ marginLeft: '-5%', marginRight: '5%' }}>Negative Image</InputGroupText>
                                 <Input
@@ -1621,7 +1637,7 @@ const AnnotationPage = () => {
                                   id="negative-toggle"
                                   checked={isNegative}
                                   onChange={(e) => setIsNegative(!isNegative)}
-                                  style={{ width: '10%', paddingRight: '0', height:'30px' }}
+                                  style={{ width: '10%', paddingRight: '0', height: '30px' }}
                                 />
                               </InputGroup>
                             </FormGroup>
@@ -1633,24 +1649,24 @@ const AnnotationPage = () => {
                         </Button>
                         <UncontrolledTooltip placement="bottom" target="btnUndo">Undo</UncontrolledTooltip>
                         <Button onClick={redo} id="btnRedo"
-                          disabled={currentStep >= history.length - 1} style={{marginRight:'5px'}}
+                          disabled={currentStep >= history.length - 1} style={{ marginRight: '5px' }}
                         >
                           <i id="icnScale" class="fas fa-redo"></i>
                         </Button>
                         <UncontrolledTooltip placement="bottom" target="btnRedo">Redo</UncontrolledTooltip>
                         {selectedAnnotation && (
-                            <Button onClick={handleEraserClick}>
-                              <i class="fa fa-eraser" aria-hidden={isEraserActive}></i>
-                            </Button>
-                          )}
-                          {/* Eraser Size Controls */}
+                          <Button onClick={handleEraserClick}>
+                            <i class="fa fa-eraser" aria-hidden={isEraserActive}></i>
+                          </Button>
+                        )}
+                        {/* Eraser Size Controls */}
                         {isEraserActive && selectedAnnotation && (
                           <FormGroup>
-                            <Row style={{alignContent:'baseline', alignItems:'baseline', marginBottom:'-5%'}}>
-                            <Col xs={4}>
-                            <Label for="eraserSize">Eraser Size</Label>
-                            </Col>
-                            <Col xs={4}>
+                            <Row style={{ alignContent: 'baseline', alignItems: 'baseline', marginBottom: '-5%' }}>
+                              <Col xs={4}>
+                                <Label for="eraserSize">Eraser Size</Label>
+                              </Col>
+                              <Col xs={4}>
                                 <Input
                                   type="range"
                                   id="eraserSize"
@@ -1718,13 +1734,14 @@ const AnnotationPage = () => {
                         className="d-flex flex-column"
                         style={{ maxHeight: '100%' }}
                       >
-                        <Card style={{ height: '100%', padding:0 }}>
+                        <Card style={{ height: '100%', padding: 0 }}>
                           <CardBody
                             style={{
                               padding: 0,
                               height: '100%',
                               overflow: 'auto',  // Add scrollbars
-                              position: 'relative',  // For absolute positioning of canvas
+                              position: 'relative',  // For absolute positioning of canvas                              
+                              maxHeight: '600px',
                             }}
                             ref={containerRef}
                           >
@@ -1751,13 +1768,14 @@ const AnnotationPage = () => {
                           className="d-flex flex-column"
                           style={{ maxHeight: '100%' }}
                         >
-                          <Card style={{ height: '100%',padding:0,margin:0 }}>
+                          <Card style={{ height: '100%', padding: 0, margin: 0 }}>
                             <CardBody
                               style={{
                                 padding: 0,
                                 height: '100%',
                                 overflow: 'auto',  // Add scrollbars
                                 position: 'relative',  // For absolute positioning of canvas
+                                maxHeight: '600px',
                               }}
                             >
                               <canvas
@@ -1834,17 +1852,17 @@ const AnnotationPage = () => {
                 marginBottom: '0px',
                 zIndex: 20,
               }}>
-              <div style={{
+                <div style={{
                   display: 'flex',
                   flexDirection: 'column', // Column layout for the entire page
                   justifyContent: 'space-between', // Ensure bottom alignment
                   height: '100vh' // Full viewport height
                 }}>
                   <Row style={{ height: '100%' }}>
-                     <Col>
+                    <Col>
                       {/* AnnotationList with conditional height */}
                       <div style={{ height: isNotesOpen ? '50%' : '100%', overflowY: 'auto' }}>
-                        <AnnotationList 
+                        <AnnotationList
                           annotations={annotations}
                           hiddenAnnotations={hiddenAnnotations}
                           setHiddenAnnotations={setHiddenAnnotations}
@@ -1894,7 +1912,7 @@ const AnnotationPage = () => {
                     </Col>
                   </Row>
                 </div>
-                </Col>
+              </Col>
             </Row>
           </Container>
         </CardBody>

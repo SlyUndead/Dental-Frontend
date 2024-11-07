@@ -1,8 +1,9 @@
 import axios from "axios";
-export const getCoordinatesFromAPI = async (file) => {
+export const getCoordinatesFromAPI = async (file,model) => {
   const formData = new FormData();
   formData.append('image', file);
-  try {
+  if(model==="Segmentation Model"){
+    try {
     // const response = await axios.post('https://agp-dental-agp_flask_server.mdbgo.io/coordinates', formData, {
     //   headers: {
     //     'Content-Type': 'multipart/form-data', // Set the correct content type for formData
@@ -22,7 +23,7 @@ export const getCoordinatesFromAPI = async (file) => {
       });
     }
     else {
-      response = await axios.post(`http://localhost:5000/coordinates`, formData, {
+      response = await axios.post(`http://5.161.242.73/coordinates`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data', // Set the correct content type for formData
         },
@@ -42,7 +43,12 @@ export const getCoordinatesFromAPI = async (file) => {
     }
   }
   catch (error) {
-    if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT") {
+      console.error('Error fetching coordinates from API:', error);
+      return { error: `${file.name} - Error running model`};
+    }
+  }
+  else{
+    try {
       // const response = await axios.post('https://agp-dental-agp_flask_server.mdbgo.io/coordinates', formData, {
       //   headers: {
       //     'Content-Type': 'multipart/form-data', // Set the correct content type for formData
@@ -53,34 +59,41 @@ export const getCoordinatesFromAPI = async (file) => {
       //     'Content-Type': 'multipart/form-data', // Set the correct content type for formData
       //   },
       // });
-      try {
-        const response = await axios.post('http://192.168.155.19:5000/coordinates', formData, {
+      let response;
+      if (localStorage.getItem('apiIpAdd')) {
+        response = await axios.post(`http://${localStorage.getItem('apiIpAdd')}:5000/coordinates`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data', // Set the correct content type for formData
           },
         });
-        if (response.status === 200) {
-          console.log(response)
-          // Axios automatically parses JSON response
-          const data = response.data;
-          console.log(data);
-
-          // Format the response data as needed for coordinates
-          return data;
-        }
       }
-      catch (err) {
-        console.error(err)
-        return { error:`${file.name} - Error running model` }
+      else {
+        response = await axios.post(`http://localhost:5000/coordinates`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data', // Set the correct content type for formData
+          },
+        });
+      }
+      if (response.status === 200) {
+        console.log(response)
+        // Axios automatically parses JSON response
+        const data = response.data;
+        console.log(data);
+  
+        // Format the response data as needed for coordinates
+        return data;
+      }
+      else {
+        console.error(response)
       }
     }
-    else {
-      console.error('Error fetching coordinates from API:', error);
-      return { error: `${file.name} - Error running model`};
-    }
+    catch (error) {
+        console.error('Error fetching coordinates from API:', error);
+        return { error: `${file.name} - Error running model`};
+      }
   }
 };
-export const saveImageToFolder = async (file, patientID, imageNumber) => {
+export const saveImageToFolder = async (file, patientID, imageNumber, model) => {
   if (!file) return;
   console.log(file, file.name);
   const date = new Date().toISOString().replace(/:/g, '-');
@@ -90,7 +103,7 @@ export const saveImageToFolder = async (file, patientID, imageNumber) => {
 
   try {
     // Process annotations (assuming getCoordinatesFromAPI is a function you have)
-    const annotations = await getCoordinatesFromAPI(file);
+    const annotations = await getCoordinatesFromAPI(file,model);
     if(annotations.error){
       return {success:false, error:annotations.error}
     }
@@ -120,7 +133,7 @@ export const saveImageToFolder = async (file, patientID, imageNumber) => {
       console.log('Image, annotations and thumbnail uploaded successfully');
       return {success:true};
     } catch (error) {
-      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code == "ERR_BAD_REQUEST") {
+      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_BAD_REQUEST") {
         try {
           await axios.put('http://192.168.155.19:3001/upload/image-and-annotations', {
             fileName: imageFileName,
