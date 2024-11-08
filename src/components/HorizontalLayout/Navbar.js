@@ -105,35 +105,41 @@ const Navbar = props => {
                       </i>{props.t("Practice List")} {props.menuOpen}
                     </Link>
                   </li>)}
-                {!isVisible && (                 
+                {!isVisible && (
+                  <>
+                    <li className="nav-item">
+                      <Link className="nav-link" to="/practiceList">
+                        <i className="ti-dashboard">
+                        </i>{props.t("Practice List")} {props.menuOpen}
+                      </Link>
+                    </li>
                     <li className="nav-item">
                       <Link className="nav-link" to="/patientList">
                         <i className="ti-dashboard">
                         </i>{props.t("Patient List")} {props.menuOpen}
                       </Link>
-                    </li>)}
-                    {!isVisible && (
+                    </li>
                     <li className="nav-item">
                       <Link className="nav-link" to="/newPatient">
                         <i className="ti-dashboard">
                         </i>{props.t("New Patient")} {props.menuOpen}
                       </Link>
-                    </li>)}
-                    {!isVisible && (
+                    </li>
                     <li className="nav-item">
                       <Link className="nav-link" to="/preferences">
                         <i className="ti-dashboard">
                         </i>{props.t("Preferences")} {props.menuOpen}
                       </Link>
-                    </li>)}
-                    {!isVisible && (
+                    </li>
                     <li className="nav-item">
                       <Link className="nav-link" to="/exports">
                         <i className="ti-dashboard">
                         </i>{props.t("Exports")} {props.menuOpen}
                       </Link>
-                    </li>)}
-                  
+                    </li>
+                  </>
+                )}
+
                 {/* <li className="nav-item dropdown">
                   <Link
                     to="/#"

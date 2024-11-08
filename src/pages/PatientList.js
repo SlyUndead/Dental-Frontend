@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Table, Card, CardBody, Button, Col, Row } from "reactstrap";
 import { Navigate } from "react-router-dom";
 import withRouter from 'components/Common/withRouter';
@@ -6,12 +6,13 @@ import { setBreadcrumbItems } from "../store/actions";
 import { connect } from "react-redux";
 import { Link } from "react-router-dom"
 import axios from 'axios';
-
 const PatientList = (props) => {
+    const printRef = useRef();
+
     document.title = "Patients List | AGP Dental Tool";
     const breadcrumbItems = [
         { title: "AGP", link: "#" },
-        { title: "Practice List", link: "#" },
+        { title: sessionStorage.getItem('practiceName'), link: "/practiceList" },
         { title: "Patient List", link: "#" },
     ]
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
@@ -25,22 +26,24 @@ const PatientList = (props) => {
 
     useEffect(() => {
         props.setBreadcrumbItems('PatientList', breadcrumbItems)
-        
+
     }, [])
 
     const [redirect, setRedirect] = useState(false);
     const [redirectToImages, setRedirectToImages] = useState(false);
     const [patients, setPatients] = useState([]);
-    
-    useEffect(()=>{
+
+    useEffect(() => {
         const practiceId = sessionStorage.getItem('practiceId');
-        const getPatientList= async()=>{const response = await axios.get(`${apiUrl}/getPatient?practiceId=` + practiceId); // Adjust the API endpoint as needed
-        //const getPatientList= async()=>{const response = await axios.get('http://localhost:3001/getPatient?practiceId=' + practiceId); 
-        const data = response.data;
-        setPatients(data.patientList);}
+        const getPatientList = async () => {
+            const response = await axios.get(`${apiUrl}/getPatient?practiceId=` + practiceId); // Adjust the API endpoint as needed
+            //const getPatientList= async()=>{const response = await axios.get('http://localhost:3001/getPatient?practiceId=' + practiceId); 
+            const data = response.data;
+            setPatients(data.patientList);
+        }
 
         getPatientList()
-    },[])
+    }, [])
 
     const handleClickNewPatient = () => {
         setRedirect(true);
@@ -52,15 +55,79 @@ const PatientList = (props) => {
 
     const handleClick = (patientId) => {
         //console.log(patinetId);
-        sessionStorage.setItem('patientId',patientId);
+        sessionStorage.setItem('patientId', patientId);
         setRedirectToImages(true);
+    };
+
+    const handlePrint = () => {
+        const practiceName = sessionStorage.getItem('practiceName') 
+        const printWindow = window.open('', '_blank');
+
+        const styles = Array.from(document.styleSheets).map((styleSheet) => {
+            try {
+               const rules = Array.from(styleSheet.cssRules)
+          .filter(rule => {
+            // Ignore table hover styles
+            return !rule.selectorText || !rule.selectorText.includes(':hover');
+          })
+          .map(rule => rule.cssText)
+          .join('\n');
+        return `<style>${rules}</style>`;
+            } catch (e) {
+                // Handle CORS issues if styleSheet is from another domain
+                return '';
+            }
+        }).join('\n');
+
+        printWindow.document.write(`
+      <html>
+        <head>
+          <title></title>
+          ${styles}
+           <style>
+           body {
+              font-family: Arial, sans-serif;
+              text-align: center; /* Centering text in the body */
+            }
+            .center {
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              width: 100%;
+              margin: 20px 0; /* Add some margin if needed */
+            }
+
+            @media print {
+              @page {
+                margin: 10; /* Adjust margins if necessary */
+              }
+              /* Add any other styles you want for printing */
+              footer, header {
+                display: none !important; /* Hide headers and footers */
+              }
+            }
+          </style>
+        </head>
+        <body>
+        <div  class="center">
+         ${practiceName}
+        </div>
+        <div>
+          ${printRef.current.innerHTML}
+          </div>
+        </body>
+      </html>
+    `);
+        printWindow.document.close();
+        printWindow.print();
+        printWindow.close();
     };
 
     if (redirectToImages) {
         return <Navigate to="/patientImagesList" />;
     }
 
-    
+
     return (
         <React.Fragment>
             <Card>
@@ -68,10 +135,10 @@ const PatientList = (props) => {
                     <Row>
                         <Col sm={12}>
                             <Button type="button" onClick={() => { handleClickNewPatient() }} color="primary" className="waves-effect waves-light">New Patient</Button>&nbsp;&nbsp;&nbsp;&nbsp;
-                            <Button type="button" color="primary" className="waves-effect waves-light">Print</Button>
+                            <Button type="button" color="primary" className="waves-effect waves-light" onClick={handlePrint}>Print</Button>
                         </Col>
                     </Row>
-                    <div className="table-responsive">
+                    <div className="table-responsive" ref={printRef}>
                         <Table className="align-middle table-centered table-vertical table-nowrap  table-hover">
                             <thead>
                                 <tr>

@@ -37,7 +37,7 @@ const NewPatient = (props) => {
     
     const breadcrumbItems = [
         { title: "AGP", link: "#" },
-        { title: "Practice List", link: "#" },
+        { title: sessionStorage.getItem('practiceName'), link: "/practiceList" },
         { title: "New Patient", link: "#" },
     ]
     const [patientId, setPatientId] = useState('');

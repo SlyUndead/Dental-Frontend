@@ -22,7 +22,7 @@ const itemLength = (props.breadcrumbItems || []).length || 1;
               (props.breadcrumbItems || []).map((item, key) =>
                 (key + 1) === itemLength ?
                   <li key={key} className="breadcrumb-item active">{item.title}</li>
-                  : <li key={key} className="breadcrumb-item"><Link to="#">{item.title}</Link></li>
+                  : <li key={key} className="breadcrumb-item"><Link to={item.link}>{item.title}</Link></li>
               )
             }
           </ol>

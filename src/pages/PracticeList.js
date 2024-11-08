@@ -43,6 +43,7 @@ const PracticeList = (props) => {
     const handleClick = (practiceName) => {
         //console.log('practice name : ' + practiceName.name)
         sessionStorage.setItem('practiceId', practiceName._id)
+        sessionStorage.setItem('practiceName', practiceName.name)
         setRedirect(true);
     };
 

@@ -4,13 +4,12 @@ import { Navigate } from "react-router-dom";
 import withRouter from 'components/Common/withRouter';
 import { setBreadcrumbItems } from "../store/actions";
 import { connect } from "react-redux";
-import { Link } from "react-router-dom"
 import axios from "axios"
 const PatientImagesList = (props) => {
     document.title = "Patient Images List | AGP Dental Tool";
     const breadcrumbItems = [
         { title: "AGP", link: "#" },
-        { title: "Practice List", link: "#" },
+        { title: sessionStorage.getItem('practiceName'), link: "/practiceList" },
         { title: "Patient Images List", link: "#" },
     ]
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
@@ -46,6 +45,7 @@ const PatientImagesList = (props) => {
     const [patient_age, setpatient_age] = useState('');
     const [visitDetials, setVisitDetails] = useState([]);
     const [error, setError] = useState('');
+    const [errorClr, setErrorClr] = useState('red');
     useEffect(() => {
         props.setBreadcrumbItems('Patient Images List', breadcrumbItems)
         setPatientId(sessionStorage.getItem('patientId'));
@@ -62,48 +62,63 @@ const PatientImagesList = (props) => {
         // }
         //    fetchImages();
         const calculateAge = (dob) => {
-            const today = new Date();
-            const birthDate = new Date(dob);
-            let calculatedAge = today.getFullYear() - birthDate.getFullYear();
-            const monthDifference = today.getMonth() - birthDate.getMonth();
+            try {
+                const today = new Date();
+                const birthDate = new Date(dob);
+                let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+                const monthDifference = today.getMonth() - birthDate.getMonth();
 
-            if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
-                calculatedAge--;
+                if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
+                    calculatedAge--;
+                }
+                return calculatedAge;
             }
-
-            return calculatedAge;
+            catch (error) {
+                console.log(error);
+                setError('Something went wrong. Please contact admin.');
+                setErrorClr('red');
+            }
         };
 
         const getPatientDetails = async () => {
             //console.log(sessionStorage.getItem('patientId'));
-            const response = await axios.get(`${apiUrl}/getPatientByID?patientId=` + sessionStorage.getItem('patientId'));
-            // const response = await axios.get('http://localhost:3000/getPatientByID?patientId=' + sessionStorage.getItem('patientId'));
-            if (response.status === 200) {
-                const data = response.data;
-                console.log(data);
-                setpatient_name(data.patientList.last_name + ' ' + data.patientList.first_name)
-                setpatient_email(data.patientList.email);
-                setpatient_phone(data.patientList.telephone);
-                setpatient_gender(data.patientList.gender);
-                setpatient_add(data.patientList.address);
-                if (data.patientList.date_of_birth)
-                    setpatient_age(calculateAge(data.patientList.date_of_birth));
-                else if (data.patientList.reference_dob_for_age)
-                    setpatient_age(calculateAge(data.patientList.reference_dob_for_age));
+            try {
+                const response = await axios.get(`${apiUrl}/getPatientByID?patientId=` + sessionStorage.getItem('patientId'));
+                // const response = await axios.get('http://localhost:3000/getPatientByID?patientId=' + sessionStorage.getItem('patientId'));
+                if (response.status === 200) {
+                    const data = response.data;
+                    console.log(data);
+                    setpatient_name(data.patientList.last_name + ' ' + data.patientList.first_name)
+                    setpatient_email(data.patientList.email);
+                    setpatient_phone(data.patientList.telephone);
+                    setpatient_gender(data.patientList.gender);
+                    setpatient_add(data.patientList.address);
+                    if (data.patientList.date_of_birth)
+                        setpatient_age(calculateAge(data.patientList.date_of_birth));
+                    else if (data.patientList.reference_dob_for_age)
+                        setpatient_age(calculateAge(data.patientList.reference_dob_for_age));
+                }
+            }
+            catch (error) {
+                console.log(error);
+                setError('Something went wrong. Please contact admin.');
+                setErrorClr('red');
             }
         }
 
         getPatientDetails();
-
-        const DateFormatter = (date) => {
-            return new Intl.DateTimeFormat('en-US', {
-                month: 'short',
-                day: '2-digit',
-                year: 'numeric',
-            }).format(date);
-        }
-
-        const getPatientVisits = async () => {
+        getPatientVisits();
+    }, [])
+    const DateFormatter = (date) => {
+        return new Intl.DateTimeFormat('en-US', {
+            month: 'short',
+            day: '2-digit',
+            year: 'numeric',
+        }).format(date);
+    }
+    const getPatientVisits = async () => {
+        try {
+            setVisitDetails([]);
             //console.log(sessionStorage.getItem('patientId'));
             const response = await axios.get(`${apiUrl}/getPatientVisitsByID?patientId=` + sessionStorage.getItem('patientId'));
             //  const response = await axios.get('http://localhost:3001/getPatientVisitsByID?patientId=' + sessionStorage.getItem('patientId'));
@@ -125,12 +140,16 @@ const PatientImagesList = (props) => {
                 }
             }
         }
-        getPatientVisits();
-    }, [])
-
+        catch (error) {
+            console.log(error);
+            setError('Something went wrong. Please contact admin.');
+            setErrorClr('red');
+        }
+    }
     const [redirect, setRedirect] = useState(false);
     const [redirectToAnnotationPage, setRedirectToAnnotationPage] = useState(false);
     const handleClickPatientImage = () => {
+        setError("");
         sessionStorage.setItem('patientId', patientId);
         setRedirect(true);
     };
@@ -140,32 +159,137 @@ const PatientImagesList = (props) => {
     }
 
     const handleClick = (visitId, key) => {
-        setError("");
-        if (visitId.patientImages.length > 0) {
-            sessionStorage.setItem('visitId', visitId.patientImages[0].visitId);
-            sessionStorage.setItem('xrayDate', visitId.DateOfXray);
-            console.log(visitId.DateOfXray);
-            console.log(key)
-            if (key === 0 && key === visitDetials.length - 1) {
-                sessionStorage.setItem('first', true)
-                sessionStorage.setItem('last', true)
-            }
-            else if (key === 0) {
-                sessionStorage.setItem('first', false)
-                sessionStorage.setItem('last', true)
-            }
-            else if (key === visitDetials.length - 1) {
-                sessionStorage.setItem('last', false)
-                sessionStorage.setItem('first', true)
+        try {
+            setError("");
+            if (visitId.patientImages.length > 0) {
+                sessionStorage.setItem('visitId', visitId.patientImages[0].visitId);
+                sessionStorage.setItem('xrayDate', visitId.DateOfXray);
+                console.log(visitId.DateOfXray);
+                console.log(key)
+                if (key === 0 && key === visitDetials.length - 1) {
+                    sessionStorage.setItem('first', true)
+                    sessionStorage.setItem('last', true)
+                }
+                else if (key === 0) {
+                    sessionStorage.setItem('first', false)
+                    sessionStorage.setItem('last', true)
+                }
+                else if (key === visitDetials.length - 1) {
+                    sessionStorage.setItem('last', false)
+                    sessionStorage.setItem('first', true)
+                }
+                else {
+                    sessionStorage.setItem('last', false)
+                    sessionStorage.setItem('first', false)
+                }
+                setRedirectToAnnotationPage(true);
             }
             else {
-                sessionStorage.setItem('last', false)
-                sessionStorage.setItem('first', false)
+                setError("No images are available to annotate for this visit.")
+                setErrorClr('red');
             }
-            setRedirectToAnnotationPage(true);
         }
-        else{
-            setError("No images are available to annotate for this visit.")
+        catch (error) {
+            console.log(error);
+            setError('Something went wrong. Please contact admin.');
+            setErrorClr('red');
+        }
+    };
+
+    const handleInnerRowClick = (event) => {
+        event.stopPropagation(); // Prevent the click from bubbling up
+    };
+
+    const handleDeleteClick = async (event) => {
+        try {
+            setError("");
+            const checkboxes = document.querySelectorAll('#images-table .form-check-input');
+            let checkedImages = "";
+            checkboxes.forEach(function (checkbox) {
+                const imgaeId = checkbox.getAttribute('data-id');
+                const isChecked = checkbox.checked;
+
+                if (isChecked) {
+                    checkedImages += imgaeId + ",";
+                }
+            });
+            if (checkedImages == "")
+                alert('Please select atleast one image to delete.')
+            else {
+                const isConfirmed = window.confirm('Are you sure you want to delete?');
+                if (isConfirmed) {
+                    checkedImages = checkedImages.slice(0, -1);
+                    console.log(checkedImages);
+                    let response = await axios.post(`${apiUrl}/delete-patient-image?ids=` + checkedImages)
+                    if (response.status === 200) {
+                        getPatientVisits();
+                        setError('Image/s deleted successfully');
+                        setErrorClr('green');
+                    }
+                }
+            }
+        }
+        catch (error) {
+            console.log(error);
+            setError('Something went wrong. Please contact admin.');
+            setErrorClr('red');
+        }
+    };
+
+    const handleDownloadClick = async () => {
+        try {
+            setError("");
+
+            try {
+
+                const checkboxes = document.querySelectorAll('#images-table .form-check-input');
+                let imageNames = [];
+                checkboxes.forEach(function (checkbox) {
+                    const isChecked = checkbox.checked;
+                    if (isChecked) {
+                        const imgaeSrc = checkbox.getAttribute('data-src');
+                        console.log(imgaeSrc);
+                        const segments = imgaeSrc.split('/');
+                        const imageName = segments[segments.length - 1].toString().slice(1);
+                        console.log(imageName);
+                        imageNames = [...imageNames, imageName];
+                        checkbox.checked = false;
+                    }
+                });
+                if (imageNames.length == 0)
+                    alert('Please select atleast one image to download.')
+                else {
+                    for (let imageName of imageNames) {
+                        // Send a request to your Node.js backend to fetch and download the image
+                        const response = await fetch(`${apiUrl}/download-image?imageName=${encodeURIComponent(imageName)}`);
+
+                        // Check if the response is successful
+                        if (!response.ok) {
+                            throw new Error('Failed to download the image');
+                        }
+
+                        // Create a Blob from the response
+                        const imageBlob = await response.blob();
+
+                        // Create a temporary link to trigger the download
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(imageBlob);
+                        link.download = imageName; // The filename of the image to be saved
+                        link.click(); // Trigger the download
+
+                        // Clean up the object URL after download
+                        URL.revokeObjectURL(link.href);
+                    };
+                }
+            } catch (error) {
+                console.error('Download failed', error);
+            }
+
+        }
+        catch (error) {
+            console.log(error);
+            setError('Something went wrong. Please contact admin.');
+            setErrorClr('red');
         }
     };
 
@@ -183,12 +307,12 @@ const PatientImagesList = (props) => {
                             <Button type="button" onClick={() => { handleClickPatientImage() }} color="primary" className="waves-effect waves-light">New X-ray</Button>{" "}
                         </Col>
                         <Col sm={10} style={{ textAlign: 'right' }}>
-                            <Button type="button" color="primary" className="waves-effect waves-light">Download</Button>&nbsp;&nbsp;&nbsp;&nbsp;
-                            <Button type="button" color="primary" className="waves-effect waves-light">Delete</Button>
+                            <Button type="button" color="primary" className="waves-effect waves-light" onClick={() => { handleDownloadClick() }}>Download</Button>&nbsp;&nbsp;&nbsp;&nbsp;
+                            <Button type="button" color="primary" className="waves-effect waves-light" onClick={() => { handleDeleteClick() }}>Delete</Button>
                         </Col>
 
                     </Row><br></br>
-                    {error && <p style={{ color: 'red' }}>{error}</p>}
+                    {error && <p style={{ color: errorClr }}>{error}</p>}
                     <Row>
                         <Col sm={4} className='card'>
                             <table>
@@ -275,15 +399,17 @@ const PatientImagesList = (props) => {
                                             <td>{visit.DateOfXray}</td>
                                             <td>{visit.Summary}</td>
                                             <td>
-                                                <Table className="align-middle table-centered table-vertical table-nowrap">
+                                                <Table id="images-table" className="align-middle table-centered table-vertical table-nowrap">
                                                     <tbody>
                                                         {
                                                             visit.patientImages.map((patient, keyPatient) =>
-                                                                <tr key={keyPatient}>
+                                                                <tr key={keyPatient} onClick={handleInnerRowClick}>
                                                                     <td>
                                                                         <FormGroup>
                                                                             <div className="form-check">
-                                                                                <input type="checkbox" className="form-check-input" id="formrow-customCheck" />
+                                                                                {/* <input type="hidden" name="imageId" value={patient._id} /> */}
+                                                                                <input type="checkbox" data-id={patient._id} className="form-check-input"
+                                                                                    id="formrow-customCheck" data-src={`${apiUrl}/${patient.thumbnail_url}`} />
                                                                             </div>
                                                                         </FormGroup>{" "}
                                                                     </td>

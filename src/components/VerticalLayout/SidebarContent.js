@@ -155,6 +155,12 @@ const SidebarContent = props => {
 
             {!isVisible && (
               <div>
+                 <li>
+                <Link to="/practiceList" className="waves-effect">
+                  <i className="mdi mdi-view-dashboard"></i>
+                  <span>{props.t("Practice List")}</span>
+                </Link>
+              </li>
                 <li>
                   <Link to="/patientList" className="waves-effect">
                     <i className="mdi mdi-view-dashboard"></i>

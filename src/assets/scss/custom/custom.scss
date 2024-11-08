@@ -32,3 +32,15 @@
     background-color: #2a3142 !important;
     //padding: 10px !important;; /* Adjust the padding as needed */
   }
+  ::-webkit-scrollbar {
+    width: 12px; /* Width of the scrollbar */
+}
+
+::-webkit-scrollbar-thumb {
+    background: darkgrey; /* Color of the scrollbar handle */
+    border-radius: 10px; /* Rounded corners */
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1; /* Background of the scrollbar track */
+}
