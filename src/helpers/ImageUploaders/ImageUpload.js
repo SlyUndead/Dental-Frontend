@@ -1,7 +1,9 @@
 import axios from "axios";
-export const getCoordinatesFromAPI = async (file,model) => {
+export const getCoordinatesFromAPI = async (file,model, base64Image) => {
+  const apiUrl = process.env.REACT_APP_NODEAPIURL;
   const formData = new FormData();
   formData.append('image', file);
+  console.log(file)
   if(model==="Segmentation Model"){
     try {
     // const response = await axios.post('https://agp-dental-agp_flask_server.mdbgo.io/coordinates', formData, {
@@ -15,18 +17,26 @@ export const getCoordinatesFromAPI = async (file,model) => {
     //   },
     // });
     let response;
+    console.log(formData)
+    const headers = {
+      // Don't set Content-Type manually when using FormData!
+      // It will be automatically set with the correct boundary
+      'Content-Type': 'application/json',
+    };
     if (localStorage.getItem('apiIpAdd')) {
-      response = await axios.post(`http://${localStorage.getItem('apiIpAdd')}:5000/coordinates`, formData, {
+      response = await axios.post(`http://${localStorage.getItem('apiIpAdd')}/coordinates`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data', // Set the correct content type for formData
         },
       });
     }
     else {
-      response = await axios.post(`http://5.161.242.73/coordinates`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data', // Set the correct content type for formData
-        },
+      response = await axios.post(`${apiUrl}/upload/coordinates`,{ 
+          base64Image:base64Image,
+      },{
+        headers: headers,
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
       });
     }
     if (response.status === 200) {
@@ -95,7 +105,6 @@ export const getCoordinatesFromAPI = async (file,model) => {
 };
 export const saveImageToFolder = async (file, patientID, imageNumber, model) => {
   if (!file) return;
-  console.log(file, file.name);
   const date = new Date().toISOString().replace(/:/g, '-');
   const imageFileName = `${date}_${patientID}_${imageNumber}_${file.name}`;
   console.log(imageFileName)
@@ -103,7 +112,8 @@ export const saveImageToFolder = async (file, patientID, imageNumber, model) => 
 
   try {
     // Process annotations (assuming getCoordinatesFromAPI is a function you have)
-    const annotations = await getCoordinatesFromAPI(file,model);
+    const base64Image = await getFileAsBase64(file);
+    const annotations = await getCoordinatesFromAPI(file,model, base64Image);
     if(annotations.error){
       return {success:false, error:annotations.error}
     }
@@ -112,7 +122,6 @@ export const saveImageToFolder = async (file, patientID, imageNumber, model) => 
       status: annotations.status,
     };
 
-    const base64Image = await getFileAsBase64(file);
     const thumbnailBase64 = await createThumbnail(file);
     const visitId = sessionStorage.getItem('visitId');
     try {

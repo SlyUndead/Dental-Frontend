@@ -90,6 +90,8 @@ const AnnotationPage = () => {
   const AUTO_SAVE_DELAY = 1000;
   const [saveTimeout, setSaveTimeout] = useState(null); // Timeout for debounced auto-save
   const [autoSaveInterval, setAutoSaveInterval] = useState(null)
+  const [fullName, setFullName] = useState("")
+  const [isArea ,setIsShowArea] = useState(true);
   // const fetchMostRecentImage = async () => {
   //     try {
   //         const response = await axios.get('https://agp-ui-node-api.mdbgo.io/most-recent-image'); // Adjust the API endpoint as needed
@@ -229,6 +231,8 @@ const AnnotationPage = () => {
     return Math.abs(area / 2) / areaScale;
   };
   const drawAnnotations = (ctx, image, x, y, scale, selectedAnnotation, areaScale) => {
+    const fontSize=Math.ceil(12/(1000/image.width));
+    // console.log(mainCanvasRef.current.width,image.width)
     if (model === "segmentation") {
       annotations.forEach((anno, index) => {
         if (!hiddenAnnotations.includes(index)) {
@@ -251,8 +255,10 @@ const AnnotationPage = () => {
               const midX = ((anno.vertices[0].x + anno.vertices[1].x) / 2) * scale;
               const midY = ((anno.vertices[0].y + anno.vertices[1].y) / 2) * scale;
               ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
-              ctx.font = '12px Arial';
-              ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
+              ctx.font = `${fontSize}px Arial`;
+              if(isArea){
+                ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
+              }
             } else {
               if (anno.segmentation) {
                 ctx.beginPath();
@@ -289,8 +295,14 @@ const AnnotationPage = () => {
                 const { left, top } = getBoxDimensions(anno.segmentation.map(v => ({ x: v.x * scale, y: v.y * scale })));
                 const area = calculatePolygonArea(anno.segmentation.map(v => ({ x: v.x * scale, y: v.y * scale })), areaScale).toFixed(2);
                 ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
-                const labelText = `${anno.label} (${area} mm²)`;
-                ctx.font = '12px Arial';
+                let labelText=''
+                if(isArea){
+                  labelText = `${anno.label} (${area} mm²)`;
+                }
+                else{
+                  labelText = `${anno.label}`;
+                }
+                ctx.font = `${fontSize}px Arial`;
 
                 // Measure the text width and height
                 const textMetrics = ctx.measureText(labelText);
@@ -326,8 +338,10 @@ const AnnotationPage = () => {
             const midX = ((anno.vertices[0].x + anno.vertices[1].x) / 2) * scale;
             const midY = ((anno.vertices[0].y + anno.vertices[1].y) / 2) * scale;
             ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
-            ctx.font = '12px Arial';
-            ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
+            ctx.font = `${fontSize}px Arial`;
+            if(isArea){
+              ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
+            }
           } else {
             const { left, top } = getBoxDimensions(anno.vertices.map(v => ({ x: v.x * scale, y: v.y * scale })));
 
@@ -348,16 +362,22 @@ const AnnotationPage = () => {
             if (selectedAnnotation !== anno) {
               const area = calculatePolygonArea(anno.vertices.map(v => ({ x: v.x * scale, y: v.y * scale })), areaScale).toFixed(2);
               ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
-              const labelText = `${anno.label} (${area} mm²)`;
-              ctx.font = '12px Arial';
-              // Measure the text width and height
-              const textMetrics = ctx.measureText(labelText);
-              const textHeight = parseInt(ctx.font, 10); // Get the font size as height
-              ctx.fillRect(left, top - 28 - textHeight, textMetrics.width + 10, textHeight + 10); // Draw background
+              let labelText=''
+                if(isArea){
+                  labelText = `${anno.label} (${area} mm²)`;
+                }
+                else{
+                  labelText = `${anno.label}`;
+                }
+                ctx.font = `${fontSize}px Arial`;
 
-              ctx.fillStyle = 'black'; // Set text color
+                // Measure the text width and height
+                const textMetrics = ctx.measureText(labelText);
+                const textHeight = parseInt(ctx.font, 10); // Get the font size as height
+                ctx.fillRect(left, top - 28 - textHeight, textMetrics.width + 10, textHeight + 10); // Draw background
 
-              ctx.fillText(labelText, left + 5, top - 25);
+                ctx.fillStyle = 'black'; // Set text color
+                ctx.fillText(labelText, left + 5, top - 25);
             }
           }
         }
@@ -871,8 +891,7 @@ const AnnotationPage = () => {
     fetchClassCategories();
     setPreLayoutMode(mode);
     dispatch(changeMode('dark'));
-    sessionStorage.removeItem('first')
-    sessionStorage.removeItem('last')
+    setFullName(sessionStorage.getItem('patientName'));
   }, []);
   useEffect(() => {
     // Draw the main image on the large canvas
@@ -885,7 +904,7 @@ const AnnotationPage = () => {
         drawImageOnCanvas(ref.current, smallCanvasData[index].image, null, "small");
       }
     });
-  }, [zoom, brightness, contrast, areaScale, hiddenAnnotations, annotations, hoveredAnnotation, editingMode, isNegative, selectedAnnotation]);
+  }, [zoom, brightness, contrast, areaScale, hiddenAnnotations, annotations, hoveredAnnotation, editingMode, isNegative, selectedAnnotation, isArea]);
   useEffect(() => {
     if (image) {
       const canvas = mainCanvasRef.current;
@@ -1268,6 +1287,8 @@ const AnnotationPage = () => {
       setLastVisit(data.last);
       setMainImageIndex(0);
       setFirstVisit(false);
+      sessionStorage.setItem('first', false);
+      sessionStorage.setItem('last', data.last)
       setHiddenAnnotations([]);
       loadImages();
     } catch (error) {
@@ -1282,6 +1303,8 @@ const AnnotationPage = () => {
         setLastVisit(data.last);
         setMainImageIndex(0);
         setFirstVisit(false);
+        sessionStorage.setItem('first', false);
+        sessionStorage.setItem('last', data.last);
         setHiddenAnnotations([]);
         loadImages();
       }
@@ -1310,6 +1333,8 @@ const AnnotationPage = () => {
       setLastVisit(false);
       setMainImageIndex(0);
       setFirstVisit(data.first)
+      sessionStorage.setItem('first', data.first);
+      sessionStorage.setItem('last', false);
       setHiddenAnnotations([]);
       loadImages();
     } catch (error) {
@@ -1323,6 +1348,8 @@ const AnnotationPage = () => {
         console.log(data);
         setLastVisit(false);
         setFirstVisit(data.first);
+        sessionStorage.setItem('first', data.first);
+        sessionStorage.setItem('last', false);
         setMainImageIndex(0);
         setHiddenAnnotations([]);
         loadImages();
@@ -1414,7 +1441,7 @@ const AnnotationPage = () => {
                 <Table>
                   <Row>
                     <Col md={6}>
-                      <h5 style={{ padding: 0 }}>Name :  </h5>
+                      <h5 style={{ padding: 0 }}>Name :  {fullName}</h5>
                     </Col>
                     <Col md={6} style={{
                       display: 'flex',
@@ -1653,6 +1680,14 @@ const AnnotationPage = () => {
                         >
                           <i id="icnScale" class="fas fa-redo"></i>
                         </Button>
+                          <InputGroupText>Show Area</InputGroupText>
+                          <Input
+                            type="switch"
+                            id="area-toggle"
+                            checked={isArea}
+                            onChange={(e) => setIsShowArea(!isArea)}
+                            style={{ width: '2%', paddingRight: '0', height: '30px' }}
+                          />
                         <UncontrolledTooltip placement="bottom" target="btnRedo">Redo</UncontrolledTooltip>
                         {selectedAnnotation && (
                           <Button onClick={handleEraserClick}>

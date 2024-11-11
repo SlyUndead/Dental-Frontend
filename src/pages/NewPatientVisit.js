@@ -380,7 +380,7 @@ const NewPatient = (props) => {
                                                         ))}
                                                     </div>
                                                     <FormGroup switch className="mb-3 d-flex align-items-center">
-                                                        <Label className="mr-3 mb-0">Old Model</Label> {/* Left label */}
+                                                        <Label className="mr-3 mb-0">PC Model</Label> {/* Left label */}
                                                         <Input
                                                         type="switch"
                                                         id="modelSwitch"
@@ -389,7 +389,7 @@ const NewPatient = (props) => {
                                                         // style={{backgroundColor: "#7a6fbe", borderColor: "#7a6fbe"}}
                                                         className="mx-2" // Add margin around switch for spacing
                                                         />
-                                                        <Label className="ml-3 mb-0">Segmentation Model</Label> {/* Right label */}
+                                                        <Label className="ml-3 mb-0">Internet Model</Label> {/* Right label */}
                                                     </FormGroup>
                                                 </Form>
                                             </Col>

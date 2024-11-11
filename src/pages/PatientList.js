@@ -53,9 +53,11 @@ const PatientList = (props) => {
         return <Navigate to="/newPatient" />;
     }
 
-    const handleClick = (patientId) => {
+    const handleClick = (patientId, firstName, lastName) => {
         //console.log(patinetId);
         sessionStorage.setItem('patientId', patientId);
+        const fullName = `${firstName} ${lastName}`
+        sessionStorage.setItem('patientName', fullName);
         setRedirectToImages(true);
     };
 
@@ -151,7 +153,7 @@ const PatientList = (props) => {
                             <tbody>
                                 {
                                     patients.map((patient, key) =>
-                                        <tr key={key} onClick={() => handleClick(patient._id)}>
+                                        <tr key={key} onClick={() => handleClick(patient._id, patient.first_name, patient.last_name)}>
                                             <td>{patient.last_name}  &nbsp;  {patient.first_name}
                                                 {/* <Link to="/patientImagesList" type="button" outline color="success" className="waves-effect waves-light">
                                                     <span>{patient.name}</span>
