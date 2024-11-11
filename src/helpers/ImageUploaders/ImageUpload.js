@@ -1,5 +1,5 @@
 import axios from "axios";
-export const getCoordinatesFromAPI = async (file,model, base64Image) => {
+export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBase64, visitId, imageFileName, patientID, imageNumber, annotationFileName) => {
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   const formData = new FormData();
   formData.append('image', file);
@@ -23,22 +23,19 @@ export const getCoordinatesFromAPI = async (file,model, base64Image) => {
       // It will be automatically set with the correct boundary
       'Content-Type': 'application/json',
     };
-    if (localStorage.getItem('apiIpAdd')) {
-      response = await axios.post(`http://${localStorage.getItem('apiIpAdd')}/coordinates`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data', // Set the correct content type for formData
-        },
-      });
-    }
-    else {
       response = await axios.post(`${apiUrl}/upload/coordinates`,{ 
           base64Image:base64Image,
+          thumbnailBase64: thumbnailBase64, 
+          visitId:visitId, 
+          fileName: imageFileName, 
+          patientID: patientID, 
+          imageNumber: imageNumber, 
+          annotationFileName: annotationFileName,
       },{
         headers: headers,
         maxBodyLength: Infinity,
         maxContentLength: Infinity,
       });
-    }
     if (response.status === 200) {
       console.log(response)
       // Axios automatically parses JSON response
@@ -59,16 +56,6 @@ export const getCoordinatesFromAPI = async (file,model, base64Image) => {
   }
   else{
     try {
-      // const response = await axios.post('https://agp-dental-agp_flask_server.mdbgo.io/coordinates', formData, {
-      //   headers: {
-      //     'Content-Type': 'multipart/form-data', // Set the correct content type for formData
-      //   },
-      // });
-      // const response = await axios.post('https://dental-flask.onrender.com/coordinates', formData, {
-      //   headers: {
-      //     'Content-Type': 'multipart/form-data', // Set the correct content type for formData
-      //   },
-      // });
       let response;
       if (localStorage.getItem('apiIpAdd')) {
         response = await axios.post(`http://${localStorage.getItem('apiIpAdd')}:5000/coordinates`, formData, {
@@ -85,13 +72,58 @@ export const getCoordinatesFromAPI = async (file,model, base64Image) => {
         });
       }
       if (response.status === 200) {
+        console.log(response.data)
+        const scaledResponse = {
+          annotations: response.data,
+          status: response.data.status,
+        };
         console.log(response)
         // Axios automatically parses JSON response
         const data = response.data;
         console.log(data);
-  
-        // Format the response data as needed for coordinates
-        return data;
+        try {
+          const apiUrl = process.env.REACT_APP_NODEAPIURL;
+          await axios.put(`${apiUrl}/upload/image-and-annotations`, {
+          //  await axios.put('http://localhost:3001/upload/image-and-annotations', {
+            fileName: imageFileName,
+            base64Image: base64Image,
+            thumbnailBase64: thumbnailBase64,
+            patientID: patientID,
+            imageNumber: imageNumber,
+            scaledResponse: scaledResponse,
+            annotationFileName: annotationFileName,
+            visitId:visitId
+          }, {
+            headers: { 'Content-Type': 'application/json' }
+          });
+          console.log('Image, annotations and thumbnail uploaded successfully');
+          return {success:true};
+        } catch (error) {
+          if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_BAD_REQUEST") {
+            try {
+              await axios.put('http://192.168.155.19:3001/upload/image-and-annotations', {
+                fileName: imageFileName,
+                base64Image: base64Image,
+                thumbnailBase64: thumbnailBase64, //AnotatedFiles/fileName
+                patientID: patientID,
+                imageNumber: imageNumber,
+                scaledResponse: scaledResponse,
+                annotationFileName: annotationFileName
+              }, {
+                headers: { 'Content-Type': 'application/json' }
+              });
+              console.log('Image, annotations and thumbnail uploaded successfully');
+              return {success:true};
+            }
+            catch (err) {
+              console.log(err)
+              return {success:false, error:`${imageFileName} - Error uploading image and annotations`}
+            }
+          } else {
+            console.error('Error uploading image and annotations:', error);
+            return {success:false, error:`${imageFileName} - Error uploading image and annotations`}
+          }
+        }
       }
       else {
         console.error(response)
@@ -113,59 +145,14 @@ export const saveImageToFolder = async (file, patientID, imageNumber, model) => 
   try {
     // Process annotations (assuming getCoordinatesFromAPI is a function you have)
     const base64Image = await getFileAsBase64(file);
-    const annotations = await getCoordinatesFromAPI(file,model, base64Image);
+    const thumbnailBase64 = await createThumbnail(file);
+    const visitId = sessionStorage.getItem('visitId');
+    const annotations = await getCoordinatesFromAPI(file,model, base64Image, thumbnailBase64, visitId, imageFileName, patientID, imageNumber, annotationFileName);
     if(annotations.error){
       return {success:false, error:annotations.error}
     }
-    const scaledResponse = {
-      annotations: annotations,
-      status: annotations.status,
-    };
-
-    const thumbnailBase64 = await createThumbnail(file);
-    const visitId = sessionStorage.getItem('visitId');
-    try {
-      const apiUrl = process.env.REACT_APP_NODEAPIURL;
-      await axios.put(`${apiUrl}/upload/image-and-annotations`, {
-      //  await axios.put('http://localhost:3001/upload/image-and-annotations', {
-        fileName: imageFileName,
-        base64Image: base64Image,
-        thumbnailBase64: thumbnailBase64,
-        patientID: patientID,
-        imageNumber: imageNumber,
-        scaledResponse: scaledResponse,
-        annotationFileName: annotationFileName,
-        visitId:visitId
-      }, {
-        headers: { 'Content-Type': 'application/json' }
-      });
-      console.log('Image, annotations and thumbnail uploaded successfully');
-      return {success:true};
-    } catch (error) {
-      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_BAD_REQUEST") {
-        try {
-          await axios.put('http://192.168.155.19:3001/upload/image-and-annotations', {
-            fileName: imageFileName,
-            base64Image: base64Image,
-            thumbnailBase64: thumbnailBase64, //AnotatedFiles/fileName
-            patientID: patientID,
-            imageNumber: imageNumber,
-            scaledResponse: scaledResponse,
-            annotationFileName: annotationFileName
-          }, {
-            headers: { 'Content-Type': 'application/json' }
-          });
-          console.log('Image, annotations and thumbnail uploaded successfully');
-          return {success:true};
-        }
-        catch (err) {
-          console.log(err)
-          return {success:false, error:`${imageFileName} - Error uploading image and annotations`}
-        }
-      } else {
-        console.error('Error uploading image and annotations:', error);
-        return {success:false, error:`${imageFileName} - Error uploading image and annotations`}
-      }
+    else{
+      return {success:true}
     }
   } catch (error) {
     console.error('Error processing image and annotations:', error);
