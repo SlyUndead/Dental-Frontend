@@ -92,6 +92,7 @@ const AnnotationPage = () => {
   const [autoSaveInterval, setAutoSaveInterval] = useState(null)
   const [fullName, setFullName] = useState("")
   const [isArea ,setIsShowArea] = useState(true);
+  const [redirectToLogin, setRedirectToLogin] = useState(false);
   // const fetchMostRecentImage = async () => {
   //     try {
   //         const response = await axios.get('https://agp-ui-node-api.mdbgo.io/most-recent-image'); // Adjust the API endpoint as needed
@@ -135,7 +136,16 @@ const AnnotationPage = () => {
   // };
   const fetchNotesContent = async () => {
     try {
-      const response = await axios.get(`${apiUrl}/notes-content?visitID=` + sessionStorage.getItem('visitId')); // Adjust the API endpoint as needed
+      const response = await axios.get(`${apiUrl}/notes-content?visitID=` + sessionStorage.getItem('visitId'),
+      {
+        headers:{
+          Authorization:sessionStorage.getItem('token')
+        }
+      }); // Adjust the API endpoint as needed
+      if(response.status===403){
+        sessionStorage.removeItem('token');
+        setRedirectToLogin(true);
+    }
       const data = response.data;
       // setMainImage(data.image);
       console.log(data)
@@ -156,7 +166,16 @@ const AnnotationPage = () => {
   }
   const fetchVisitDateImages = async () => {
     try {
-      const response = await axios.get(`${apiUrl}/visitid-images?visitID=` + sessionStorage.getItem('visitId')); // Adjust the API endpoint as needed
+      const response = await axios.get(`${apiUrl}/visitid-images?visitID=` + sessionStorage.getItem('visitId'),
+      {
+        headers:{
+          Authorization:sessionStorage.getItem('token')
+        }
+      }); // Adjust the API endpoint as needed
+      if(response.status===403){
+        sessionStorage.removeItem('token');
+        setRedirectToLogin(true);
+    }
       const data = response.data;
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
@@ -176,7 +195,16 @@ const AnnotationPage = () => {
   };
   const fetchClassCategories = async () => {
     try {
-      const response = await axios.get(`${apiUrl}/get-classCategories`); // Adjust the API endpoint as needed
+      const response = await axios.get(`${apiUrl}/get-classCategories`,
+        {
+          headers:{
+            Authorization:sessionStorage.getItem('token')
+          }
+        }); // Adjust the API endpoint as needed
+        if(response.status===403){
+          sessionStorage.removeItem('token');
+          setRedirectToLogin(true);
+      }
       const data = response.data;
       let updatedClassCategories = {}
       let updatedLabelColors = {}
@@ -1099,7 +1127,16 @@ const AnnotationPage = () => {
         const response = await axios.put(`${apiUrl}/save-notes`, {
           visitID: sessionStorage.getItem('visitId'),
           notes: notesContent  // Send notes in the body instead of query string
-        });
+        },
+      {
+        headers:{
+          Authorization:sessionStorage.getItem('token')
+        }
+      });
+      if(response.status===403){
+        sessionStorage.removeItem('token');
+        setRedirectToLogin(true);
+    }
         const data = response.data;
         setOldNotesContent(notesContent);
         return data.notes;
@@ -1138,8 +1175,17 @@ const AnnotationPage = () => {
           visitId: sessionStorage.getItem('visitId'),
           scaledResponse: scaledResponse,
           imageNumber: (mainImageIndex + 1)
+        },
+        {
+          headers:{
+            Authorization:sessionStorage.getItem('token')
+          }
         }
       );
+      if(response.status===403){
+        sessionStorage.removeItem('token');
+        setRedirectToLogin(true);
+    }
       const data = response.data;
       return data;
     } catch (error) {
@@ -1277,7 +1323,16 @@ const AnnotationPage = () => {
     mainCanvasRef.current = null
     setHiddenAnnotations([])
     try {
-      const response = await axios.get(`${apiUrl}/next-previousVisit?patientId=` + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=true');
+      const response = await axios.get(`${apiUrl}/next-previousVisit?patientId=` + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=true',
+      {
+        headers:{
+          Authorization:sessionStorage.getItem('token')
+        }
+      });
+      if(response.status===403){
+        sessionStorage.removeItem('token');
+        setRedirectToLogin(true);
+    }
       const data = response.data;
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
@@ -1323,7 +1378,16 @@ const AnnotationPage = () => {
     mainCanvasRef.current = null
     setHiddenAnnotations([])
     try {
-      const response = await axios.get(`${apiUrl}/next-previousVisit?patientId=` + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=false');
+      const response = await axios.get(`${apiUrl}/next-previousVisit?patientId=` + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=false',
+      {
+        headers:{
+          Authorization:sessionStorage.getItem('token')
+        }
+      });
+      if(response.status===403){
+        sessionStorage.removeItem('token');
+        setRedirectToLogin(true);
+    }
       const data = response.data;
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
@@ -1398,6 +1462,9 @@ const AnnotationPage = () => {
   if (exitClick) {
     dispatch(changeMode(preLayoutMode));
     return <Navigate to="/patientImagesList" />
+  }
+  if(redirectToLogin){
+    return <Navigate to="/login"/>
   }
   if (isLoading) {
     return (

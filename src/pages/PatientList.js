@@ -1,10 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Table, Card, CardBody, Button, Col, Row } from "reactstrap";
 import { Navigate } from "react-router-dom";
-import withRouter from 'components/Common/withRouter';
 import { setBreadcrumbItems } from "../store/actions";
 import { connect } from "react-redux";
-import { Link } from "react-router-dom"
 import axios from 'axios';
 const PatientList = (props) => {
     const printRef = useRef();
@@ -32,11 +30,20 @@ const PatientList = (props) => {
     const [redirect, setRedirect] = useState(false);
     const [redirectToImages, setRedirectToImages] = useState(false);
     const [patients, setPatients] = useState([]);
-
+    const [redirectToLogin, setRedirectToLogin] = useState(false);
     useEffect(() => {
         const practiceId = sessionStorage.getItem('practiceId');
         const getPatientList = async () => {
-            const response = await axios.get(`${apiUrl}/getPatient?practiceId=` + practiceId); // Adjust the API endpoint as needed
+            const response = await axios.get(`${apiUrl}/getPatient?practiceId=` + practiceId,
+                {
+                  headers:{
+                    Authorization:sessionStorage.getItem('token')
+                  }
+                }); // Adjust the API endpoint as needed
+                if(response.status===403){
+                    sessionStorage.removeItem('token');
+                    setRedirectToLogin(true);
+                }
             //const getPatientList= async()=>{const response = await axios.get('http://localhost:3001/getPatient?practiceId=' + practiceId); 
             const data = response.data;
             setPatients(data.patientList);
@@ -48,7 +55,9 @@ const PatientList = (props) => {
     const handleClickNewPatient = () => {
         setRedirect(true);
     };
-
+    if(redirectToLogin){
+        return <Navigate to="/login"/>
+    }
     if (redirect) {
         return <Navigate to="/newPatient" />;
     }

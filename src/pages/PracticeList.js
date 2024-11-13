@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Table, Card, CardBody, Button } from "reactstrap";
-import withRouter from 'components/Common/withRouter';
-import { Link } from "react-router-dom"
 import { setBreadcrumbItems } from "../store/actions";
 import { connect } from "react-redux";
 import { Navigate } from "react-router-dom";
@@ -14,18 +12,31 @@ const PracticeList = (props) => {
         { title: "AGP", link: "#" },
         { title: "Practice List", link: "#" }
     ]
-
+    const [redirectToLogin, setRedirectToLogin] = useState(false);
     const [practices, setPractices] = useState([]);
     useEffect(() => {
         console.log(apiUrl);
         const getPracticeList = async () => {
-            const response = await axios.get(`${apiUrl}/getPracticeList?clientId=` + sessionStorage.getItem('clientId')); // Adjust the API endpoint as needed
-            //    const getPracticeList= async()=>{const response = await axios.get('http://localhost:3001/getPracticeList');
-            console.log(response);
-            const data = response.data;
-            // setMainImage(data.image);
-            // setAnnotations(data.annotations);
-            setPractices(data.practiceList);
+            try{
+                const response = await axios.get(`${apiUrl}/getPracticeList?clientId=` + sessionStorage.getItem('clientId'),
+                {
+                headers:{
+                    Authorization:sessionStorage.getItem('token')
+                }
+                }); // Adjust the API endpoint as needed
+                //    const getPracticeList= async()=>{const response = await axios.get('http://localhost:3001/getPracticeList');
+                if(response.status===403){
+                    sessionStorage.removeItem('token');
+                    setRedirectToLogin(true);
+                }
+                const data = response.data;
+                // setMainImage(data.image);
+                // setAnnotations(data.annotations);
+                setPractices(data.practiceList);
+                }
+            catch(err){
+                console.log(err);
+            }
         }
         getPracticeList()
     }, [])
@@ -50,7 +61,9 @@ const PracticeList = (props) => {
     if (redirect) {
         return <Navigate to="/patientList" />;
     }
-
+    if(redirectToLogin){
+        return <Navigate to="/login"/>;
+    }
     return (
         <React.Fragment>
             <Card>

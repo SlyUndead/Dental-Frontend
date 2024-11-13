@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Card, CardBody, Button, Col, Row, FormGroup } from "reactstrap";
 import { Navigate } from "react-router-dom";
-import withRouter from 'components/Common/withRouter';
 import { setBreadcrumbItems } from "../store/actions";
 import { connect } from "react-redux";
 import axios from "axios"
@@ -13,6 +12,7 @@ const PatientImagesList = (props) => {
         { title: "Patient Images List", link: "#" },
     ]
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
+    const [redirectToLogin, setRedirectToLogin] = useState(false);
     // const visitDetials = [
     //     {
     //         visitDate: "2024-09-01", DateOfXray: "2024-09-01", Notes: "Initial caries lesion tooth #30",
@@ -83,7 +83,16 @@ const PatientImagesList = (props) => {
         const getPatientDetails = async () => {
             //console.log(sessionStorage.getItem('patientId'));
             try {
-                const response = await axios.get(`${apiUrl}/getPatientByID?patientId=` + sessionStorage.getItem('patientId'));
+                const response = await axios.get(`${apiUrl}/getPatientByID?patientId=` + sessionStorage.getItem('patientId'),
+                {
+                  headers:{
+                    Authorization:sessionStorage.getItem('token')
+                  }
+                });
+                if(response.status===403){
+                    sessionStorage.removeItem('token');
+                    setRedirectToLogin(true);
+                }
                 // const response = await axios.get('http://localhost:3000/getPatientByID?patientId=' + sessionStorage.getItem('patientId'));
                 if (response.status === 200) {
                     const data = response.data;
@@ -120,12 +129,30 @@ const PatientImagesList = (props) => {
         try {
             setVisitDetails([]);
             //console.log(sessionStorage.getItem('patientId'));
-            const response = await axios.get(`${apiUrl}/getPatientVisitsByID?patientId=` + sessionStorage.getItem('patientId'));
+            const response = await axios.get(`${apiUrl}/getPatientVisitsByID?patientId=` + sessionStorage.getItem('patientId'),
+            {
+              headers:{
+                Authorization:sessionStorage.getItem('token')
+              }
+            });
+            if(response.status===403){
+                sessionStorage.removeItem('token');
+                setRedirectToLogin(true);
+            }
             //  const response = await axios.get('http://localhost:3001/getPatientVisitsByID?patientId=' + sessionStorage.getItem('patientId'));
             if (response.status === 200) {
                 const visitData = response.data;
                 // const responseImages = await axios.get('http://localhost:3000/getPatientImagesByID?patientId=' + sessionStorage.getItem('patientId'));
-                const responseImages = await axios.get(`${apiUrl}/getPatientImagesByID?patientId=` + sessionStorage.getItem('patientId'));
+                const responseImages = await axios.get(`${apiUrl}/getPatientImagesByID?patientId=` + sessionStorage.getItem('patientId'),
+                {
+                  headers:{
+                    Authorization:sessionStorage.getItem('token')
+                  }
+                });
+                if(response.status===403){
+                    sessionStorage.removeItem('token');
+                    setRedirectToLogin(true);
+                }
                 if (responseImages.status === 200) {
                     await visitData.patienVisits.map(visit => {
                         const visitImages = responseImages.data.patienImages.filter(image => image.visitId === visit._id)
@@ -157,7 +184,9 @@ const PatientImagesList = (props) => {
     if (redirect) {
         return <Navigate to="/newPatientVisit" />;
     }
-
+    if(redirectToLogin){
+        return <Navigate to="/login"/>
+    }
     const handleClick = (visitId, key) => {
         try {
             setError("");
@@ -220,7 +249,16 @@ const PatientImagesList = (props) => {
                 if (isConfirmed) {
                     checkedImages = checkedImages.slice(0, -1);
                     console.log(checkedImages);
-                    let response = await axios.post(`${apiUrl}/delete-patient-image?ids=` + checkedImages)
+                    let response = await axios.post(`${apiUrl}/delete-patient-image?ids=` + checkedImages,
+                        {
+                          headers:{
+                            Authorization:sessionStorage.getItem('token')
+                          }
+                        })
+                        if(response.status===403){
+                            sessionStorage.removeItem('token');
+                            setRedirectToLogin(true);
+                        }
                     if (response.status === 200) {
                         getPatientVisits();
                         setError('Image/s deleted successfully');
@@ -261,8 +299,16 @@ const PatientImagesList = (props) => {
                 else {
                     for (let imageName of imageNames) {
                         // Send a request to your Node.js backend to fetch and download the image
-                        const response = await fetch(`${apiUrl}/download-image?imageName=${encodeURIComponent(imageName)}`);
-
+                        const response = await fetch(`${apiUrl}/download-image?imageName=${encodeURIComponent(imageName)}`,
+                            {
+                              headers:{
+                                Authorization:sessionStorage.getItem('token')
+                              }
+                            });
+                            if(response.status===403){
+                                sessionStorage.removeItem('token');
+                                setRedirectToLogin(true);
+                            }
                         // Check if the response is successful
                         if (!response.ok) {
                             throw new Error('Failed to download the image');

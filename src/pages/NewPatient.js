@@ -34,7 +34,7 @@ const NewPatient = (props) => {
     const [guardian_last_name, setGuardianLastName] = useState("")
     const [guardian_relationship, setGuardianRelationship] = useState("")
     const [address, setAddress] = useState("")
-    
+    const [redirectToLogin, setRedirectToLogin] = useState(false);
     const breadcrumbItems = [
         { title: "AGP", link: "#" },
         { title: sessionStorage.getItem('practiceName'), link: "/practiceList" },
@@ -59,7 +59,16 @@ const NewPatient = (props) => {
                         first_name: firstName, last_name: lastName, email: email, telephone: telephone, gender: gender, dob: dob,
                         guardian_first_name: guardian_first_name, guardian_last_name: guardian_last_name, guardian_relationship: guardian_relationship, address: address,
                         is_active: true, created_by: "test", practiceId: sessionStorage.getItem('practiceId')
+                    },
+                    {
+                      headers:{
+                        Authorization:sessionStorage.getItem('token')
+                      }
                     })
+                    if(response.status===403){
+                        sessionStorage.removeItem('token');
+                        setRedirectToLogin(true);
+                    }
                 }
                 else {
                     response = await axios.post(`${apiUrl}/add-patient`, {
@@ -67,7 +76,16 @@ const NewPatient = (props) => {
                         first_name: firstName, last_name: lastName, email: email, telephone: telephone, gender: gender, reference_dob_for_age: ref_dob,
                         guardian_first_name: guardian_first_name, guardian_last_name: guardian_last_name, guardian_relationship: guardian_relationship, address: address,
                         is_active: true, created_by: 'test', practiceId: sessionStorage.getItem('practiceId')
+                    },
+                    {
+                      headers:{
+                        Authorization:sessionStorage.getItem('token')
+                      }
                     })
+                    if(response.status===403){
+                        sessionStorage.removeItem('token');
+                        setRedirectToLogin(true);
+                    }
                 }
                 if (response.status === 200) {
                     sessionStorage.setItem('patientId', response.data.user1._id);
@@ -90,7 +108,9 @@ const NewPatient = (props) => {
         setRef_dob(refDob);
     }
     const [redirect, setRedirect] = useState(false);
-
+    if(redirectToLogin){
+        return <Navigate to="/login"/>
+    }
     if (redirect) {
         return <Navigate to="/newPatientVisit" />;
     }

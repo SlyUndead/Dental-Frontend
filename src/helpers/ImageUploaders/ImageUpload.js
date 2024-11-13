@@ -22,6 +22,7 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
       // Don't set Content-Type manually when using FormData!
       // It will be automatically set with the correct boundary
       'Content-Type': 'application/json',
+      Authorization:sessionStorage.getItem('token')
     };
       response = await axios.post(`${apiUrl}/upload/coordinates`,{ 
           base64Image:base64Image,
@@ -36,6 +37,9 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
         maxBodyLength: Infinity,
         maxContentLength: Infinity,
       });
+      if(response.status===403){
+        return{success:false, error:"Unauthorized"}
+    }
     if (response.status === 200) {
       console.log(response)
       // Axios automatically parses JSON response
@@ -94,8 +98,12 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
             annotationFileName: annotationFileName,
             visitId:visitId
           }, {
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            Authorization:sessionStorage.getItem('token')
           });
+          if(response.status===403){
+              return {success:false, error:"Unauthorized"}
+          }
           console.log('Image, annotations and thumbnail uploaded successfully');
           return {success:true};
         } catch (error) {

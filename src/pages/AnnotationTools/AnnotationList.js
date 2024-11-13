@@ -3,6 +3,7 @@ import { labelColors } from './constants';
 import { Card, CardBody, Button, ListGroup, ListGroupItem, Row, Col, UncontrolledTooltip, PopoverBody, UncontrolledPopover, Input, InputGroup, InputGroupText } from 'reactstrap';
 import axios from 'axios';
 import { changeMode } from "../../store/actions"
+import { Navigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../../assets/scss/custom/components/_popover.scss';
@@ -20,6 +21,7 @@ const AnnotationList = ({
   // Check if setHoveredAnnotation is a function, if not, use a no-op function
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   const [hideAllAnnotations, setHideAllAnnotations] = useState(false);
+  const [redirectToLogin, setRedirectToLogin] = useState(false);
   const popoverRef = useRef(null);
   const handleHover = typeof setHoveredAnnotation === 'function'
     ? setHoveredAnnotation
@@ -33,7 +35,15 @@ const AnnotationList = ({
     if (index !== popoverOpen) {
       try {
         // Fetch data from the API
-        const response = await axios.get(`${apiUrl}/get-className?className=` + anno.label);
+        const response = await axios.get(`${apiUrl}/get-className?className=` + anno.label,{
+          headers:{
+            Authorization:sessionStorage.getItem('token')
+          }
+        });
+        if(response.status===403){
+          sessionStorage.removeItem('token');
+          setRedirectToLogin(true);
+      }
         // console.log(response.data)
         setPopoverData(response.data);
         setPopoverOpen(index);
@@ -138,6 +148,9 @@ const AnnotationList = ({
     setHideGroup(updatedHideGroup);
 
   }, [hiddenAnnotations, annotations, groupedAnnotations]);
+  if(redirectToLogin){
+    return <Navigate to="/login"/>
+  }
   return (
     <Card style={{ maxHeight: '100%', maxWidth: '100%', borderRight: '1px solid #ccc' }}>
       <CardBody>

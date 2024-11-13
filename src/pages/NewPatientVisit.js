@@ -21,7 +21,6 @@ import {
     Spinner,
     Label
 } from "reactstrap"
-import Switch from "react-switch"
 import classnames from "classnames"
 import { connect } from "react-redux";
 import Dropzone from "react-dropzone"
@@ -32,7 +31,6 @@ import { setBreadcrumbItems } from "../store/actions";
 import Flatpickr from "react-flatpickr"
 import 'flatpickr/dist/flatpickr.min.css';
 import axios from "axios"
-import { element, elementType } from "prop-types"
 const NewPatient = (props) => {
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
     document.title = "Patient Visit | AGP Dental Tool";
@@ -42,7 +40,7 @@ const NewPatient = (props) => {
     const [notes, setNotes] = useState('');
     const [summary, setSummary] = useState('');
     const [model, setModel] = useState("Segmentation Model");
-
+    const [redirectToLogin, setRedirectToLogin] = useState(false);
     const breadcrumbItems = [
         { title: "AGP", link: "#" },
         { title: sessionStorage.getItem('practiceName'), link: "/practiceList" },
@@ -87,8 +85,16 @@ const NewPatient = (props) => {
                     //    response = await axios.post('http://localhost:3001/add-patientVisit', {  
                     patientId: patientId, date_of_xray: dateOfXray, notes: notes, date_of_visit: dateOfVisit, summary: summary,
                     created_by: "test"
+                },
+                {
+                  headers:{
+                    Authorization:sessionStorage.getItem('token')
+                  }
                 })
-
+                if(response.status===403){
+                    sessionStorage.removeItem('token');
+                    setRedirectToLogin(true);
+                }
                 console.log(response)
                 if (response.status === 200) {
                     sessionStorage.setItem('visitId', response.data.visitDetail._id);
@@ -139,6 +145,9 @@ const NewPatient = (props) => {
         else{
             setModel("Old Model")
         }
+    }
+    if(redirectToLogin){
+        return <Navigate to="/login"/>
     }
     if (redirect) {
         return <Navigate to="/annotationPage" />;
