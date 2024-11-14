@@ -19,8 +19,6 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
     let response;
     console.log(formData)
     const headers = {
-      // Don't set Content-Type manually when using FormData!
-      // It will be automatically set with the correct boundary
       'Content-Type': 'application/json',
       Authorization:sessionStorage.getItem('token')
     };
@@ -37,9 +35,6 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
         maxBodyLength: Infinity,
         maxContentLength: Infinity,
       });
-      if(response.status===403){
-        return{success:false, error:"Unauthorized"}
-    }
     if (response.status === 200) {
       console.log(response)
       // Axios automatically parses JSON response
@@ -50,10 +45,16 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
       return data;
     }
     else {
+      if(response.status===403){
+        return{success:false, error:"Unauthorized"}
+    }
       console.error(response)
     }
   }
   catch (error) {
+        if(error.status===403){
+          return {success:false, error:"Unauthorized"}
+      }
       console.error('Error fetching coordinates from API:', error);
       return { error: `${file.name} - Error running model`};
     }
@@ -101,9 +102,6 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
             headers: { 'Content-Type': 'application/json' },
             Authorization:sessionStorage.getItem('token')
           });
-          if(response.status===403){
-              return {success:false, error:"Unauthorized"}
-          }
           console.log('Image, annotations and thumbnail uploaded successfully');
           return {success:true};
         } catch (error) {
@@ -124,10 +122,16 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
               return {success:true};
             }
             catch (err) {
+                if(err.status===403){ 
+                  return {success:false, error:"Unauthorized"}
+              }
               console.log(err)
               return {success:false, error:`${imageFileName} - Error uploading image and annotations`}
             }
           } else {
+              if(error.status===403){
+                return {success:false, error:"Unauthorized"}
+            }
             console.error('Error uploading image and annotations:', error);
             return {success:false, error:`${imageFileName} - Error uploading image and annotations`}
           }
@@ -138,6 +142,10 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
       }
     }
     catch (error) {
+      
+          if(error.status===403){
+            return {success:false, error:"Unauthorized"}
+        }
         console.error('Error fetching coordinates from API:', error);
         return { error: `${file.name} - Error running model`};
       }

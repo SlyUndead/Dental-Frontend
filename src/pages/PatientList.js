@@ -36,19 +36,24 @@ const PatientList = (props) => {
     useEffect(() => {
         const practiceId = sessionStorage.getItem('practiceId');
         const getPatientList = async () => {
-            const response = await axios.get(`${apiUrl}/getPatient?practiceId=` + practiceId,
+            try{
+                const response = await axios.get(`${apiUrl}/getPatient?practiceId=` + practiceId,
                 {
                   headers:{
                     Authorization:sessionStorage.getItem('token')
                   }
                 }); // Adjust the API endpoint as needed
-                if(response.status===403){
-                    sessionStorage.removeItem('token');
-                    setRedirectToLogin(true);
-                }
             //const getPatientList= async()=>{const response = await axios.get('http://localhost:3001/getPatient?practiceId=' + practiceId); 
             const data = response.data;
             setPatients(data.patientList);
+            }
+            catch(error){
+                if(error.status===403){
+                    sessionStorage.removeItem('token');
+                    setRedirectToLogin(true);
+                }
+                console.log(error)
+            }
         }
 
         getPatientList()

@@ -28,10 +28,6 @@ const PracticeList = (props) => {
                 }
                 }); // Adjust the API endpoint as needed
                 //    const getPracticeList= async()=>{const response = await axios.get('http://localhost:3001/getPracticeList');
-                if(response.status===403){
-                    sessionStorage.removeItem('token');
-                    setRedirectToLogin(true);
-                }
                 const data = response.data;
                 // setMainImage(data.image);
                 // setAnnotations(data.annotations);
@@ -39,6 +35,11 @@ const PracticeList = (props) => {
                 }
             catch(error){
                 logErrorToServer(error, "getPracticeList");
+                if(err.status===403){
+                    sessionStorage.removeItem('token');
+                    setRedirectToLogin(true);
+                }
+                console.log(err);
             }
         }
         getPracticeList()

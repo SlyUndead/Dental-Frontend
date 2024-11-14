@@ -40,10 +40,6 @@ const AnnotationList = ({
             Authorization:sessionStorage.getItem('token')
           }
         });
-        if(response.status===403){
-          sessionStorage.removeItem('token');
-          setRedirectToLogin(true);
-      }
         // console.log(response.data)
         setPopoverData(response.data);
         setPopoverOpen(index);
@@ -52,6 +48,10 @@ const AnnotationList = ({
           setPopoverOpen(index);
         }
       } catch (err) {
+        if(err.status===403){
+          sessionStorage.removeItem('token');
+          setRedirectToLogin(true);
+        }
         setPopoverData({ description: "unable to fetch data", className: "error" })
         setPopoverOpen(index);
         console.log('Error fetching className:', err);
