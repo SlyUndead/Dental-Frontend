@@ -161,7 +161,7 @@ const PatientImagesList = (props) => {
             }
         }
         catch (error) {
-            if(response.status===403){
+            if(error.status===403){
                 sessionStorage.removeItem('token');
                 setRedirectToLogin(true);
             }
