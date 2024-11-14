@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Table, Card, CardBody, Button, Col, Row } from "reactstrap";
 import { Navigate } from "react-router-dom";
+import withRouter from 'components/Common/withRouter';
 import { setBreadcrumbItems } from "../store/actions";
 import { connect } from "react-redux";
+import { Link } from "react-router-dom"
 import axios from 'axios';
 const PatientList = (props) => {
     const printRef = useRef();

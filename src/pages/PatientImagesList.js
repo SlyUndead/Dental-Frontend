@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Card, CardBody, Button, Col, Row, FormGroup } from "reactstrap";
+import { Table, Card, CardBody, Button, Col, Row, FormGroup, UncontrolledTooltip } from "reactstrap";
 import { Navigate } from "react-router-dom";
+import withRouter from 'components/Common/withRouter';
 import { setBreadcrumbItems } from "../store/actions";
 import { connect } from "react-redux";
 import axios from "axios"
@@ -179,6 +180,7 @@ const PatientImagesList = (props) => {
         setError("");
         sessionStorage.setItem('patientId', patientId);
         setRedirect(true);
+        sessionStorage.removeItem('visitId');
     };
 
     if (redirect) {
@@ -187,6 +189,13 @@ const PatientImagesList = (props) => {
     if(redirectToLogin){
         return <Navigate to="/login"/>
     }
+    const handleEditClick = (e, visitId, key) => {
+        return <Navigate to="/login" />
+        e.stopPropagation();
+        sessionStorage.setItem('visitId', visitId.visitId);
+        setRedirect(true);
+    }
+
     const handleClick = (visitId, key) => {
         try {
             setError("");
@@ -431,10 +440,11 @@ const PatientImagesList = (props) => {
                         <Table className="align-top table-vertical table-nowrap  table-hover">
                             <thead>
                                 <tr>
-                                    <th>Visit Date</th>
-                                    <th>Date of Xray</th>
-                                    <th>Summary</th>
-                                    <th>Patient Images</th>
+                                    <th style={{ width: '10%' }}>Visit Date</th>
+                                    <th style={{ width: '10%' }}>Date of Xray</th>
+                                    <th style={{ width: '25%' }}>Summary</th>
+                                    <th style={{ width: '5%' }}></th>
+                                    <th style={{ width: '50%' }}>Patient Images</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -444,6 +454,18 @@ const PatientImagesList = (props) => {
                                             <td>{visit.visitDate}</td>
                                             <td>{visit.DateOfXray}</td>
                                             <td>{visit.Summary}</td>
+                                            <td><button
+                                                id="btnEdit"
+                                                type="button"
+                                                style={{ cssText: 'padding: 2px !important', fontSize: '25px' }}
+                                                className="btn"
+                                                onClick={(e) => handleEditClick(e, visit, key)}
+                                            >
+                                                <i className='mdi mdi-pencil-box-outline'></i>
+                                            </button>
+                                                <UncontrolledTooltip placement="bottom" target="btnEdit">Edit Visit
+                                                </UncontrolledTooltip>
+                                            </td>
                                             <td>
                                                 <Table id="images-table" className="align-middle table-centered table-vertical table-nowrap">
                                                     <tbody>

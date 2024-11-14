@@ -21,6 +21,7 @@ import {
     Spinner,
     Label
 } from "reactstrap"
+import Switch from "react-switch"
 import classnames from "classnames"
 import { connect } from "react-redux";
 import Dropzone from "react-dropzone"
@@ -31,6 +32,7 @@ import { setBreadcrumbItems } from "../store/actions";
 import Flatpickr from "react-flatpickr"
 import 'flatpickr/dist/flatpickr.min.css';
 import axios from "axios"
+import { element, elementType } from "prop-types"
 const NewPatient = (props) => {
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
     document.title = "Patient Visit | AGP Dental Tool";
@@ -40,7 +42,7 @@ const NewPatient = (props) => {
     const [notes, setNotes] = useState('');
     const [summary, setSummary] = useState('');
     const [model, setModel] = useState("Segmentation Model");
-    const [redirectToLogin, setRedirectToLogin] = useState(false);
+
     const breadcrumbItems = [
         { title: "AGP", link: "#" },
         { title: sessionStorage.getItem('practiceName'), link: "/practiceList" },
@@ -51,6 +53,17 @@ const NewPatient = (props) => {
         props.setBreadcrumbItems('Patient Visit', breadcrumbItems)
         if (sessionStorage.getItem('patientId')) {
             setPatientId(sessionStorage.getItem('patientId'));
+        }
+        if (sessionStorage.getItem('visitId')) {
+            const getVisitDetails = async () => {
+                const response = await axios.get(`${apiUrl}/getVisitDetailsById?visitID=` + sessionStorage.getItem('visitId')); // Adjust the API endpoint as needed
+                console.log(response);
+                setDateOfVisit(response.data.visitDetails[0].date_of_visit);
+                setDateOfXray(response.data.visitDetails[0].date_of_xray);
+                setNotes(response.data.visitDetails[0].notes);
+                setSummary(response.data.visitDetails[0].summary);
+            }
+            getVisitDetails()
         }
     }, [])
 
@@ -75,30 +88,31 @@ const NewPatient = (props) => {
         });
         setselectedFiles(updatedFiles);
     }
-    
+
     const handlePatientVisitSubmit = async () => {
         if (dateOfVisit !== "" && dateOfXray !== "") {
             try {
                 let response;
-                console.log('handlePatientVisitSubmit : ' + patientId);
-                response = await axios.post(`${apiUrl}/add-patientVisit`, {
-                    //    response = await axios.post('http://localhost:3001/add-patientVisit', {  
-                    patientId: patientId, date_of_xray: dateOfXray, notes: notes, date_of_visit: dateOfVisit, summary: summary,
-                    created_by: "test"
-                },
-                {
-                  headers:{
-                    Authorization:sessionStorage.getItem('token')
-                  }
-                })
-                if(response.status===403){
-                    sessionStorage.removeItem('token');
-                    setRedirectToLogin(true);
+                //console.log('handlePatientVisitSubmit : ' + patientId);
+                if (sessionStorage.getItem('visitId')) {
+                    response = await axios.post(`${apiUrl}/update-patientVisit`, {
+                        visitId: sessionStorage.getItem('visitId'), date_of_xray: dateOfXray, notes: notes,
+                        date_of_visit: dateOfVisit, summary: summary
+                    });
+                    if (response.status === 200)
+                        toggleCustom("2");
                 }
-                console.log(response)
-                if (response.status === 200) {
-                    sessionStorage.setItem('visitId', response.data.visitDetail._id);
-                    toggleCustom("2");
+                else {
+                    response = await axios.post(`${apiUrl}/add-patientVisit`, {
+                        //    response = await axios.post('http://localhost:3001/add-patientVisit', {  
+                        patientId: patientId, date_of_xray: dateOfXray, notes: notes, date_of_visit: dateOfVisit, summary: summary,
+                        created_by: "test"
+                    })
+                    //console.log(response)
+                    if (response.status === 200) {
+                        sessionStorage.setItem('visitId', response.data.visitDetail._id);
+                        toggleCustom("2");
+                    }
                 }
             }
             catch (err) {
@@ -122,38 +136,35 @@ const NewPatient = (props) => {
     const handleSubmit = async () => {
         setLoading(true);
         const results = await Promise.all(
-          selectedFiles.map((file, index) => saveImageToFolder(file, patientId, index + 1, model))
+            selectedFiles.map((file, index) => saveImageToFolder(file, patientId, index + 1, model))
         );
         const errors = results.filter(result => !result.success).map(result => result.error);
         setLoading(false);
         if (errors.length > 0) {
-          console.error('Errors:', errors); // Optionally log errors for debugging
-          setMessage(`${errors.length} files failed to upload:\n${errors.join('\n')}`);
-          return;
+            console.error('Errors:', errors); // Optionally log errors for debugging
+            setMessage(`${errors.length} files failed to upload:\n${errors.join('\n')}`);
+            return;
         }
-      
+
         // Set success states if no errors occurred
         sessionStorage.setItem('last', true);
         sessionStorage.setItem('first', false);
         setRedirect(true);
-      };
-      
-    const handleModelChange=()=>{
-        if(model==="Old Model"){
+    };
+
+    const handleModelChange = () => {
+        if (model === "Old Model") {
             setModel("Segmentation Model")
         }
-        else{
+        else {
             setModel("Old Model")
         }
-    }
-    if(redirectToLogin){
-        return <Navigate to="/login"/>
     }
     if (redirect) {
         return <Navigate to="/annotationPage" />;
     }
-    if(cancelRedirect){
-        return <Navigate to="/patientImagesList"/>;
+    if (cancelRedirect) {
+        return <Navigate to="/patientImagesList" />;
     }
     return (
         <React.Fragment>
@@ -391,12 +402,12 @@ const NewPatient = (props) => {
                                                     <FormGroup switch className="mb-3 d-flex align-items-center">
                                                         <Label className="mr-3 mb-0">PC Model</Label> {/* Left label */}
                                                         <Input
-                                                        type="switch"
-                                                        id="modelSwitch"
-                                                        checked={!(model==="Old Model")}
-                                                        onChange={handleModelChange}
-                                                        // style={{backgroundColor: "#7a6fbe", borderColor: "#7a6fbe"}}
-                                                        className="mx-2" // Add margin around switch for spacing
+                                                            type="switch"
+                                                            id="modelSwitch"
+                                                            checked={!(model === "Old Model")}
+                                                            onChange={handleModelChange}
+                                                            // style={{backgroundColor: "#7a6fbe", borderColor: "#7a6fbe"}}
+                                                            className="mx-2" // Add margin around switch for spacing
                                                         />
                                                         <Label className="ml-3 mb-0">Internet Model</Label> {/* Right label */}
                                                     </FormGroup>
@@ -412,20 +423,20 @@ const NewPatient = (props) => {
                                                 >
                                                     Submit
                                                 </button>
-                                                {message!==''?<button onClick={()=>{setCancelRedirect(true)}}
+                                                {message !== '' ? <button onClick={() => { setCancelRedirect(true) }}
                                                     type="button"
                                                     className="btn btn-primary waves-effect waves-light"
-                                                    style={{marginLeft:'1%'}}
+                                                    style={{ marginLeft: '1%' }}
                                                 >
                                                     Cancel
-                                                </button>:<></>}
+                                                </button> : <></>}
                                             </div>
                                         </Row>
-                                        {message!==''?<Row>
-                                            <div className="text-center mt-4" style={{color:'red', whiteSpace:'pre-line'}}>
+                                        {message !== '' ? <Row>
+                                            <div className="text-center mt-4" style={{ color: 'red', whiteSpace: 'pre-line' }}>
                                                 {message}
                                             </div>
-                                        </Row>:<></>}
+                                        </Row> : <></>}
                                     </TabPane>
                                 </TabContent>
                             </CardBody>

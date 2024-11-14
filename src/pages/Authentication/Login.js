@@ -15,7 +15,7 @@ import { AvForm, AvField } from "availity-reactstrap-validation"
 // actions
 //import { loginUser, socialLogin, loginSuccess } from "../../store/actions";
 import axios from "axios"
-
+import { logErrorToServer } from '../../utils/logError';
 const Login = props => {
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   document.title = "Login | AGP Dental Tool";
@@ -59,11 +59,13 @@ const Login = props => {
           throw new Error(response.data || 'Login failed');
       }
       catch (error) {
+        console.log(error);
         if (error instanceof Error) {
-          setError(error.response.data);
+          setError(error?.response?.data || 'Login failed');
         } else {
           setError('An unexpected error occurred');
         }
+        await logErrorToServer(error,"handleSubmit");
       }
   }
 
