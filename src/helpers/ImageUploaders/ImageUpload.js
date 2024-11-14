@@ -122,14 +122,14 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
               return {success:true};
             }
             catch (err) {
-                if(response.status===403){
+                if(err.status===403){
                   return {success:false, error:"Unauthorized"}
               }
               console.log(err)
               return {success:false, error:`${imageFileName} - Error uploading image and annotations`}
             }
           } else {
-              if(response.status===403){
+              if(error.status===403){
                 return {success:false, error:"Unauthorized"}
             }
             console.error('Error uploading image and annotations:', error);
