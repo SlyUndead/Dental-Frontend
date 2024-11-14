@@ -20,26 +20,26 @@ const PracticeList = (props) => {
     useEffect(() => {
         console.log(apiUrl);
         const getPracticeList = async () => {
-            try{
+            try {
                 const response = await axios.get(`${apiUrl}/getPracticeList?clientId=` + sessionStorage.getItem('clientId'),
-                {
-                headers:{
-                    Authorization:sessionStorage.getItem('token')
-                }
-                }); // Adjust the API endpoint as needed
+                    {
+                        headers: {
+                            Authorization: sessionStorage.getItem('token')
+                        }
+                    }); // Adjust the API endpoint as needed
                 //    const getPracticeList= async()=>{const response = await axios.get('http://localhost:3001/getPracticeList');
                 const data = response.data;
                 // setMainImage(data.image);
                 // setAnnotations(data.annotations);
                 setPractices(data.practiceList);
-                }
-            catch(error){
+            }
+            catch (error) {
                 logErrorToServer(error, "getPracticeList");
-                if(err.status===403){
+                if (error.status === 403) {
                     sessionStorage.removeItem('token');
                     setRedirectToLogin(true);
                 }
-                console.log(err);
+                //console.log(err);
             }
         }
         getPracticeList()
@@ -65,8 +65,8 @@ const PracticeList = (props) => {
     if (redirect) {
         return <Navigate to="/patientList" />;
     }
-    if(redirectToLogin){
-        return <Navigate to="/login"/>;
+    if (redirectToLogin) {
+        return <Navigate to="/login" />;
     }
     return (
         <React.Fragment>
