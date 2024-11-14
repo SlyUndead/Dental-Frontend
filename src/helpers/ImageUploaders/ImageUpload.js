@@ -122,7 +122,7 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
               return {success:true};
             }
             catch (err) {
-                if(err.status===403){
+                if(err.status===403){ 
                   return {success:false, error:"Unauthorized"}
               }
               console.log(err)
