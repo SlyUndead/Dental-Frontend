@@ -186,7 +186,7 @@ const PatientImagesList = (props) => {
         return <Navigate to="/login"/>
     }
     const handleEditClick = (e, visitId, key) => {
-        return <Navigate to="/login" />
+        // return <Navigate to="/login" />
         e.stopPropagation();
         sessionStorage.setItem('visitId', visitId.visitId);
         setRedirect(true);
@@ -254,7 +254,7 @@ const PatientImagesList = (props) => {
                 if (isConfirmed) {
                     checkedImages = checkedImages.slice(0, -1);
                     console.log(checkedImages);
-                    let response = await axios.post(`${apiUrl}/delete-patient-image?ids=` + checkedImages,
+                    let response = await axios.post(`${apiUrl}/delete-patient-image?ids=` + checkedImages,{},
                         {
                           headers:{
                             Authorization:sessionStorage.getItem('token')
@@ -455,7 +455,7 @@ const PatientImagesList = (props) => {
                                                 type="button"
                                                 style={{ cssText: 'padding: 2px !important', fontSize: '25px' }}
                                                 className="btn"
-                                                onClick={(e) => handleEditClick(e, visit, key)}
+                                                onClick={(e) =>{e.stopPropagation(); handleEditClick(e, visit, key)}}
                                             >
                                                 <i className='mdi mdi-pencil-box-outline'></i>
                                             </button>

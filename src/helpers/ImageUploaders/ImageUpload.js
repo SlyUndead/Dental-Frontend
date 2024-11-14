@@ -99,8 +99,9 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
             annotationFileName: annotationFileName,
             visitId:visitId
           }, {
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json' ,
             Authorization:sessionStorage.getItem('token')
+            }
           });
           console.log('Image, annotations and thumbnail uploaded successfully');
           return {success:true};

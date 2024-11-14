@@ -93,6 +93,7 @@ const AnnotationPage = () => {
   const [fullName, setFullName] = useState("")
   const [isArea ,setIsShowArea] = useState(true);
   const [redirectToLogin, setRedirectToLogin] = useState(false);
+  const [message, setMessage] = useState('')
   // const fetchMostRecentImage = async () => {
   //     try {
   //         const response = await axios.get('https://agp-ui-node-api.mdbgo.io/most-recent-image'); // Adjust the API endpoint as needed
@@ -882,47 +883,81 @@ const AnnotationPage = () => {
     }
   }, [image, isLiveWireTracingActive]);
   const loadImages = async () => {
-    setIsNotesOpen(false);
-    const visitNotes = await fetchNotesContent();
-    setNotesContent(visitNotes)
-    const imagesData = await fetchVisitDateImages();
-    let mainImageData = [];
-    // let recentImagesData = [];
-    if (imagesData && imagesData.length > 0) {
-      mainImageData = imagesData[0];
-      // recentImagesData = imagesData.slice(1);
-      setAnnotations(mainImageData.annotations.annotations.annotations);
-    }
-    // Initialize smallCanvasRefs with dynamic refs based on the number of images
-    const refsArray = imagesData.map(() => React.createRef());
-    setSmallCanvasRefs(refsArray);
-
-    // Draw the main image on the large canvas
-    if (mainImageData && mainCanvasRef.current) {
-      console.log(mainImageData)
-      setModel(mainImageData.annotations.annotations.model)
-      drawImageOnCanvas(mainCanvasRef.current, mainImageData.image, "main");
-      setHistory([mainImageData.annotations.annotations.annotations])
-    }
-
-    // Draw the thumbnails on small canvases after refs are initialized
-    refsArray.forEach((ref, index) => {
-      if (ref.current) {
-        drawImageOnCanvas(ref.current, imagesData[index].image, null, "small");
+    try{
+      const imagesData = await fetchVisitDateImages();
+      const visitNotes = await fetchNotesContent();
+      setNotesContent(visitNotes)
+      setIsNotesOpen(false);
+      let mainImageData = [];
+      // let recentImagesData = [];
+      if (imagesData && imagesData.length > 0) {
+        mainImageData = imagesData[0];
+        // recentImagesData = imagesData.slice(1);
+        setAnnotations(mainImageData.annotations.annotations.annotations);
+      // Initialize smallCanvasRefs with dynamic refs based on the number of images
+      const refsArray = imagesData.map(() => React.createRef());
+      setSmallCanvasRefs(refsArray);
+      
+      // Draw the main image on the large canvas
+      if (mainImageData && mainCanvasRef.current) {
+        console.log(mainImageData)
+        setModel(mainImageData.annotations.annotations.model)
+        drawImageOnCanvas(mainCanvasRef.current, mainImageData.image, "main");
+        setHistory([mainImageData.annotations.annotations.annotations])
       }
-    });
-    setSmallCanvasData(imagesData);
-    setMainCanvasData(mainImageData);
+
+      // Draw the thumbnails on small canvases after refs are initialized
+      refsArray.forEach((ref, index) => {
+        if (ref.current) {
+          drawImageOnCanvas(ref.current, imagesData[index].image, null, "small");
+        }
+      });
+      setSmallCanvasData(imagesData);
+      setMainCanvasData(mainImageData);
+    }
+    else{
+      setMessage("There are no images for this visit.")
+    }
+    }
+    catch(error){
+      console.log(error);
+        setMessage("Unable to load this visit images. Pls contact admin.")
+    }
   };
 
   useEffect(() => {
-    setFirstVisit(sessionStorage.getItem('first') === 'true' ? true : false)
-    setLastVisit(sessionStorage.getItem('last') === 'true' ? true : false)
-    loadImages();
-    fetchClassCategories();
-    setPreLayoutMode(mode);
-    dispatch(changeMode('dark'));
-    setFullName(sessionStorage.getItem('patientName'));
+    try{
+      setFirstVisit(sessionStorage.getItem('first') === 'true' ? true : false)
+      setLastVisit(sessionStorage.getItem('last') === 'true' ? true : false)
+      loadImages();
+      fetchClassCategories();
+      if(!sessionStorage.getItem('preLayoutMode')){
+        setPreLayoutMode(mode);
+        sessionStorage.setItem('preLayoutMode', mode);
+      }
+      dispatch(changeMode('dark'));
+      setFullName(sessionStorage.getItem('patientName'));
+    }
+    catch(error){
+      console.log(error);
+      setMessage("Unable to load this visit images. Pls contact admin")
+    }
+  }, []);
+  useEffect(() => { 
+    const handleNavigationAway = () => {
+      console.log("Exited through button")
+      dispatch(changeMode(preLayoutMode));
+      sessionStorage.removeItem('preLayoutMode');
+    };
+
+    // Listen for back/forward navigation
+    window.addEventListener('popstate', handleNavigationAway);
+    window.addEventListener('pagehide', handleNavigationAway);
+
+    return () => {
+      window.removeEventListener('popstate', handleNavigationAway);
+      window.removeEventListener('pagehide', handleNavigationAway);
+    };
   }, []);
   useEffect(() => {
     // Draw the main image on the large canvas
@@ -1319,6 +1354,7 @@ const AnnotationPage = () => {
   };
   const handleNextClick = async () => {
     setIsLoading(true)
+    setMessage('')
     setMainCanvasData(null)
     setAnnotations([])
     setSmallCanvasData([])
@@ -1375,6 +1411,7 @@ const AnnotationPage = () => {
   const handlePreviousClick = async () => {
     setIsLoading(true)
     setMainCanvasData(null)
+    setMessage('')
     setAnnotations([])
     setSmallCanvasData([])
     setSmallCanvasRefs([])
@@ -1463,7 +1500,8 @@ const AnnotationPage = () => {
     }
   };
   if (exitClick) {
-    dispatch(changeMode(preLayoutMode));
+      dispatch(changeMode(preLayoutMode));
+        sessionStorage.removeItem('preLayoutMode');
     return <Navigate to="/patientImagesList" />
   }
   if(redirectToLogin){
@@ -1509,25 +1547,21 @@ const AnnotationPage = () => {
             <Row>
               <Col md={9}>
                 <Table>
-                  <Row>
-                    <Col md={6}>
-                      <h5 style={{ padding: 0 }}>Name :  {fullName}</h5>
+                  {message!==''?<Row>
+                    <Col md={4}>
+                      <h5>Name :  {fullName}</h5>
                     </Col>
-                    <Col md={6} style={{
+                    <Col md={4}>
+                          <h5 style={{ color: 'red', whiteSpace: 'pre-line' }}>
+                              {message}
+                          </h5>
+                        </Col>
+                        <Col md={4} style={{
                       display: 'flex',
                       justifyContent: 'flex-end', // Align content to the right
                       alignItems: 'center',
-                      height: '100%'
-                    }}>
-
-
-                      {/* <Button color="primary" 
-               style={{ alignSelf: 'flex-start', maxWidth: '10%', marginRight: '2%' }} disabled={lastVisit}>Next</Button>
-
-               <Button color="primary" onClick={handlePreviousClick} style={{ alignSelf: 'flex-end', maxWidth: '10%' }} 
-               disabled={firstVisit}>Previous</Button> */}
-
-                      <h5 style={{ padding: 0 }}>
+                      height: '100%'}}>
+                      <h5>
                         <Button id="btnPreVisit" type="button" color="secondary" onClick={handlePreviousClick} disabled={firstVisit}>
                           <i class="fas fa-backward"></i>
                           <UncontrolledTooltip placement="bottom" target="btnPreVisit">Show Previous Visit</UncontrolledTooltip>
@@ -1542,6 +1576,31 @@ const AnnotationPage = () => {
 
                     </Col>
                   </Row>
+                  :
+                  <Row>
+                    <Col md={6}>
+                      <h5 style={{ padding: 0 }}>Name :  {fullName}</h5>
+                    </Col>
+                    <Col md={6} style={{
+                      display: 'flex',
+                      justifyContent: 'flex-end', // Align content to the right
+                      alignItems: 'center',
+                      height: '100%'}}>
+                      <h5 style={{ padding: 0 }}>
+                        <Button id="btnPreVisit" type="button" color="secondary" onClick={handlePreviousClick} disabled={firstVisit}>
+                          <i class="fas fa-backward"></i>
+                          <UncontrolledTooltip placement="bottom" target="btnPreVisit">Show Previous Visit</UncontrolledTooltip>
+                        </Button>&nbsp;
+                        Xray Date : {DateFormatter(new Date(sessionStorage.getItem('xrayDate')))}
+                        &nbsp;
+                        <Button id="btnNextVisit" type="button" color="secondary" disabled={lastVisit} onClick={handleNextClick}>
+                          <i class="fas fa-forward"></i>
+                          <UncontrolledTooltip placement="bottom" target="btnNextVisit">Show Next Visit</UncontrolledTooltip>
+                        </Button>
+                      </h5>
+
+                    </Col>
+                  </Row>}
                   <Row>
                     <Col md={1}>
                       {/* <Button color="primary" className="mb-2 w-100" onClick={() => { setExitClick(true) }}>

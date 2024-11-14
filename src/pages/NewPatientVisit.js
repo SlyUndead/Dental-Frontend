@@ -56,7 +56,12 @@ const NewPatient = (props) => {
         }
         if (sessionStorage.getItem('visitId')) {
             const getVisitDetails = async () => {
-                const response = await axios.get(`${apiUrl}/getVisitDetailsById?visitID=` + sessionStorage.getItem('visitId')); // Adjust the API endpoint as needed
+                const response = await axios.get(`${apiUrl}/getVisitDetailsById?visitID=` + sessionStorage.getItem('visitId'),
+            {
+                headers:{
+                    Authorization:sessionStorage.getItem('token')
+                }
+            }); // Adjust the API endpoint as needed
                 console.log(response);
                 setDateOfVisit(response.data.visitDetails[0].date_of_visit);
                 setDateOfXray(response.data.visitDetails[0].date_of_xray);
@@ -98,6 +103,11 @@ const NewPatient = (props) => {
                     response = await axios.post(`${apiUrl}/update-patientVisit`, {
                         visitId: sessionStorage.getItem('visitId'), date_of_xray: dateOfXray, notes: notes,
                         date_of_visit: dateOfVisit, summary: summary
+                    },
+                    {
+                      headers:{
+                        Authorization:sessionStorage.getItem('token')
+                      }
                     });
                     if (response.status === 200)
                         toggleCustom("2");
@@ -107,6 +117,11 @@ const NewPatient = (props) => {
                         //    response = await axios.post('http://localhost:3001/add-patientVisit', {  
                         patientId: patientId, date_of_xray: dateOfXray, notes: notes, date_of_visit: dateOfVisit, summary: summary,
                         created_by: "test"
+                    },
+                    {
+                      headers:{
+                        Authorization:sessionStorage.getItem('token')
+                      }
                     })
                     //console.log(response)
                     if (response.status === 200) {
