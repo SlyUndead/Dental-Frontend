@@ -65,10 +65,6 @@ const NewPatient = (props) => {
                         Authorization:sessionStorage.getItem('token')
                       }
                     })
-                    if(response.status===403){
-                        sessionStorage.removeItem('token');
-                        setRedirectToLogin(true);
-                    }
                 }
                 else {
                     response = await axios.post(`${apiUrl}/add-patient`, {
@@ -82,10 +78,6 @@ const NewPatient = (props) => {
                         Authorization:sessionStorage.getItem('token')
                       }
                     })
-                    if(response.status===403){
-                        sessionStorage.removeItem('token');
-                        setRedirectToLogin(true);
-                    }
                 }
                 if (response.status === 200) {
                     sessionStorage.setItem('patientId', response.data.user1._id);
@@ -95,6 +87,10 @@ const NewPatient = (props) => {
                 }
             }
             catch (err) {
+                if(err.status===403){
+                    sessionStorage.removeItem('token');
+                    setRedirectToLogin(true);
+                }
                 console.error(err)
             }
         }

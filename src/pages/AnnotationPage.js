@@ -142,10 +142,6 @@ const AnnotationPage = () => {
           Authorization:sessionStorage.getItem('token')
         }
       }); // Adjust the API endpoint as needed
-      if(response.status===403){
-        sessionStorage.removeItem('token');
-        setRedirectToLogin(true);
-    }
       const data = response.data;
       // setMainImage(data.image);
       console.log(data)
@@ -160,6 +156,10 @@ const AnnotationPage = () => {
         return data.notes;
       }
       else {
+      if(error.status===403){
+        sessionStorage.removeItem('token');
+        setRedirectToLogin(true);
+    }
         console.error('Error fetching most recent image:', error);
       }
     }
@@ -172,10 +172,6 @@ const AnnotationPage = () => {
           Authorization:sessionStorage.getItem('token')
         }
       }); // Adjust the API endpoint as needed
-      if(response.status===403){
-        sessionStorage.removeItem('token');
-        setRedirectToLogin(true);
-    }
       const data = response.data;
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
@@ -189,6 +185,11 @@ const AnnotationPage = () => {
         return data.images;
       }
       else {
+        
+      if(error.status===403){
+        sessionStorage.removeItem('token');
+        setRedirectToLogin(true);
+    }
         console.error('Error fetching most recent image:', error);
       }
     }
@@ -201,10 +202,6 @@ const AnnotationPage = () => {
             Authorization:sessionStorage.getItem('token')
           }
         }); // Adjust the API endpoint as needed
-        if(response.status===403){
-          sessionStorage.removeItem('token');
-          setRedirectToLogin(true);
-      }
       const data = response.data;
       let updatedClassCategories = {}
       let updatedLabelColors = {}
@@ -234,6 +231,12 @@ const AnnotationPage = () => {
         });
         setLabelColors(updatedLabelColors)
         setClassCategories(updatedClassCategories)
+      }
+      else{
+        if(error.status===403){
+          sessionStorage.removeItem('token');
+          setRedirectToLogin(true);
+      }
       }
     }
   };
@@ -1133,10 +1136,6 @@ const AnnotationPage = () => {
           Authorization:sessionStorage.getItem('token')
         }
       });
-      if(response.status===403){
-        sessionStorage.removeItem('token');
-        setRedirectToLogin(true);
-    }
         const data = response.data;
         setOldNotesContent(notesContent);
         return data.notes;
@@ -1153,6 +1152,10 @@ const AnnotationPage = () => {
           setOldNotesContent(notesContent);
           return data.notes;
         } else {
+            if(error.status===403){
+              sessionStorage.removeItem('token');
+              setRedirectToLogin(true);
+          }
           console.error('Error saving notes:', error);
         }
       }
@@ -1182,10 +1185,6 @@ const AnnotationPage = () => {
           }
         }
       );
-      if(response.status===403){
-        sessionStorage.removeItem('token');
-        setRedirectToLogin(true);
-    }
       const data = response.data;
       return data;
     } catch (error) {
@@ -1210,6 +1209,10 @@ const AnnotationPage = () => {
         return data;
       }
       else {
+          if(error.status===403){
+            sessionStorage.removeItem('token');
+            setRedirectToLogin(true);
+        }
         console.error('Error saving annotations:', error);
       }
     }
@@ -1329,10 +1332,6 @@ const AnnotationPage = () => {
           Authorization:sessionStorage.getItem('token')
         }
       });
-      if(response.status===403){
-        sessionStorage.removeItem('token');
-        setRedirectToLogin(true);
-    }
       const data = response.data;
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
@@ -1364,6 +1363,10 @@ const AnnotationPage = () => {
         loadImages();
       }
       else {
+          if(error.status===403){
+            sessionStorage.removeItem('token');
+            setRedirectToLogin(true);
+        }
         console.error('Error fetching most recent image:', error);
       }
     }
@@ -1384,10 +1387,6 @@ const AnnotationPage = () => {
           Authorization:sessionStorage.getItem('token')
         }
       });
-      if(response.status===403){
-        sessionStorage.removeItem('token');
-        setRedirectToLogin(true);
-    }
       const data = response.data;
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
@@ -1419,6 +1418,10 @@ const AnnotationPage = () => {
         loadImages();
       }
       else {
+          if(error.status===403){
+            sessionStorage.removeItem('token');
+            setRedirectToLogin(true);
+        }
         console.error('Error fetching most recent image:', error);
       }
     }
