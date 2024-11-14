@@ -1,0 +1,46 @@
+.slider-button-container {
+    position: relative;
+    display: inline-block;
+  }
+  
+  .slider-button {
+    //padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    //background-color: #007bff; /* Button color */
+    color: white;
+    cursor: pointer;
+    //position: relative;
+    z-index: 0;
+     max-width : 98.6px;
+  }
+  
+  .slider {
+    position: absolute;
+    height: 4px; /* Height of the slider */
+    background-color: #ff5733; /* Slider color */
+    bottom: 5px; /* Position at the bottom of the button */
+    left: 0;
+    transition: width 0.3s ease; /* Animation for smooth effect */
+    z-index: 1; /* Place the slider behind the button */
+  }
+
+.custom-popover .popover {
+    //box-shadow: $popover-box-shadow;
+     width: 300px !important;
+     max-width: 400px !important;
+    background-color: #2a3142 !important;
+    //padding: 10px !important;; /* Adjust the padding as needed */
+  }
+  ::-webkit-scrollbar {
+    width: 12px; /* Width of the scrollbar */
+}
+
+::-webkit-scrollbar-thumb {
+    background: darkgrey; /* Color of the scrollbar handle */
+    border-radius: 10px; /* Rounded corners */
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1; /* Background of the scrollbar track */
+}
