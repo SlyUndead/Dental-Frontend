@@ -45,6 +45,7 @@ const PatientList = (props) => {
                 }); // Adjust the API endpoint as needed
             //const getPatientList= async()=>{const response = await axios.get('http://localhost:3001/getPatient?practiceId=' + practiceId); 
             const data = response.data;
+            sessionStorage.setItem('token', response.headers['new-token'])
             setPatients(data.patientList);
             }
             catch(error){

@@ -29,6 +29,7 @@ const PracticeList = (props) => {
                     }); // Adjust the API endpoint as needed
                 //    const getPracticeList= async()=>{const response = await axios.get('http://localhost:3001/getPracticeList');
                 const data = response.data;
+                sessionStorage.setItem('token', response.headers['new-token'])
                 // setMainImage(data.image);
                 // setAnnotations(data.annotations);
                 setPractices(data.practiceList);

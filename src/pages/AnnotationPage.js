@@ -145,13 +145,15 @@ const AnnotationPage = () => {
       }); // Adjust the API endpoint as needed
       const data = response.data;
       // setMainImage(data.image);
-      console.log(data)
+      sessionStorage.setItem('token', response.headers['new-token'])
+      // console.log(data);
       // setAnnotations(data.annotations);
       return data.notes;
     } catch (error) {
       if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200") {
         const response = await axios.get('http://localhost:3000/notes-content?visitID=' + sessionStorage.getItem('visitId')); // Adjust the API endpoint as needed
         const data = response.data;
+        sessionStorage.setItem('token', response.headers['new-token'])
         // setMainImage(data.image);
         // setAnnotations(data.annotations);
         return data.notes;
@@ -174,6 +176,7 @@ const AnnotationPage = () => {
         }
       }); // Adjust the API endpoint as needed
       const data = response.data;
+      sessionStorage.setItem('token', response.headers['new-token'])
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
       return data.images;
@@ -181,6 +184,7 @@ const AnnotationPage = () => {
       if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200") {
         const response = await axios.get('http://localhost:3000/visitid-images?visitID=' + sessionStorage.getItem('visitId')); // Adjust the API endpoint as needed
         const data = response.data;
+        sessionStorage.setItem('token', response.headers['new-token'])
         // setMainImage(data.image);
         // setAnnotations(data.annotations);
         return data.images;
@@ -204,6 +208,7 @@ const AnnotationPage = () => {
           }
         }); // Adjust the API endpoint as needed
       const data = response.data;
+      sessionStorage.setItem('token', response.headers['new-token'])
       let updatedClassCategories = {}
       let updatedLabelColors = {}
       data.forEach(element => {
@@ -220,6 +225,7 @@ const AnnotationPage = () => {
       if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200") {
         const response = await axios.get('http://localhost:3000/get-classCategories'); // Adjust the API endpoint as needed
         const data = response.data;
+        sessionStorage.setItem('token', response.headers['new-token'])
         let updatedClassCategories = {}
         let updatedLabelColors = {}
         data.forEach(element => {
@@ -943,22 +949,22 @@ const AnnotationPage = () => {
       setMessage("Unable to load this visit images. Pls contact admin")
     }
   }, []);
-  useEffect(() => { 
-    const handleNavigationAway = () => {
-      console.log("Exited through button")
-      dispatch(changeMode(preLayoutMode));
-      sessionStorage.removeItem('preLayoutMode');
-    };
+  // useEffect(() => { 
+  //   const handleNavigationAway = () => {
+  //     console.log("Exited through button")
+  //     dispatch(changeMode(preLayoutMode));
+  //     sessionStorage.removeItem('preLayoutMode');
+  //   };
 
-    // Listen for back/forward navigation
-    window.addEventListener('popstate', handleNavigationAway);
-    window.addEventListener('pagehide', handleNavigationAway);
+  //   // Listen for back/forward navigation
+  //   window.addEventListener('popstate', handleNavigationAway);
+  //   window.addEventListener('pagehide', handleNavigationAway);
 
-    return () => {
-      window.removeEventListener('popstate', handleNavigationAway);
-      window.removeEventListener('pagehide', handleNavigationAway);
-    };
-  }, []);
+  //   return () => {
+  //     window.removeEventListener('popstate', handleNavigationAway);
+  //     window.removeEventListener('pagehide', handleNavigationAway);
+  //   };
+  // }, []);
   useEffect(() => {
     // Draw the main image on the large canvas
     if (mainCanvasRef.current && mainCanvasData) {
@@ -1172,6 +1178,7 @@ const AnnotationPage = () => {
         }
       });
         const data = response.data;
+        sessionStorage.setItem('token', response.headers['new-token'])
         setOldNotesContent(notesContent);
         return data.notes;
       } catch (error) {
@@ -1184,6 +1191,7 @@ const AnnotationPage = () => {
             }
           });
           const data = response.data;
+          sessionStorage.setItem('token', response.headers['new-token'])
           setOldNotesContent(notesContent);
           return data.notes;
         } else {
@@ -1221,6 +1229,7 @@ const AnnotationPage = () => {
         }
       );
       const data = response.data;
+      sessionStorage.setItem('token', response.headers['new-token'])
       return data;
     } catch (error) {
       if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200") {
@@ -1241,6 +1250,7 @@ const AnnotationPage = () => {
           }
         );
         const data = response.data;
+        sessionStorage.setItem('token', response.headers['new-token'])
         return data;
       }
       else {
@@ -1369,11 +1379,12 @@ const AnnotationPage = () => {
         }
       });
       const data = response.data;
+      sessionStorage.setItem('token', response.headers['new-token'])
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
       sessionStorage.setItem('visitId', data.visitId._id)
       sessionStorage.setItem('xrayDate', data.visitId.date_of_xray)
-      console.log(data);
+      // console.log(data);
       setLastVisit(data.last);
       setMainImageIndex(0);
       setFirstVisit(false);
@@ -1388,8 +1399,9 @@ const AnnotationPage = () => {
         // setMainImage(data.image);
         // setAnnotations(data.annotations);
         sessionStorage.setItem('visitId', data.visitId._id)
+        sessionStorage.setItem('token', response.headers['new-token'])
         sessionStorage.setItem('xrayDate', data.visitId.date_of_xray)
-        console.log(data);
+        // console.log(data);
         setLastVisit(data.last);
         setMainImageIndex(0);
         setFirstVisit(false);
@@ -1428,8 +1440,9 @@ const AnnotationPage = () => {
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
       sessionStorage.setItem('visitId', data.visitId._id)
+      sessionStorage.setItem('token', response.headers['new-token'])
       sessionStorage.setItem('xrayDate', data.visitId.date_of_xray)
-      console.log(data);
+      // console.log(data);
       setLastVisit(false);
       setMainImageIndex(0);
       setFirstVisit(data.first)
@@ -1444,8 +1457,9 @@ const AnnotationPage = () => {
         // setMainImage(data.image);
         // setAnnotations(data.annotations);
         sessionStorage.setItem('visitId', data.visitId._id)
+        sessionStorage.setItem('token', response.headers['new-token'])
         sessionStorage.setItem('xrayDate', data.visitId.date_of_xray)
-        console.log(data);
+        // console.log(data);
         setLastVisit(false);
         setFirstVisit(data.first);
         sessionStorage.setItem('first', data.first);

@@ -62,7 +62,8 @@ const NewPatient = (props) => {
                     Authorization:sessionStorage.getItem('token')
                 }
             }); // Adjust the API endpoint as needed
-                console.log(response);
+                // console.log(response);
+                sessionStorage.setItem('token', response.headers['new-token'])
                 setDateOfVisit(response.data.visitDetails[0].date_of_visit);
                 setDateOfXray(response.data.visitDetails[0].date_of_xray);
                 setNotes(response.data.visitDetails[0].notes);
@@ -109,8 +110,10 @@ const NewPatient = (props) => {
                         Authorization:sessionStorage.getItem('token')
                       }
                     });
-                    if (response.status === 200)
+                    if (response.status === 200){
+                        sessionStorage.setItem('token', response.headers['new-token'])
                         toggleCustom("2");
+                    }
                 }
                 else {
                     response = await axios.post(`${apiUrl}/add-patientVisit`, {
@@ -126,6 +129,7 @@ const NewPatient = (props) => {
                     //console.log(response)
                     if (response.status === 200) {
                         sessionStorage.setItem('visitId', response.data.visitDetail._id);
+                        sessionStorage.setItem('token', response.headers['new-token'])
                         toggleCustom("2");
                     }
                 }

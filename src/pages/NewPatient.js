@@ -81,6 +81,7 @@ const NewPatient = (props) => {
                 }
                 if (response.status === 200) {
                     sessionStorage.setItem('patientId', response.data.user1._id);
+                    sessionStorage.setItem('token', response.headers['new-token'])
                     setPatientId(response.data.user1._id);
                     sessionStorage.setItem('patientName', `${firstName} ${lastName}`)
                     setRedirect(true);

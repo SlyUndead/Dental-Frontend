@@ -42,6 +42,7 @@ const AnnotationList = ({
         });
         // console.log(response.data)
         setPopoverData(response.data);
+        sessionStorage.setItem('token', response.headers['new-token'])
         setPopoverOpen(index);
         if (response.data === null) {
           setPopoverData({ description: "Please contact admin", className: "Data Missing" })

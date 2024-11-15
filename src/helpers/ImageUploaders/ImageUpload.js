@@ -36,10 +36,11 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
         maxContentLength: Infinity,
       });
     if (response.status === 200) {
-      console.log(response)
+      // console.log(response)
+      sessionStorage.setItem('token', response.headers['new-token'])
       // Axios automatically parses JSON response
       const data = response.data;
-      console.log(data);
+      // console.log(data);
 
       // Format the response data as needed for coordinates
       return data;
@@ -103,6 +104,7 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
             Authorization:sessionStorage.getItem('token')
             }
           });
+          sessionStorage.setItem('token', response.headers['new-token'])
           console.log('Image, annotations and thumbnail uploaded successfully');
           return {success:true};
         } catch (error) {
@@ -120,6 +122,7 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
                 headers: { 'Content-Type': 'application/json' }
               });
               console.log('Image, annotations and thumbnail uploaded successfully');
+              sessionStorage.setItem('token', response.headers['new-token'])
               return {success:true};
             }
             catch (err) {

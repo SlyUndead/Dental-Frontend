@@ -93,7 +93,8 @@ const PatientImagesList = (props) => {
                 // const response = await axios.get('http://localhost:3000/getPatientByID?patientId=' + sessionStorage.getItem('patientId'));
                 if (response.status === 200) {
                     const data = response.data;
-                    console.log(data);
+                    sessionStorage.setItem('token', response.headers['new-token'])
+                    // console.log(data);
                     setpatient_name(data.patientList.last_name + ' ' + data.patientList.first_name)
                     setpatient_email(data.patientList.email);
                     setpatient_phone(data.patientList.telephone);
@@ -139,6 +140,7 @@ const PatientImagesList = (props) => {
             //  const response = await axios.get('http://localhost:3001/getPatientVisitsByID?patientId=' + sessionStorage.getItem('patientId'));
             if (response.status === 200) {
                 const visitData = response.data;
+                sessionStorage.setItem('token', response.headers['new-token'])
                 // const responseImages = await axios.get('http://localhost:3000/getPatientImagesByID?patientId=' + sessionStorage.getItem('patientId'));
                 const responseImages = await axios.get(`${apiUrl}/getPatientImagesByID?patientId=` + sessionStorage.getItem('patientId'),
                 {
@@ -147,6 +149,7 @@ const PatientImagesList = (props) => {
                   }
                 });
                 if (responseImages.status === 200) {
+                    sessionStorage.setItem('token', response.headers['new-token'])
                     await visitData.patienVisits.map(visit => {
                         const visitImages = responseImages.data.patienImages.filter(image => image.visitId === visit._id)
                         const visitDate = DateFormatter(new Date(visit.date_of_visit));
@@ -262,6 +265,7 @@ const PatientImagesList = (props) => {
                         })
                     if (response.status === 200) {
                         getPatientVisits();
+                        sessionStorage.setItem('token', response.headers['new-token'])
                         setError('Image/s deleted successfully');
                         setErrorClr('green');
                     }

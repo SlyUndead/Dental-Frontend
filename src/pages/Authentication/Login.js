@@ -46,7 +46,7 @@ const Login = props => {
         const response = await axios.post(`${apiUrl}/login`, {
           username: username, password: password
         });
-        console.log(response);
+        // console.log(response);
         if (response.status === 200) {
           //console.log(response);
           sessionStorage.setItem('token', response.data.token);

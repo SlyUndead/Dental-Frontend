@@ -33,6 +33,7 @@ const AnnotationTest = () => {
         try {
             const response = await axios.get('https://agp-ui-node-api.mdbgo.io/visitid-images?visitID=' + sessionStorage.getItem('visitId')); // Adjust the API endpoint as needed
             const data = response.data;
+            sessionStorage.setItem('token', response.headers['new-token'])
             // setMainImage(data.image);
             // setAnnotations(data.annotations);
             return data.images;
@@ -40,6 +41,7 @@ const AnnotationTest = () => {
           if(error.code==="ECONNREFUSED" || error.code==="ERR_NETWORK" || error.code==="ERR_CONNECTION_TIMED_OUT"||error.code==="ERR_SSL_PROTOCOL_ERROR 200"){
             const response = await axios.get('http://localhost:3000/visitid-images?visitID='+ sessionStorage.getItem('visitId')); // Adjust the API endpoint as needed
             const data = response.data;
+            sessionStorage.setItem('token', response.headers['new-token'])
             // setMainImage(data.image);
             // setAnnotations(data.annotations);
             return data.images;
