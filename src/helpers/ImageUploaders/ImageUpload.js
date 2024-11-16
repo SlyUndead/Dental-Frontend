@@ -3,7 +3,7 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   const formData = new FormData();
   formData.append('image', file);
-  console.log(file)
+  // console.log(file)
   if(model==="Segmentation Model"){
     try {
     // const response = await axios.post('https://agp-dental-agp_flask_server.mdbgo.io/coordinates', formData, {
@@ -17,7 +17,7 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
     //   },
     // });
     let response;
-    console.log(formData)
+    // console.log(formData)
     const headers = {
       'Content-Type': 'application/json',
       Authorization:sessionStorage.getItem('token')
@@ -46,14 +46,14 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
       return data;
     }
     else {
-      if(response.status===403){
+      if(response.status===403||response.status===401){
         return{success:false, error:"Unauthorized"}
     }
       console.error(response)
     }
   }
   catch (error) {
-        if(error.status===403){
+        if(error.status===403||error.status===401){
           return {success:false, error:"Unauthorized"}
       }
       console.error('Error fetching coordinates from API:', error);
@@ -78,15 +78,15 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
         });
       }
       if (response.status === 200) {
-        console.log(response.data)
+        // console.log(response.data)
         const scaledResponse = {
           annotations: response.data,
           status: response.data.status,
         };
-        console.log(response)
+        // console.log(response)
         // Axios automatically parses JSON response
         const data = response.data;
-        console.log(data);
+        // console.log(data);
         try {
           const apiUrl = process.env.REACT_APP_NODEAPIURL;
           await axios.put(`${apiUrl}/upload/image-and-annotations`, {
@@ -105,7 +105,7 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
             }
           });
           sessionStorage.setItem('token', response.headers['new-token'])
-          console.log('Image, annotations and thumbnail uploaded successfully');
+          // console.log('Image, annotations and thumbnail uploaded successfully');
           return {success:true};
         } catch (error) {
           if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_BAD_REQUEST") {
@@ -121,19 +121,19 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
               }, {
                 headers: { 'Content-Type': 'application/json' }
               });
-              console.log('Image, annotations and thumbnail uploaded successfully');
+              // console.log('Image, annotations and thumbnail uploaded successfully');
               sessionStorage.setItem('token', response.headers['new-token'])
               return {success:true};
             }
             catch (err) {
-                if(err.status===403){ 
+                if(err.status===403||err.status===401){ 
                   return {success:false, error:"Unauthorized"}
               }
               console.log(err)
               return {success:false, error:`${imageFileName} - Error uploading image and annotations`}
             }
           } else {
-              if(error.status===403){
+              if(error.status===403||error.status===401){
                 return {success:false, error:"Unauthorized"}
             }
             console.error('Error uploading image and annotations:', error);
@@ -147,7 +147,7 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
     }
     catch (error) {
       
-          if(error.status===403){
+          if(error.status===403||error.status===401){
             return {success:false, error:"Unauthorized"}
         }
         console.error('Error fetching coordinates from API:', error);
@@ -159,7 +159,7 @@ export const saveImageToFolder = async (file, patientID, imageNumber, model) => 
   if (!file) return;
   const date = new Date().toISOString().replace(/:/g, '-');
   const imageFileName = `${date}_${patientID}_${imageNumber}_${file.name}`;
-  console.log(imageFileName)
+  // console.log(imageFileName)
   const annotationFileName = `${date}_${patientID}_${imageNumber}_${file.name.split('.').slice(0, -1).join('.')}.json`;
 
   try {

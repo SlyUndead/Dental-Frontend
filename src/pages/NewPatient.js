@@ -53,7 +53,7 @@ const NewPatient = (props) => {
             try {
                 let response;
                 if (dob !== "") {
-                    console.log(dob);
+                    // console.log(dob);
                     response = await axios.post(`${apiUrl}/add-patient`, {
                         //    response = await axios.post('http://localhost:3001/add-patient', {
                         first_name: firstName, last_name: lastName, email: email, telephone: telephone, gender: gender, dob: dob,
@@ -88,7 +88,7 @@ const NewPatient = (props) => {
                 }
             }
             catch (err) {
-                if(err.status===403){
+                if(err.status===403||err.status===401){
                     sessionStorage.removeItem('token');
                     setRedirectToLogin(true);
                 }
@@ -283,7 +283,7 @@ const NewPatient = (props) => {
                                                                         });
 
                                                                         setDob(selectedDate);
-                                                                        console.log(formattedDate);
+                                                                        // console.log(formattedDate);
                                                                     }
                                                                     //setDisplayDob(selectedDates[0]);
                                                                 }}

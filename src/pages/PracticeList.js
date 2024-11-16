@@ -18,7 +18,6 @@ const PracticeList = (props) => {
     const [redirectToLogin, setRedirectToLogin] = useState(false);
     const [practices, setPractices] = useState([]);
     useEffect(() => {
-        console.log(apiUrl);
         const getPracticeList = async () => {
             try {
                 const response = await axios.get(`${apiUrl}/getPracticeList?clientId=` + sessionStorage.getItem('clientId'),
@@ -36,7 +35,7 @@ const PracticeList = (props) => {
             }
             catch (error) {
                 logErrorToServer(error, "getPracticeList");
-                if (error.status === 403) {
+                if (error.status === 403||error.status===401) {
                     sessionStorage.removeItem('token');
                     setRedirectToLogin(true);
                 }

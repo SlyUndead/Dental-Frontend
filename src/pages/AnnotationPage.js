@@ -159,7 +159,11 @@ const AnnotationPage = () => {
         return data.notes;
       }
       else {
-      if(error.status===403){
+      if(error.status===403||error.status===401){
+        if(sessionStorage.getItem('preLayoutMode')){
+          dispatch(changeMode(preLayoutMode));
+          sessionStorage.removeItem('preLayoutMode');
+        }
         sessionStorage.removeItem('token');
         setRedirectToLogin(true);
     }
@@ -191,10 +195,15 @@ const AnnotationPage = () => {
       }
       else {
         
-      if(error.status===403){
+      if(error.status===403||error.status===401){
+        if(sessionStorage.getItem('preLayoutMode')){
+          dispatch(changeMode(preLayoutMode));
+          sessionStorage.removeItem('preLayoutMode');
+        }
         sessionStorage.removeItem('token');
         setRedirectToLogin(true);
     }
+        setMessage("Error fetching Images")
         console.error('Error fetching most recent image:', error);
       }
     }
@@ -240,7 +249,11 @@ const AnnotationPage = () => {
         setClassCategories(updatedClassCategories)
       }
       else{
-        if(error.status===403){
+        if(error.status===403||error.status===401){
+          if(sessionStorage.getItem('preLayoutMode')){
+            dispatch(changeMode(preLayoutMode));
+            sessionStorage.removeItem('preLayoutMode');
+          }
           sessionStorage.removeItem('token');
           setRedirectToLogin(true);
       }
@@ -604,7 +617,7 @@ const AnnotationPage = () => {
   }
   const handleErase = () => {
     if (isEraserActive && selectedAnnotation) {
-      console.log(erasePoints)
+      // console.log(erasePoints)
       let updatedVertices = []
       let updatedAnnotation = {}
       if (selectedAnnotation.segmentation) {
@@ -692,7 +705,7 @@ const AnnotationPage = () => {
       updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations = newAnnotations
       setSmallCanvasData(updatedSmallCanvasData)
       setEditingPath([]);
-      console.log(newAnnotations)
+      // console.log(newAnnotations)
       setSelectedAnnotation(null);
     }
   };
@@ -863,7 +876,7 @@ const AnnotationPage = () => {
         CANVAS_WIDTH = canvasWidth;
         setX((CANVAS_WIDTH / 2) - (img.width / 2));
         setY((CANVAS_HEIGHT / 2) - (img.height / 2));
-        console.log(x, y, (canvasWidth / 2) - (img.width / 2), (canvasHeight / 2) - (img.height / 2))
+        // console.log(x, y, (canvasWidth / 2) - (img.width / 2), (canvasHeight / 2) - (img.height / 2))
         // Use CSS or context scaling to resize the entire canvas
         canvas.style.width = `${canvasWidth}px`;
         canvas.style.height = `${canvasHeight}px`;
@@ -878,7 +891,7 @@ const AnnotationPage = () => {
   useEffect(() => {
     if (image && isLiveWireTracingActive) {
       const ctx = mainCanvasRef.current.getContext('2d');
-      console.log(x, y, image.width, image.height)
+      // console.log(x, y, image.width, image.height)
       const imageData = ctx.getImageData(x, y, image.width, image.height);
       livewireRef.current = LivewireScissors.createInstanceFromRawPixelData(
         new Float32Array(imageData.data),
@@ -906,7 +919,7 @@ const AnnotationPage = () => {
       
       // Draw the main image on the large canvas
       if (mainImageData && mainCanvasRef.current) {
-        console.log(mainImageData)
+        // console.log(mainImageData)
         setModel(mainImageData.annotations.annotations.model)
         drawImageOnCanvas(mainCanvasRef.current, mainImageData.image, "main");
         setHistory([mainImageData.annotations.annotations.annotations])
@@ -921,7 +934,7 @@ const AnnotationPage = () => {
       setSmallCanvasData(imagesData);
       setMainCanvasData(mainImageData);
     }
-    else{
+    else if(imagesData){
       setMessage("There are no images for this visit.")
     }
     }
@@ -1135,10 +1148,10 @@ const AnnotationPage = () => {
   };
   const undo = () => {
     if (currentStep > 0) {
-      console.log(history, currentStep)
+      // console.log(history, currentStep)
       setAnnotations(history[currentStep - 1]);
       setCurrentStep(currentStep - 1);
-      console.log(currentStep)
+      // console.log(currentStep)
     }
   };
 
@@ -1155,7 +1168,7 @@ const AnnotationPage = () => {
     saveAnnotations(annotations.filter((_, index) => index !== id));
     let updatedSmallCanvasData = smallCanvasData
     updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations = annotations.filter((_, index) => index !== id)
-    console.log(updatedSmallCanvasData)
+    // console.log(updatedSmallCanvasData)
     setSmallCanvasData(updatedSmallCanvasData)
   };
 
@@ -1163,7 +1176,7 @@ const AnnotationPage = () => {
     setAnnotations(newAnnotations);
     setHistory([...history.slice(0, currentStep + 1), newAnnotations]);
     setCurrentStep(Math.min(currentStep + 1, MAX_HISTORY - 1));
-    console.log(history, currentStep)
+    // console.log(history, currentStep)
   };
   const saveNotes = async (notesContent) => {
     if (notesContent !== oldNotesContent) {
@@ -1195,7 +1208,11 @@ const AnnotationPage = () => {
           setOldNotesContent(notesContent);
           return data.notes;
         } else {
-            if(error.status===403){
+            if(error.status===403||error.status===401){
+              if(sessionStorage.getItem('preLayoutMode')){
+                dispatch(changeMode(preLayoutMode));
+                sessionStorage.removeItem('preLayoutMode');
+              }
               sessionStorage.removeItem('token');
               setRedirectToLogin(true);
           }
@@ -1254,7 +1271,11 @@ const AnnotationPage = () => {
         return data;
       }
       else {
-          if(error.status===403){
+          if(error.status===403||error.status===401){
+            if(sessionStorage.getItem('preLayoutMode')){
+              dispatch(changeMode(preLayoutMode));
+              sessionStorage.removeItem('preLayoutMode');
+            }
             sessionStorage.removeItem('token');
             setRedirectToLogin(true);
         }
@@ -1303,7 +1324,7 @@ const AnnotationPage = () => {
     saveAnnotations([...annotations, newAnnotation])
     let updatedSmallCanvasData = smallCanvasData
     updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations = [...annotations, newAnnotation]
-    console.log(smallCanvasData[mainImageIndex])
+    // console.log(smallCanvasData[mainImageIndex])
     setSmallCanvasData(updatedSmallCanvasData)
     setShowDialog(false);
     setIsDrawingActive(false);
@@ -1367,6 +1388,8 @@ const AnnotationPage = () => {
     setMessage('')
     setMainCanvasData(null)
     setAnnotations([])
+    setCurrentStep(0)
+    setHistory([])
     setSmallCanvasData([])
     setSmallCanvasRefs([])
     mainCanvasRef.current = null
@@ -1411,7 +1434,11 @@ const AnnotationPage = () => {
         loadImages();
       }
       else {
-          if(error.status===403){
+          if(error.status===403||error.status===401){
+            if(sessionStorage.getItem('preLayoutMode')){
+              dispatch(changeMode(preLayoutMode));
+              sessionStorage.removeItem('preLayoutMode');
+            }
             sessionStorage.removeItem('token');
             setRedirectToLogin(true);
         }
@@ -1424,6 +1451,8 @@ const AnnotationPage = () => {
     setIsLoading(true)
     setMainCanvasData(null)
     setMessage('')
+    setCurrentStep(0)
+    setHistory([])
     setAnnotations([])
     setSmallCanvasData([])
     setSmallCanvasRefs([])
@@ -1469,7 +1498,11 @@ const AnnotationPage = () => {
         loadImages();
       }
       else {
-          if(error.status===403){
+          if(error.status===403||error.status===401){
+            if(sessionStorage.getItem('preLayoutMode')){
+              dispatch(changeMode(preLayoutMode));
+              sessionStorage.removeItem('preLayoutMode');
+            }
             sessionStorage.removeItem('token');
             setRedirectToLogin(true);
         }
@@ -1515,7 +1548,7 @@ const AnnotationPage = () => {
   };
   if (exitClick) {
       dispatch(changeMode(preLayoutMode));
-        sessionStorage.removeItem('preLayoutMode');
+      sessionStorage.removeItem('preLayoutMode');
     return <Navigate to="/patientImagesList" />
   }
   if(redirectToLogin){

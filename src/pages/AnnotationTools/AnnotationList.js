@@ -49,7 +49,7 @@ const AnnotationList = ({
           setPopoverOpen(index);
         }
       } catch (err) {
-        if(err.status===403){
+        if(err.status===403||err.status===401){
           sessionStorage.removeItem('token');
           setRedirectToLogin(true);
         }

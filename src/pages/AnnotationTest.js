@@ -87,7 +87,7 @@ const AnnotationTest = () => {
     
               const processedDataUrl = canvas.toDataURL('image/png');
     
-              console.log('Processed image dimensions:', newWidth, 'x', newHeight);
+              // console.log('Processed image dimensions:', newWidth, 'x', newHeight);
               resolve({ processedDataUrl, newWidth, newHeight });
             };
             img.src = event.target.result;

@@ -107,7 +107,7 @@ const PatientImagesList = (props) => {
                 }
             }
             catch (error) {
-                if(error.status===403){
+                if(error.status===403||error.status===401){
                     sessionStorage.removeItem('token');
                     setRedirectToLogin(true);
                 }
@@ -164,7 +164,7 @@ const PatientImagesList = (props) => {
             }
         }
         catch (error) {
-            if(error.status===403){
+            if(error.status===403||error.status===401){
                 sessionStorage.removeItem('token');
                 setRedirectToLogin(true);
             }
@@ -201,8 +201,8 @@ const PatientImagesList = (props) => {
             if (visitId.patientImages.length > 0) {
                 sessionStorage.setItem('visitId', visitId.patientImages[0].visitId);
                 sessionStorage.setItem('xrayDate', visitId.DateOfXray);
-                console.log(visitId.DateOfXray);
-                console.log(key)
+                // console.log(visitId.DateOfXray);
+                // console.log(key)
                 if (key === 0 && key === visitDetials.length - 1) {
                     sessionStorage.setItem('first', true)
                     sessionStorage.setItem('last', true)
@@ -256,7 +256,7 @@ const PatientImagesList = (props) => {
                 const isConfirmed = window.confirm('Are you sure you want to delete?');
                 if (isConfirmed) {
                     checkedImages = checkedImages.slice(0, -1);
-                    console.log(checkedImages);
+                    // console.log(checkedImages);
                     let response = await axios.post(`${apiUrl}/delete-patient-image?ids=` + checkedImages,{},
                         {
                           headers:{
@@ -273,7 +273,7 @@ const PatientImagesList = (props) => {
             }
         }
         catch (error) {
-            if(error.status===403){
+            if(error.status===403||error.status===401){
                 sessionStorage.removeItem('token');
                 setRedirectToLogin(true);
             }
@@ -295,10 +295,10 @@ const PatientImagesList = (props) => {
                     const isChecked = checkbox.checked;
                     if (isChecked) {
                         const imgaeSrc = checkbox.getAttribute('data-src');
-                        console.log(imgaeSrc);
+                        // console.log(imgaeSrc);
                         const segments = imgaeSrc.split('/');
                         const imageName = segments[segments.length - 1].toString().slice(1);
-                        console.log(imageName);
+                        // console.log(imageName);
                         imageNames = [...imageNames, imageName];
                         checkbox.checked = false;
                     }
@@ -333,7 +333,7 @@ const PatientImagesList = (props) => {
                     };
                 }
             } catch (error) {
-                if(error.status===403){
+                if(error.status===403||error.status===401){
                     sessionStorage.removeItem('token');
                     setRedirectToLogin(true);
                 }

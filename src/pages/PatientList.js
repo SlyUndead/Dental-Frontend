@@ -49,7 +49,7 @@ const PatientList = (props) => {
             setPatients(data.patientList);
             }
             catch(error){
-                if(error.status===403){
+                if(error.status===403||error.status===401){
                     sessionStorage.removeItem('token');
                     setRedirectToLogin(true);
                 }
