@@ -111,6 +111,7 @@ const NewPatient = (props) => {
                       }
                     });
                     if (response.status === 200){
+                        sessionStorage.setItem('xrayDate', dateOfXray)
                         sessionStorage.setItem('token', response.headers['new-token'])
                         toggleCustom("2");
                     }

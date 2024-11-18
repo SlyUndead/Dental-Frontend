@@ -1232,12 +1232,15 @@ const AnnotationPage = () => {
         },
         status: "OPEN"
       }
+      const filePath = smallCanvasData[mainImageIndex].name.split('.').slice(0, -1).join('.') + '.json';
+      console.log(filePath)
       const response = await axios.put(`${apiUrl}/save-annotations`,
         {
           patientId: sessionStorage.getItem('patientId'),
           visitId: sessionStorage.getItem('visitId'),
           scaledResponse: scaledResponse,
-          imageNumber: (mainImageIndex + 1)
+          imageNumber: (mainImageIndex + 1),
+          annotationPath: filePath
         },
         {
           headers:{
