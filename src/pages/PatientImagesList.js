@@ -4,7 +4,8 @@ import { Navigate } from "react-router-dom";
 import withRouter from 'components/Common/withRouter';
 import { setBreadcrumbItems } from "../store/actions";
 import { connect } from "react-redux";
-import axios from "axios"
+import axios from "axios";
+import { logErrorToServer } from 'utils/logError';
 const PatientImagesList = (props) => {
     document.title = "Patient Images List | AGP Dental Tool";
     const breadcrumbItems = [
@@ -76,6 +77,7 @@ const PatientImagesList = (props) => {
             }
             catch (error) {
                 console.log(error);
+                logErrorToServer(error, "calculateAge");
                 setError('Something went wrong. Please contact admin.');
                 setErrorClr('red');
             }
@@ -111,9 +113,12 @@ const PatientImagesList = (props) => {
                     sessionStorage.removeItem('token');
                     setRedirectToLogin(true);
                 }
+                else{
+                  logErrorToServer(error, "getPatientDetails");
                 console.log(error);
                 setError('Something went wrong. Please contact admin.');
                 setErrorClr('red');
+                }
             }
         }
 
@@ -168,9 +173,12 @@ const PatientImagesList = (props) => {
                 sessionStorage.removeItem('token');
                 setRedirectToLogin(true);
             }
+            else{
+              logErrorToServer(error, "getPatientVisits");
             console.log(error);
             setError('Something went wrong. Please contact admin.');
             setErrorClr('red');
+            }
         }
     }
     const [redirect, setRedirect] = useState(false);
@@ -227,6 +235,7 @@ const PatientImagesList = (props) => {
             }
         }
         catch (error) {
+            logErrorToServer(error, "handleClick");
             console.log(error);
             setError('Something went wrong. Please contact admin.');
             setErrorClr('red');
@@ -277,9 +286,12 @@ const PatientImagesList = (props) => {
                 sessionStorage.removeItem('token');
                 setRedirectToLogin(true);
             }
+            else{
+              logErrorToServer(error, "handleDeleteClick");
             console.log(error);
             setError('Something went wrong. Please contact admin.');
             setErrorClr('red');
+            }
         }
     };
 
@@ -337,11 +349,15 @@ const PatientImagesList = (props) => {
                     sessionStorage.removeItem('token');
                     setRedirectToLogin(true);
                 }
+                else{
+                  logErrorToServer(error, "handleDownloadClick");
                 console.error('Download failed', error);
+                }
             }
 
         }
         catch (error) {
+            logErrorToServer(error, "handleDownloadClick");
             console.log(error);
             setError('Something went wrong. Please contact admin.');
             setErrorClr('red');

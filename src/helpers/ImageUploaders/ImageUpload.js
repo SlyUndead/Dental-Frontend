@@ -1,4 +1,5 @@
 import axios from "axios";
+import { logErrorToServer } from "utils/logError";
 export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBase64, visitId, imageFileName, patientID, imageNumber, annotationFileName) => {
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   const formData = new FormData();
@@ -49,14 +50,20 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
       if(response.status===403||response.status===401){
         return{success:false, error:"Unauthorized"}
     }
+    else{
       console.error(response)
+      logErrorToServer(response, "getCoordinatesFromAPI");
+      }
     }
   }
   catch (error) {
         if(error.status===403||error.status===401){
           return {success:false, error:"Unauthorized"}
       }
-      console.error('Error fetching coordinates from API:', error);
+      else{
+        logErrorToServer(error, "getCoordinatesFromAPI");
+        console.error('Error fetching coordinates from API:', error);
+      }
       return { error: `${file.name} - Error running model`};
     }
   }
@@ -129,7 +136,10 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
                 if(err.status===403||err.status===401){ 
                   return {success:false, error:"Unauthorized"}
               }
+              else{
+                logErrorToServer(error, "getCoordinatesFromAPI");
               console.log(err)
+              }
               return {success:false, error:`${imageFileName} - Error uploading image and annotations`}
             }
           } else {
@@ -150,7 +160,11 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
           if(error.status===403||error.status===401){
             return {success:false, error:"Unauthorized"}
         }
+        
+      else{
+        logErrorToServer(error, "getCoordinatesFromAPI");
         console.error('Error fetching coordinates from API:', error);
+      }
         return { error: `${file.name} - Error running model`};
       }
   }
@@ -175,6 +189,7 @@ export const saveImageToFolder = async (file, patientID, imageNumber, model) => 
       return {success:true}
     }
   } catch (error) {
+      logErrorToServer(error, "saveImageToFolder");
     console.error('Error processing image and annotations:', error);
     return {success:false, error:`${imageFileName} - Error uploading image and annotations`}
   }

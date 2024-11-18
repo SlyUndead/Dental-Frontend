@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from "axios";
+import { logErrorToServer } from 'utils/logError';
 const AnnotationTest = () => {
     const [folderHandle, setFolderHandle] = useState(null);
   const [imageSrc, setImageSrc] = useState(null);
@@ -47,6 +48,7 @@ const AnnotationTest = () => {
             return data.images;
           }
           else{
+              logErrorToServer(error, "fetchVisitDateImages");
             console.error('Error fetching most recent image:', error);
           }
         }

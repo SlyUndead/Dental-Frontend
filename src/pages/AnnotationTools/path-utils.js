@@ -1,6 +1,6 @@
 // path-utils.js
 import polygonClipping from 'polygon-clipping'
-
+import { logErrorToServer } from 'utils/logError';
 const isValidPath = (path) => {
   return Array.isArray(path) && path.length > 0 && path.every(point => point && typeof point.x === 'number' && typeof point.y === 'number');
 };
@@ -38,6 +38,7 @@ export const modifyPath = (existingPath, newPath, isSubtract = false) => {
     
     return simplifiedPath;
   } catch (error) {
+    logErrorToServer(error, "modifyPath");
     console.error('Error during path modification:', error);
     return existingPath; // Return the original path as a fallback
   }

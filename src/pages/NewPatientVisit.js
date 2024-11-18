@@ -32,7 +32,7 @@ import { setBreadcrumbItems } from "../store/actions";
 import Flatpickr from "react-flatpickr"
 import 'flatpickr/dist/flatpickr.min.css';
 import axios from "axios"
-import { element, elementType } from "prop-types"
+import { logErrorToServer } from "utils/logError"
 const NewPatient = (props) => {
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
     document.title = "Patient Visit | AGP Dental Tool";
@@ -136,6 +136,7 @@ const NewPatient = (props) => {
                 }
             }
             catch (err) {
+                logErrorToServer(err, "handlePatientVisitSubmit");
                 console.error(err)
             }
         }

@@ -7,6 +7,7 @@ import { Navigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../../assets/scss/custom/components/_popover.scss';
+import { logErrorToServer } from 'utils/logError';
 const AnnotationList = ({
   annotations,
   hiddenAnnotations,
@@ -53,9 +54,12 @@ const AnnotationList = ({
           sessionStorage.removeItem('token');
           setRedirectToLogin(true);
         }
+        else{
+          logErrorToServer(err, "handleAnnotationClick");
         setPopoverData({ description: "unable to fetch data", className: "error" })
         setPopoverOpen(index);
         console.log('Error fetching className:', err);
+        }
       }
     }
     else {

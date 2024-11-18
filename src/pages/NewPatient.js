@@ -12,7 +12,8 @@ import { Navigate } from "react-router-dom";
 import { setBreadcrumbItems } from "../store/actions";
 import Flatpickr from "react-flatpickr"
 import 'flatpickr/dist/flatpickr.min.css';
-import axios from "axios"
+import axios from "axios";
+import { logErrorToServer } from "utils/logError";
 const NewPatient = (props) => {
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
     document.title = "New Patient | AGP Dental Tool";
@@ -92,7 +93,10 @@ const NewPatient = (props) => {
                     sessionStorage.removeItem('token');
                     setRedirectToLogin(true);
                 }
+                else{
+                  logErrorToServer(err, "handleNewPatientSubmit");
                 console.error(err)
+                }
             }
         }
     }

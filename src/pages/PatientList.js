@@ -6,6 +6,7 @@ import { setBreadcrumbItems } from "../store/actions";
 import { connect } from "react-redux";
 import { Link } from "react-router-dom"
 import axios from 'axios';
+import { logErrorToServer } from 'utils/logError';
 const PatientList = (props) => {
     const printRef = useRef();
 
@@ -53,7 +54,10 @@ const PatientList = (props) => {
                     sessionStorage.removeItem('token');
                     setRedirectToLogin(true);
                 }
+                else{
+                logErrorToServer(error, "getPatientList");
                 console.log(error)
+                }
             }
         }
 

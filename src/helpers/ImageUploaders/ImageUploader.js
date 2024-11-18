@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-
+import { logErrorToServer } from 'utils/logError';
 function ImageUploader({ onImageSelect, currentImageIndex, onNextImage, onPreviousImage, images }) {
     const [dragActive, setDragActive] = useState(false);
     const [imagePreviews, setImagePreviews] = useState({});
@@ -10,6 +10,7 @@ function ImageUploader({ onImageSelect, currentImageIndex, onNextImage, onPrevio
             const file = await fileHandle.getFile();
             onImageSelect(file, imageName);
         } catch (error) {
+            logErrorToServer(error, "ImageUploader");
             console.error('Error selecting image:', error);
         }
     };
@@ -49,6 +50,7 @@ function ImageUploader({ onImageSelect, currentImageIndex, onNextImage, onPrevio
             };
             reader.readAsDataURL(file);
         } catch (error) {
+            logErrorToServer(error, "loadImagePreview");
             console.error('Error loading image preview:', error);
         }
     }, [folderHandle]);

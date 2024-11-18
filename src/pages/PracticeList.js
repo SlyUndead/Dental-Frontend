@@ -34,10 +34,12 @@ const PracticeList = (props) => {
                 setPractices(data.practiceList);
             }
             catch (error) {
-                logErrorToServer(error, "getPracticeList");
                 if (error.status === 403||error.status===401) {
                     sessionStorage.removeItem('token');
                     setRedirectToLogin(true);
+                }
+                else{
+                logErrorToServer(error, "getPracticeList");
                 }
                 //console.log(err);
             }

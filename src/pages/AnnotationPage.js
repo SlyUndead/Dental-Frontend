@@ -15,6 +15,7 @@ import imgExit from "../assets/images/exit.svg"
 import imgEdit from "../assets/images/edit.svg"
 import '../assets/scss/custom/custom.scss';
 import { modifyPath } from "./AnnotationTools/path-utils";
+import { logErrorToServer } from "utils/logError";
 const AnnotationPage = () => {
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   const [exitClick, setExitClick] = useState(false);
@@ -166,8 +167,11 @@ const AnnotationPage = () => {
         }
         sessionStorage.removeItem('token');
         setRedirectToLogin(true);
-    }
+        }
+        else{
+        logErrorToServer(error, "fetchNotesContent");
         console.error('Error fetching most recent image:', error);
+        }
       }
     }
   }
@@ -202,9 +206,12 @@ const AnnotationPage = () => {
         }
         sessionStorage.removeItem('token');
         setRedirectToLogin(true);
-    }
+        }
+        else{
+        logErrorToServer(error, "fetchVisitDateImages");
         setMessage("Error fetching Images")
         console.error('Error fetching most recent image:', error);
+        }
       }
     }
   };
@@ -254,8 +261,11 @@ const AnnotationPage = () => {
             dispatch(changeMode(preLayoutMode));
             sessionStorage.removeItem('preLayoutMode');
           }
+          else{
+          logErrorToServer(error, "fetchClassCategories");
           sessionStorage.removeItem('token');
           setRedirectToLogin(true);
+          }
       }
       }
     }
@@ -939,6 +949,7 @@ const AnnotationPage = () => {
     }
     }
     catch(error){
+        logErrorToServer(error, "loadImages");
       console.log(error);
         setMessage("Unable to load this visit images. Pls contact admin.")
     }
@@ -958,6 +969,7 @@ const AnnotationPage = () => {
       setFullName(sessionStorage.getItem('patientName'));
     }
     catch(error){
+        logErrorToServer(error, "firstUseEffect");
       console.log(error);
       setMessage("Unable to load this visit images. Pls contact admin")
     }
@@ -1216,7 +1228,10 @@ const AnnotationPage = () => {
               sessionStorage.removeItem('token');
               setRedirectToLogin(true);
           }
+        else{
+          logErrorToServer(error, "saveNotes");
           console.error('Error saving notes:', error);
+        }
         }
       }
     }
@@ -1282,7 +1297,10 @@ const AnnotationPage = () => {
             sessionStorage.removeItem('token');
             setRedirectToLogin(true);
         }
+      else{
+        logErrorToServer(error, "saveAnnotations");
         console.error('Error saving annotations:', error);
+      }
       }
     }
   }
@@ -1445,7 +1463,10 @@ const AnnotationPage = () => {
             sessionStorage.removeItem('token');
             setRedirectToLogin(true);
         }
+      else{
+        logErrorToServer(error, "handleNextClick");
         console.error('Error fetching most recent image:', error);
+      }
       }
     }
     setIsLoading(false)
@@ -1509,7 +1530,11 @@ const AnnotationPage = () => {
             sessionStorage.removeItem('token');
             setRedirectToLogin(true);
         }
+        
+      else{
+        logErrorToServer(error, "handlePreviousClick");
         console.error('Error fetching most recent image:', error);
+      }
       }
     }
     setIsLoading(false)
