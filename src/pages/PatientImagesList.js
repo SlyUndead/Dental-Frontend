@@ -375,7 +375,7 @@ const PatientImagesList = (props) => {
                     <h4 className="card-title mb-12">Patient List</h4>
                     <Row>
                         <Col sm={2}>
-                            <Button type="button" onClick={() => { handleClickPatientImage() }} color="primary" className="waves-effect waves-light">New X-ray</Button>{" "}
+                            <Button type="button" onClick={() => { handleClickPatientImage() }} color="primary" className="waves-effect waves-light">New Visit</Button>{" "}
                         </Col>
                         <Col sm={10} style={{ textAlign: 'right' }}>
                             <Button type="button" color="primary" className="waves-effect waves-light" onClick={() => { handleDownloadClick() }}>Download</Button>&nbsp;&nbsp;&nbsp;&nbsp;

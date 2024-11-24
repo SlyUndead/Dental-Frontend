@@ -95,6 +95,8 @@ const AnnotationPage = () => {
   const [isArea ,setIsShowArea] = useState(true);
   const [redirectToLogin, setRedirectToLogin] = useState(false);
   const [message, setMessage] = useState('')
+  const [isClassCategoryVisible, setIsClassCategoryVisible] = useState(false);
+  const [selectedClassCategory, setSelectedClassCategory] = useState(null);
   // const fetchMostRecentImage = async () => {
   //     try {
   //         const response = await axios.get('https://agp-ui-node-api.mdbgo.io/most-recent-image'); // Adjust the API endpoint as needed
@@ -674,6 +676,15 @@ const AnnotationPage = () => {
       setSelectedAnnotation(updatedAnnotation);
     }
   };
+  const handleTraceClick = () => {
+    setIsClassCategoryVisible(!isClassCategoryVisible); // Show the class category selection
+  };
+  const handleCategorySelect = (category) => {
+    setSelectedClassCategory(category); // Set the selected category
+    setIsClassCategoryVisible(false); // Hide the category list
+    setNewBoxLabel(category);
+    startHybridTracing(); // Start hybrid tracing
+  };    
   const mergeEditingPathWithAnnotation = () => {
     if (editingPath.length > 1 && selectedAnnotation) {
       const editingPathVertices = editingPath.map(point => ({ x: point[0], y: point[1] }));
@@ -732,12 +743,13 @@ const AnnotationPage = () => {
   const completeHybridDrawing = () => {
     const vertices = hybridPath.map(point => ({ x: point[0], y: point[1] }));
     setNewBoxVertices(unZoomVertices(vertices));
-    setShowDialog(true);
+    // setShowDialog(true);
     setIsHybridDrawing(false);
     setHybridPath([]);
     setLivewirePath([]);
     startPointRef.current = null;
     isDrawingStartedRef.current = false;
+    handleAddBox(vertices);
   };
   const completePolygon = () => {
     setIsLiveWireTracing(false);
@@ -1248,7 +1260,6 @@ const AnnotationPage = () => {
         status: "OPEN"
       }
       const filePath = smallCanvasData[mainImageIndex].name.split('.').slice(0, -1).join('.') + '.json';
-      console.log(filePath)
       const response = await axios.put(`${apiUrl}/save-annotations`,
         {
           patientId: sessionStorage.getItem('patientId'),
@@ -1328,7 +1339,8 @@ const AnnotationPage = () => {
     setSaveTimeout(newTimeout);
   };
 
-  const handleAddBox = () => {
+  const handleAddBox = (newBoxVertices) => {
+    console.log(newBoxLabel, newBoxVertices)
     let newAnnotation = {}
     if (model === "segmentation") {
       newAnnotation = {
@@ -1609,13 +1621,13 @@ const AnnotationPage = () => {
                   <Input type="select" id="labelSelect" onChange={(e) => { setNewBoxLabel(e.target.value) }} value={newBoxLabel}>
                     <option value="">Select Label</option>
                     {Object.keys(labelColors).map(label => (
-                      label !== "Line" ? <option key={label} value={label}>{label}</option> : null
+                      label !== "Line" ? <option key={label} value={label} style={{backgroundColor:'none', color:labelColors[label]}}>{label}</option> : null
                     ))}
                   </Input>
                 </FormGroup>
               </ModalBody>
               <ModalFooter>
-                <Button color="primary" onClick={handleAddBox}>Add Box</Button>
+                <Button color="primary" onClick={()=>handleAddBox(newBoxVertices)}>Add Box</Button>
                 <Button color="secondary" onClick={handleCloseDialog}>Cancel</Button>
               </ModalFooter>
             </Modal>
@@ -1686,13 +1698,15 @@ const AnnotationPage = () => {
                       </button> &nbsp;
                       <UncontrolledTooltip placement="bottom" target="btnExit">Exit</UncontrolledTooltip>
 
-                      <button id="btnTrace" onClick={() => { setEditingMode(!editingMode) }} style={{ background: 'none', border: 'none', padding: '0' }}>
+                      {/* <button id="btnTrace" onClick={() => { setEditingMode(!editingMode) }} style={{ background: 'none', border: 'none', padding: '0' }}>
                         <img src={imgEdit} alt="Trace" style={{ width: '30px', height: '30px' }} />
                       </button>
-                      <UncontrolledTooltip placement="bottom" target="btnTrace">Trace</UncontrolledTooltip>
-                      {/* <Button color="primary" className="mb-2" onClick={() => { setEditingMode(!editingMode) }}>
-                    Trace
-                  </Button> */}
+                      <UncontrolledTooltip placement="bottom" target="btnTrace">Trace</UncontrolledTooltip> */}
+                      <button id="btnTrace" onClick={handleTraceClick} style={{ background: 'none', border: 'none', padding: '0' }}>
+                        <img src={imgEdit} alt="Trace" style={{ width: '30px', height: '30px' }} />
+                      </button>
+                      <UncontrolledTooltip placement="bottom" target="btnTrace">Add New</UncontrolledTooltip>
+
                     </Col>
                     <Col md={11}>
                       {/* Container for all controls in a single line */}
@@ -1934,13 +1948,105 @@ const AnnotationPage = () => {
                   </Row>
                   <Row style={{ height: 'calc(100vh - 225px)', margin: '0px', paddingBottom: '0px', display: 'flex', flexGrow: 1, overflow: 'hidden', color: '#fff' }}
                   >
-                    {editingMode ? <>
+                    {isClassCategoryVisible ? (
+                      <>
+                      <Col md={1} style={{marginLeft:'0px', paddingLeft:'0px'}}>
+                      <div style={{ marginTop: '10px', height: 'calc(100vh - 235px)', overflowY:"auto", overflowX:"hidden",marginLeft:'0px', paddingLeft:'0px' }}>
+                        <Table bordered style={{paddingLeft:'0px', marginLeft:'-5%'}} >
+                          <thead>
+                            <tr>
+                              <th>Class Name</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.keys(classCategories).map((category) => (
+                              <tr key={category}>
+                                <td style={{color:labelColors[category.toLowerCase()]}} onClick={() => handleCategorySelect(category)}>{category}</td>
+                                {/* <td>
+                                  <Button
+                                    color="primary"
+                                    onClick={() => handleCategorySelect(category)}
+                                  >
+                                    Select
+                                  </Button>
+                                </td> */}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </Table>
+                      </div>
+                      </Col>
+                      <Col
+                        md={11}
+                        className="d-flex flex-column"
+                        style={{ maxHeight: '100%' }}
+                      >
+                        <Card style={{ height: '100%', padding: 0 }}>
+                          <CardBody
+                            style={{
+                              padding: 0,
+                              height: '100%',
+                              overflow: 'auto',  // Add scrollbars
+                              position: 'relative',  // For absolute positioning of canvas                              
+                              maxHeight: '600px',
+                            }}
+                            ref={containerRef}
+                          >
+                            <canvas
+                              ref={mainCanvasRef}
+                              style={{
+                                cursor: 'default',
+                                position: 'absolute',  // Position absolutely within container
+                                top: 0,
+                                left: 0
+                              }}
+                              onMouseDown={handleMouseDown}
+                              onMouseMove={handleMouseMove}
+                              onMouseUp={handleMouseUp}
+                            />
+                          </CardBody>
+                        </Card>
+                      </Col></>
+                    ):<>
+                        <Col md={1} />
+                        <Col
+                          md={11}
+                          className="d-flex flex-column"
+                          style={{ maxHeight: '100%' }}
+                        >
+                          <Card style={{ height: '100%', padding: 0, margin: 0 }}>
+                            <CardBody
+                              style={{
+                                padding: 0,
+                                height: '100%',
+                                overflow: 'auto',  // Add scrollbars
+                                position: 'relative',  // For absolute positioning of canvas
+                                maxHeight: '600px',
+                              }}
+                            >
+                              <canvas
+                                ref={mainCanvasRef}
+                                style={{
+                                  cursor: 'default',
+                                  position: 'absolute',  // Position absolutely within container
+                                  top: 0,
+                                  left: 0
+                                }}
+                                onMouseDown={handleMouseDown}
+                                onMouseMove={handleMouseMove}
+                                onMouseUp={handleMouseUp}
+                              />
+                            </CardBody>
+                          </Card>
+                        </Col>
+                      </>}
+                    {/* {editingMode ? <>
                       <Col
                         md={1}
                         //className="d-flex flex-column"
                         style={{ marginTop: 12, padding: 0 }}
                       >
-                        {/* Control Buttons */}
+                        {/* Control Buttons 
                         <div className="mb-4" style={{ margin: 0, padding: 0 }}>
                           <Button color="primary" className="mb-2 w-100" onClick={startLiveWireTracing}>
                             {!isLiveWireTracingActive ? 'Start LiveWire' : 'Stop LiveWire'}
@@ -2032,7 +2138,7 @@ const AnnotationPage = () => {
                             </CardBody>
                           </Card>
                         </Col>
-                      </>}
+                      </>} */}
                   </Row>
 
                   <Row style={{ overflowX: 'auto', maxWidth: '100%', maxHeight: '15vh', display: 'flex', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
