@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Row, Col, Table, Card, CardBody, Button } from "reactstrap";
+import { Container, Row, Col, Table, Card, CardBody, Button, UncontrolledTooltip } from "reactstrap";
 import withRouter from 'components/Common/withRouter';
 import { Link } from "react-router-dom"
 import { setBreadcrumbItems } from "../store/actions";
@@ -56,7 +56,7 @@ const PracticeList = (props) => {
     // };
 
     const [redirect, setRedirect] = useState(false);
-
+    const [redirectToNewPractice, setRedirectToNewPractice] = useState(false);
     const handleClick = (practiceName) => {
         //console.log('practice name : ' + practiceName.name)
         sessionStorage.setItem('practiceId', practiceName._id)
@@ -64,16 +64,38 @@ const PracticeList = (props) => {
         setRedirect(true);
     };
 
+    const handleNewPracticeClick = ()=>{
+        setRedirectToNewPractice(true);
+    }
+    const handleEditClick = (e,practice) => {
+        // return <Navigate to="/login" />
+        e.stopPropagation();
+        sessionStorage.setItem('practiceName', practice.name);
+        sessionStorage.setItem('practiceAddress', practice.address);
+        sessionStorage.setItem('practiceTelephone', practice.contactNo);
+        sessionStorage.setItem('practiceId', practice._id);
+        setRedirectToNewPractice(true);
+    }
+
     if (redirect) {
         return <Navigate to="/patientList" />;
     }
     if (redirectToLogin) {
         return <Navigate to="/login" />;
     }
+    if (redirectToNewPractice){
+        return <Navigate to="/newPractice"/>;
+    }
     return (
         <React.Fragment>
             <Card>
                 <CardBody>
+                    <Row>
+                        <Col sm={2}>
+                            <Button type="button" onClick={() => { handleNewPracticeClick() }} color="primary" className="waves-effect waves-light">New Practice</Button>{" "}
+                        </Col>
+
+                    </Row><br></br>
                     <Row className="justify-content-center">
                         <Col sm={12}>
                             <div className="table-responsive">
@@ -95,6 +117,18 @@ const PracticeList = (props) => {
                                                     <td>{practice.address}</td>
                                                     <td>
                                                         {practice.contactNo}
+                                                    </td>
+                                                    <td><button
+                                                        id="btnEdit"
+                                                        type="button"
+                                                        style={{ cssText: 'padding: 2px !important', fontSize: '25px' }}
+                                                        className="btn"
+                                                        onClick={(e) =>{e.stopPropagation(); handleEditClick(e, practice)}}
+                                                    >
+                                                        <i className='mdi mdi-pencil-box-outline'></i>
+                                                    </button>
+                                                        <UncontrolledTooltip placement="bottom" target="btnEdit">Edit Practice
+                                                        </UncontrolledTooltip>
                                                     </td>
                                                     {/* <td>
                                                             <Link to="/patientList" type="button" outline color="success" className="waves-effect waves-light">

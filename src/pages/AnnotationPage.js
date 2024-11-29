@@ -17,6 +17,7 @@ import imgEditActive from "../assets/images/editActive.svg"
 import '../assets/scss/custom/custom.scss';
 import { modifyPath } from "./AnnotationTools/path-utils";
 import { logErrorToServer } from "utils/logError";
+import { desiredOrder } from "./AnnotationTools/constants";
 const AnnotationPage = () => {
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   const [exitClick, setExitClick] = useState(false);
@@ -633,6 +634,7 @@ const AnnotationPage = () => {
       // console.log(erasePoints)
       let updatedVertices = []
       let updatedAnnotation = {}
+      const date = new Date().toISOString()
       if (selectedAnnotation.segmentation) {
         updatedVertices = selectedAnnotation.segmentation.filter(vertex => {
           return !erasePoints.some(erasePoint => {
@@ -642,7 +644,7 @@ const AnnotationPage = () => {
             return distance <= eraserSize;
           });
         });
-        updatedAnnotation = { ...selectedAnnotation, segmentation: updatedVertices };
+        updatedAnnotation = { ...selectedAnnotation, segmentation: updatedVertices, created_by:`${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, created_on:date };
       }
       else if (selectedAnnotation.bounding_box) {
         updatedVertices = selectedAnnotation.bounding_box.filter(vertex => {
@@ -653,7 +655,7 @@ const AnnotationPage = () => {
             return distance <= eraserSize;
           });
         });
-        updatedAnnotation = { ...selectedAnnotation, bounding_box: updatedVertices };
+        updatedAnnotation = { ...selectedAnnotation, bounding_box: updatedVertices, created_by:`${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, created_on:date };
       }
       else if (selectedAnnotation.vertices) {
         updatedVertices = selectedAnnotation.vertices.filter(vertex => {
@@ -664,7 +666,7 @@ const AnnotationPage = () => {
             return distance <= eraserSize;
           });
         });
-        updatedAnnotation = { ...selectedAnnotation, vertices: updatedVertices };
+        updatedAnnotation = { ...selectedAnnotation, vertices: updatedVertices, created_by:`${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, created_on:date };
       }
       const newAnnotations = annotations.map(anno =>
         anno === selectedAnnotation ? updatedAnnotation : anno
@@ -691,6 +693,7 @@ const AnnotationPage = () => {
       const editingPathVertices = editingPath.map(point => ({ x: point[0], y: point[1] }));
       let newPath;
       let updatedAnnotation = {}
+      const date=new Date().toISOString()
       if (selectedAnnotation.segmentation) {
         if (!subtractPath) {
           newPath = modifyPath(selectedAnnotation.segmentation, editingPathVertices, false);
@@ -698,7 +701,7 @@ const AnnotationPage = () => {
         else {
           newPath = modifyPath(selectedAnnotation.segmentation, editingPathVertices, true);
         }
-        updatedAnnotation = { ...selectedAnnotation, segmentation: newPath };
+        updatedAnnotation = { ...selectedAnnotation, segmentation: newPath, created_by:`${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, created_on:date };
       }
       else if (selectedAnnotation.bounding_box) {
         if (!subtractPath) {
@@ -707,7 +710,7 @@ const AnnotationPage = () => {
         else {
           newPath = modifyPath(selectedAnnotation.bounding_box, editingPathVertices, true);
         }
-        updatedAnnotation = { ...selectedAnnotation, bounding_box: newPath };
+        updatedAnnotation = { ...selectedAnnotation, bounding_box: newPath, created_by:`${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, created_on:date };
       }
       else {
         if (!subtractPath) {
@@ -716,7 +719,7 @@ const AnnotationPage = () => {
         else {
           newPath = modifyPath(selectedAnnotation.vertices, editingPathVertices, true);
         }
-        updatedAnnotation = { ...selectedAnnotation, vertices: newPath };
+        updatedAnnotation = { ...selectedAnnotation, vertices: newPath, created_by:`${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, created_on:date };
       }
       const newAnnotations = annotations.map(anno =>
         anno === selectedAnnotation ? updatedAnnotation : anno
@@ -1342,17 +1345,22 @@ const AnnotationPage = () => {
 
   const handleAddBox = (newBoxVertices) => {
     console.log(newBoxLabel, newBoxVertices)
-    let newAnnotation = {}
+      const date=new Date().toISOString()
+      let newAnnotation = {}
     if (model === "segmentation") {
       newAnnotation = {
         label: newBoxLabel,
-        segmentation: newBoxVertices
+        segmentation: newBoxVertices,
+        created_by:`${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`,
+        created_on:date,
       };
     }
     else {
       newAnnotation = {
         label: newBoxLabel,
-        vertices: newBoxVertices
+        vertices: newBoxVertices,
+        created_by:`${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`,
+        created_on:date,
       };
     }
     saveAnnotations([...annotations, newAnnotation])
@@ -1939,42 +1947,83 @@ const AnnotationPage = () => {
                       <Col md={1} style={{marginLeft:'0px', paddingLeft:'0px'}}>
                       <div style={{ marginTop: '10px', height: 'calc(100vh - 235px)', overflowY:"auto", overflowX:"hidden",marginLeft:'0%', paddingLeft:'0px', zIndex:10 }}>
                         <Table bordered style={{paddingLeft:'0px', marginLeft:'1%'}} >
-                          <thead>
+                          {/* <thead>
                             <tr>
                               <th>Class Name</th>
+                              {console.log(classCategories)}
                             </tr>
-                          </thead>
+                          </thead> */}
                           <tbody>
-                            {Object.keys(classCategories).map((category) => 
-                              {
-                                const safeId = category.replace(/\s+/g, '-').toLowerCase()
-                                return(
-                              <>
-                              <tr key={`row-${safeId}`} style={{padding:'0px'}}>
-                                <td id={`${safeId}-Start`} 
-                                style={{color:"white", cursor:'pointer', padding:'0px'}} 
-                                onClick={() => handleCategorySelect(category)} 
-                                onMouseEnter={(e) => {
-                                  e.target.style.color = labelColors[category.toLowerCase()]; 
-                                  e.target.parentElement.style.color = labelColors[category.toLowerCase()];
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.target.style.color = 'white';
-                                  e.target.parentElement.style.color = 'white';
-                                }}>{category}</td>
-                                  {/* <td>
-                                  <Button
-                                    color="primary"
-                                    onClick={() => handleCategorySelect(category)}
-                                  >
-                                    Select
-                                  </Button>
-                                </td> */}
-                              </tr>
-                              {console.log(`${safeId}-Start`)}
-                              <UncontrolledTooltip placement="right" target={`${safeId}-Start`}>Start New</UncontrolledTooltip>
-                              </>
-                            )})}
+                          {desiredOrder.map((group) => {
+                              // Filter classCategories to get items in this group
+                              const groupItems = Object.keys(classCategories)
+                                .filter(category => 
+                                  classCategories[category].toLowerCase() === group.toLowerCase()
+                                );
+                              
+                              // Only render groups that have items
+                              if (groupItems.length === 0) return null;
+                              
+                              return (
+                                <>
+                                  {/* Group Header */}
+                                  <tr>
+                                    <td 
+                                      colSpan="1" 
+                                      style={{
+                                        fontWeight: 'bold', 
+                                        backgroundColor: '#333', 
+                                        color: 'white',
+                                        padding: '8px'
+                                      }}
+                                    >
+                                      {group}
+                                    </td>
+                                  </tr>
+                                  {/* Group Items */}
+                                  {groupItems.map((category) => {
+                                    const safeId = category.replace(/\s+/g, '-').toLowerCase();
+                                    
+                                    return (
+                                      <tr 
+                                        key={`row-${safeId}`}
+                                        className="category-row"
+                                        style={{
+                                          color: 'white'
+                                        }}
+                                      >
+                                        <td 
+                                          id={`${safeId}-Start`} 
+                                          className="category-cell"
+                                          style={{
+                                            cursor: 'pointer', 
+                                            padding: '0px',
+                                            color: 'white'
+                                          }} 
+                                          onMouseEnter={(e) => {
+                                            const color = labelColors[category.toLowerCase()] || 'white';
+                                            e.target.style.color = color;
+                                            e.target.parentElement.style.color = color;
+                                          }}
+                                          onMouseLeave={(e) => {
+                                            e.target.style.color = 'white';
+                                            e.target.parentElement.style.color = 'white';
+                                          }}
+                                          onClick={() => handleCategorySelect(category)}
+                                        >
+                                          {category}
+                                        </td>
+                                        <UncontrolledTooltip 
+                                          placement="right" 
+                                          target={`${safeId}-Start`}
+                                        >
+                                          Start New
+                                        </UncontrolledTooltip>
+                                      </tr>
+                                    );
+                                  })}
+                              </>);
+                            })}
                           </tbody>
                         </Table>
                       </div>

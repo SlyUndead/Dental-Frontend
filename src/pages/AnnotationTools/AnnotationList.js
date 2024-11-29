@@ -242,7 +242,7 @@ const AnnotationList = ({
                       onMouseEnter={() => handleHover(globalIndex)}
                       onMouseLeave={() => handleHover(null)}
                     >
-                      <span style={{ flexGrow: 1 }}>{anno.label}</span>
+                      <span style={{ flexGrow: 1 }}>{anno.label}{anno.created_by?anno.created_by.startsWith("Model v")?"":" (M)":""}</span>
                       <div className="d-flex">
                         {/* Delete Button */}
                         <button
