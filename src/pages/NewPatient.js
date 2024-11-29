@@ -37,9 +37,9 @@ const NewPatient = (props) => {
     const [address, setAddress] = useState("")
     const [redirectToLogin, setRedirectToLogin] = useState(false);
     const breadcrumbItems = [
-        { title: "AGP", link: "#" },
-        { title: sessionStorage.getItem('practiceName'), link: "/practiceList" },
-        { title: "New Patient", link: "#" },
+        { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
+        { title: sessionStorage.getItem('practiceName'), link: "/patientList" },
+        { title: "New Patient", link: "/NewPatient" },
     ]
     const [patientId, setPatientId] = useState('');
     useEffect(() => {

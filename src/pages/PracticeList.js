@@ -12,7 +12,7 @@ const PracticeList = (props) => {
     document.title = "Practice List | AGP Dental Tool";
 
     const breadcrumbItems = [
-        { title: "AGP", link: "#" },
+        { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
         { title: "Practice List", link: "#" }
     ]
     const [redirectToLogin, setRedirectToLogin] = useState(false);

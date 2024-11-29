@@ -14,9 +14,9 @@ const Preferences = (props) => {
     document.title = "Preferences | AGP Dental Tool";
 
     const breadcrumbItems = [
-        { title: "AGP", link: "#" },
-        { title: "Practice List", link: "#" },
-        { title: "Preferences", link: "#" },
+        { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
+        { title: sessionStorage.getItem('practiceName'), link: "/patientList" },
+        { title: "Preferences", link: "/preferences" },
     ]
     const [ipAdd, setipAdd] = useState('');
     const [error, setError] = useState('');

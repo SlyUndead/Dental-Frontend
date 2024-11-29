@@ -44,9 +44,10 @@ const NewPatient = (props) => {
     const [model, setModel] = useState("Segmentation Model");
 
     const breadcrumbItems = [
-        { title: "AGP", link: "#" },
-        { title: sessionStorage.getItem('practiceName'), link: "/practiceList" },
-        { title: "Patient Visit", link: "#" },
+        { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
+        { title: sessionStorage.getItem('practiceName'), link: "/patientList" },
+        { title: sessionStorage.getItem('patientName'), link: "/patientImagesList"},
+        { title: "New Visit", link: "/patientImagesList" },
     ]
     const [patientId, setPatientId] = useState('');
     useEffect(() => {

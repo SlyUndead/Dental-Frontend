@@ -1,6 +1,7 @@
 // constants.js
 export const CANVAS_WIDTH = 1000;
 export const CANVAS_HEIGHT = 600;
+export const desiredOrder = ['Anomaly', 'Procedure', 'Landmark','Foreign Object', 'Others'];
 export const labelColors = {
     'A': 'red',
     'B': 'blue',

@@ -8,6 +8,7 @@ import { useDispatch } from 'react-redux';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../../assets/scss/custom/components/_popover.scss';
 import { logErrorToServer } from 'utils/logError';
+import { desiredOrder } from './constants';
 const AnnotationList = ({
   annotations,
   hiddenAnnotations,
@@ -126,7 +127,7 @@ const AnnotationList = ({
     let updatedGroupedAnnotations={}
     let updatedHideGroups={}
     annotations.forEach(anno => {
-      const category = classCategories[anno.label]; // Get category from label
+      const category = classCategories[anno.label.toLowerCase()]; // Get category from label
       if (category) {
         if(updatedGroupedAnnotations[category]===undefined){
           updatedGroupedAnnotations[category]=[]
@@ -191,156 +192,118 @@ const AnnotationList = ({
           <Col md={12}>
           <div>
     {/* Loop over each category */}
-    {Object.keys(groupedAnnotations).map((category) => (
-      <div key={category}>
-        {/* Display the category name */}
-        <h5>
-          {category} 
-          <button
-            id={`btnHide${category}`}
-            type="button"
-            className="btn noti-icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (hideGroup[category]) {
-                unhideCategory(category);
-                setHideGroup(prev => ({ ...prev, [category]: false }));
-              } else {
-                hideCategory(category);
-                setHideGroup(prev => ({ ...prev, [category]: true }));
-              }
-            }}
-          >
-            <i className={`ion ${hideGroup[category] ? 'ion-md-eye-off' : 'ion-md-eye'}`}></i>
-          </button>
-              {/* <UncontrolledTooltip placement="bottom" target={`btnHide${category}`}>
-                {`${hideGroup[category] ? `Show ${category}` : `Hide ${category}`}`}
-              </UncontrolledTooltip> */}
-        </h5>
-        
-        <ListGroup flush>
-          {/* Loop over each annotation in the current category */}
-          {groupedAnnotations[category].map((anno, index) => {
-            const globalIndex = annotations.findIndex(a => a === anno);
-            {/* console.log(groupedAnnotations) */}
-            if(globalIndex!==-1){
-            return(
-            <ListGroupItem
-              key={globalIndex}
-              id={`annotation-${globalIndex}`}
-              className="d-flex align-items-center justify-content-between list-group-item-hover"
-              style={{
-                cursor: 'pointer',
-                paddingRight: '0',
-                paddingLeft: '0',
-                paddingTop: '0',
-                paddingBottom: '0'
-              }}
-              onClick={(e) => { e.stopPropagation(); handleAnnotationClick(anno, globalIndex); }}
-              onMouseEnter={() => handleHover(globalIndex)}
-              onMouseLeave={() => handleHover(null)}
-            >
-              <span style={{ flexGrow: 1 }}>{anno.label}</span>
-              <div className="d-flex">
-                {/* Delete Button */}
-                <button
-                  id="btnRemove"
-                  type="button"
-                  style={{ cssText: 'padding: 2px !important', fontSize: '20px' }}
-                  className="btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteBox(globalIndex);
-                  }}
-                >
-                  <i className="mdi mdi-trash-can"></i>
-                </button>
-
-                {/* Hide/Show Button */}
-                  <button
-                  id="btnHideShow"
-                  type="button"
-                  className="btn noti-icon"
-                  onClick={(e) => {
-                      e.stopPropagation();
-                      hiddenAnnotations.includes(globalIndex)
-                          ? unhideBox(globalIndex)
-                          : hideBox(globalIndex);
-                  }}
+    {desiredOrder.map((category) => {
+      if (groupedAnnotations[category]) {
+        return (
+          <div key={category}>
+            {/* Display the category name */}
+            <h5>
+              {category}
+              <button
+                id={`btnHide${category}`}
+                type="button"
+                className="btn noti-icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (hideGroup[category]) {
+                    unhideCategory(category);
+                    setHideGroup((prev) => ({ ...prev, [category]: false }));
+                  } else {
+                    hideCategory(category);
+                    setHideGroup((prev) => ({ ...prev, [category]: true }));
+                  }
+                }}
               >
-                  <i className={`ion ${hiddenAnnotations.includes(globalIndex) ? 'ion-md-eye-off' : 'ion-md-eye'}`}></i>
+                <i className={`ion ${hideGroup[category] ? 'ion-md-eye-off' : 'ion-md-eye'}`}></i>
               </button>
+            </h5>
 
-                {/* Edit Button */}
-                <button
-                  id="btnEdit"
-                  type="button"
-                  style={{ cssText: 'padding: 2px !important', fontSize: '20px' }}
-                  className="btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    selectedAnnotation === anno ? handleSelectAnnotation(anno) : setSelectedAnnotation(anno);
-                  }}
-                >
-                  <i className={`mdi ${selectedAnnotation === anno ? 'mdi-lead-pencil' : 'mdi-pencil-box-outline'}`}></i>
-                </button>
-              </div>
-
-                  {/* Popover with Class Details */}
-                  <UncontrolledPopover
-                    trigger="click"
-                    placement="bottom-start"
-                    isOpen={popoverOpen === globalIndex} // Only open the popover for the clicked item
-                    target={`annotation-${globalIndex}`}
-                    innerRef={popoverRef}
-                    toggle={() => setPopoverOpen(null)} // Close the popover on toggle
-                    style={{  width: "550px"}}
-                  >
-                    {popoverData !== null ? <PopoverBody style={{ padding: '20px', width: '500px', boxShadow: '0 0 10px rgba(0,0,0,0.1)' }}>
-                      {/* Display the fetched data */}
-                      <h5>{popoverData.className}</h5>
-                      <p>{popoverData.description}</p>
-
-                      {/* YouTube Thumbnails (direct URLs from the API) */}
+            <ListGroup flush>
+              {/* Loop over each annotation in the current category */}
+              {groupedAnnotations[category].map((anno, index) => {
+                const globalIndex = annotations.findIndex((a) => a === anno);
+                if (globalIndex !== -1) {
+                  return (
+                    <ListGroupItem
+                      key={globalIndex}
+                      id={`annotation-${globalIndex}`}
+                      className="d-flex align-items-center justify-content-between list-group-item-hover"
+                      style={{
+                        cursor: 'pointer',
+                        paddingRight: '0',
+                        paddingLeft: '0',
+                        paddingTop: '0',
+                        paddingBottom: '0',
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAnnotationClick(anno, globalIndex);
+                      }}
+                      onMouseEnter={() => handleHover(globalIndex)}
+                      onMouseLeave={() => handleHover(null)}
+                    >
+                      <span style={{ flexGrow: 1 }}>{anno.label}</span>
                       <div className="d-flex">
-                        {getYouTubeId(popoverData.yt_url1) && (
-                          <iframe
-                            width="50%"
-                            height='auto'
-                            src={`https://www.youtube.com/embed/${getYouTubeId(popoverData.yt_url1)}`}
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                            title="YouTube Video 1"
-                            style={{ marginRight: '10px', marginBottom: '10px' }}
-                          ></iframe>
-                        )}
-                        {getYouTubeId(popoverData.yt_url2) && (
-                          <iframe
-                            width="50%"
-                            height='auto'
-                            src={`https://www.youtube.com/embed/${getYouTubeId(popoverData.yt_url2)}`}
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                            title="YouTube Video 2"
-                            style={{ marginBottom: '10px' }}
-                          ></iframe>
-                        )}
-                      </div>
+                        {/* Delete Button */}
+                        <button
+                          id="btnRemove"
+                          type="button"
+                          style={{ cssText: 'padding: 2px !important', fontSize: '20px' }}
+                          className="btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteBox(globalIndex);
+                          }}
+                        >
+                          <i className="mdi mdi-trash-can"></i>
+                        </button>
 
-                      {/* Thumbnails */}
-                      <div className="d-flex">
-                        {popoverData.thumbnail1 !== undefined ? <img src={`${apiUrl}/${popoverData.thumbnail1}`} alt="Thumbnail 1" style={{ width: '50%', height: 'auto', marginRight: '10px' }} /> : <></>}
-                        {popoverData.thumbnail2 !== undefined ? <img src={`${apiUrl}/${popoverData.thumbnail2}`} alt="Thumbnail 2" style={{ width: '50%', height: 'auto', marginRight: '10px' }} /> : <></>}
+                        {/* Hide/Show Button */}
+                        <button
+                          id="btnHideShow"
+                          type="button"
+                          className="btn noti-icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            hiddenAnnotations.includes(globalIndex)
+                              ? unhideBox(globalIndex)
+                              : hideBox(globalIndex);
+                          }}
+                        >
+                          <i className={`ion ${hiddenAnnotations.includes(globalIndex) ? 'ion-md-eye-off' : 'ion-md-eye'}`}></i>
+                        </button>
+
+                        {/* Edit Button */}
+                        <button
+                          id="btnEdit"
+                          type="button"
+                          style={{ cssText: 'padding: 2px !important', fontSize: '20px' }}
+                          className="btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            selectedAnnotation === anno
+                              ? handleSelectAnnotation(anno)
+                              : setSelectedAnnotation(anno);
+                          }}
+                        >
+                          <i
+                            className={`mdi ${
+                              selectedAnnotation === anno
+                                ? 'mdi-lead-pencil'
+                                : 'mdi-pencil-box-outline'
+                            }`}
+                          ></i>
+                        </button>
                       </div>
-                    </PopoverBody> : <></>}
-                  </UncontrolledPopover>
-                </ListGroupItem>
-                )}})}
+                    </ListGroupItem>
+                  );
+                }
+              })}
             </ListGroup>
-            </div>
-            ))}
+          </div>
+        );
+      }
+    })}
             </div>
             </Col>
         </Row>

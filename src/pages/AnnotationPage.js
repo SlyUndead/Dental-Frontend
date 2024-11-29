@@ -13,6 +13,7 @@ import { changeMode } from "../store/actions"
 import { useDispatch, useSelector } from 'react-redux';
 import imgExit from "../assets/images/exit.svg"
 import imgEdit from "../assets/images/edit.svg"
+import imgEditActive from "../assets/images/editActive.svg"
 import '../assets/scss/custom/custom.scss';
 import { modifyPath } from "./AnnotationTools/path-utils";
 import { logErrorToServer } from "utils/logError";
@@ -230,10 +231,10 @@ const AnnotationPage = () => {
       let updatedClassCategories = {}
       let updatedLabelColors = {}
       data.forEach(element => {
-        if (updatedClassCategories[element.className] === undefined) {
-          updatedClassCategories[element.className] = element.category
+        if (updatedClassCategories[element.className.toLowerCase()] === undefined) {
+          updatedClassCategories[element.className.toLowerCase()] = element.category
         }
-        if (updatedLabelColors[element.className] === undefined) {
+        if (updatedLabelColors[element.className.toLowerCase()] === undefined) {
           updatedLabelColors[element.className.toLowerCase()] = element.color
         }
       });
@@ -1690,33 +1691,18 @@ const AnnotationPage = () => {
                   </Row>}
                   <Row>
                     <Col md={1}>
-                      {/* <Button color="primary" className="mb-2 w-100" onClick={() => { setExitClick(true) }}>
-                    Exit
-                  </Button> */}
                       <button id="btnExit" onClick={() => { setExitClick(true) }} style={{ background: 'none', border: 'none', padding: '0' }}>
                         <img src={imgExit} alt="Exit" style={{ width: '30px', height: '30px' }} />
                       </button> &nbsp;
                       <UncontrolledTooltip placement="bottom" target="btnExit">Exit</UncontrolledTooltip>
 
-                      {/* <button id="btnTrace" onClick={() => { setEditingMode(!editingMode) }} style={{ background: 'none', border: 'none', padding: '0' }}>
-                        <img src={imgEdit} alt="Trace" style={{ width: '30px', height: '30px' }} />
-                      </button>
-                      <UncontrolledTooltip placement="bottom" target="btnTrace">Trace</UncontrolledTooltip> */}
                       <button id="btnTrace" onClick={handleTraceClick} style={{ background: 'none', border: 'none', padding: '0' }}>
-                        <img src={imgEdit} alt="Trace" style={{ width: '30px', height: '30px' }} />
+                        <img src={isClassCategoryVisible?imgEditActive:imgEdit} alt="Trace" style={{ width: '30px', height: '30px' }} />
                       </button>
                       <UncontrolledTooltip placement="bottom" target="btnTrace">Add New</UncontrolledTooltip>
 
                     </Col>
                     <Col md={11}>
-                      {/* Container for all controls in a single line */}
-
-                      {/* Scale Input */}
-
-                      {/* <InputGroup> */}
-                      {/* <InputGroupText for="area-calculator" style={{ marginBottom: '0', maxWidth: '30%' }}>Scale:</InputGroupText> */}
-
-
                       <FormGroup role="group" aria-label="First group" className="d-flex flex-row" style={{ padding: 0, justifyContent: 'center', alignItems: 'flex-start' }}>
                         <Button id="btnScale" type="button" color="secondary"><i id="icnScale" class="fas fa-ruler"></i>
                           <UncontrolledTooltip placement="bottom" target="btnScale">Scale: {areaScale}px to 1mm</UncontrolledTooltip>
@@ -1951,18 +1937,32 @@ const AnnotationPage = () => {
                     {isClassCategoryVisible ? (
                       <>
                       <Col md={1} style={{marginLeft:'0px', paddingLeft:'0px'}}>
-                      <div style={{ marginTop: '10px', height: 'calc(100vh - 235px)', overflowY:"auto", overflowX:"hidden",marginLeft:'0px', paddingLeft:'0px' }}>
-                        <Table bordered style={{paddingLeft:'0px', marginLeft:'-5%'}} >
+                      <div style={{ marginTop: '10px', height: 'calc(100vh - 235px)', overflowY:"auto", overflowX:"hidden",marginLeft:'0%', paddingLeft:'0px', zIndex:10 }}>
+                        <Table bordered style={{paddingLeft:'0px', marginLeft:'1%'}} >
                           <thead>
                             <tr>
                               <th>Class Name</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {Object.keys(classCategories).map((category) => (
-                              <tr key={category}>
-                                <td style={{color:labelColors[category.toLowerCase()]}} onClick={() => handleCategorySelect(category)}>{category}</td>
-                                {/* <td>
+                            {Object.keys(classCategories).map((category) => 
+                              {
+                                const safeId = category.replace(/\s+/g, '-').toLowerCase()
+                                return(
+                              <>
+                              <tr key={`row-${safeId}`} style={{padding:'0px'}}>
+                                <td id={`${safeId}-Start`} 
+                                style={{color:"white", cursor:'pointer', padding:'0px'}} 
+                                onClick={() => handleCategorySelect(category)} 
+                                onMouseEnter={(e) => {
+                                  e.target.style.color = labelColors[category.toLowerCase()]; 
+                                  e.target.parentElement.style.color = labelColors[category.toLowerCase()];
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.target.style.color = 'white';
+                                  e.target.parentElement.style.color = 'white';
+                                }}>{category}</td>
+                                  {/* <td>
                                   <Button
                                     color="primary"
                                     onClick={() => handleCategorySelect(category)}
@@ -1971,7 +1971,10 @@ const AnnotationPage = () => {
                                   </Button>
                                 </td> */}
                               </tr>
-                            ))}
+                              {console.log(`${safeId}-Start`)}
+                              <UncontrolledTooltip placement="right" target={`${safeId}-Start`}>Start New</UncontrolledTooltip>
+                              </>
+                            )})}
                           </tbody>
                         </Table>
                       </div>

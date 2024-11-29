@@ -9,9 +9,9 @@ import { logErrorToServer } from 'utils/logError';
 const PatientImagesList = (props) => {
     document.title = "Patient Images List | AGP Dental Tool";
     const breadcrumbItems = [
-        { title: "AGP", link: "#" },
-        { title: sessionStorage.getItem('practiceName'), link: "/practiceList" },
-        { title: "Patient Images List", link: "#" },
+        { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
+        { title: sessionStorage.getItem('practiceName'), link: "/patientList" },
+        { title: `${sessionStorage.getItem('patientName')} Images List`, link: "/patientImagesList" },
     ]
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
     const [redirectToLogin, setRedirectToLogin] = useState(false);
@@ -259,7 +259,7 @@ const PatientImagesList = (props) => {
                     checkedImages += imgaeId + ",";
                 }
             });
-            if (checkedImages == "")
+            if (checkedImages === "")
                 alert('Please select atleast one image to delete.')
             else {
                 const isConfirmed = window.confirm('Are you sure you want to delete?');
@@ -315,7 +315,7 @@ const PatientImagesList = (props) => {
                         checkbox.checked = false;
                     }
                 });
-                if (imageNames.length == 0)
+                if (imageNames.length === 0)
                     alert('Please select atleast one image to download.')
                 else {
                     for (let imageName of imageNames) {
@@ -487,7 +487,7 @@ const PatientImagesList = (props) => {
                                                     <tbody>
                                                         {
                                                             visit.patientImages.map((patient, keyPatient) =>
-                                                                <tr key={keyPatient} onClick={handleInnerRowClick}>
+                                                                <tr key={keyPatient}>
                                                                     <td>
                                                                         <FormGroup>
                                                                             <div className="form-check">

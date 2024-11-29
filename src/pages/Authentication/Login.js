@@ -51,6 +51,8 @@ const Login = props => {
           //console.log(response);
           sessionStorage.setItem('token', response.data.token);
           sessionStorage.setItem('clientId',response.data.clientId);
+          sessionStorage.setItem('firstName', response.data.firstName);
+          sessionStorage.setItem('lastName', response.data.lastName);
           // localStorage.setItem('authUser',response.data.token);
           setError('');          
           setRedirect(true);

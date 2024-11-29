@@ -12,9 +12,9 @@ const PatientList = (props) => {
 
     document.title = "Patients List | AGP Dental Tool";
     const breadcrumbItems = [
-        { title: "AGP", link: "#" },
-        { title: sessionStorage.getItem('practiceName'), link: "/practiceList" },
-        { title: "Patient List", link: "#" },
+        { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
+        { title: sessionStorage.getItem('practiceName'), link: "/patientList" },
+        { title: "Patient List", link: "/patientImagesList" },
     ]
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
     // const patients = [
