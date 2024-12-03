@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Table, Card, CardBody, Button, Col, Row } from "reactstrap";
+import { Table, Card, CardBody, Button, Col, Row, UncontrolledTooltip } from "reactstrap";
 import { Navigate } from "react-router-dom";
 import withRouter from 'components/Common/withRouter';
 import { setBreadcrumbItems } from "../store/actions";
@@ -34,6 +34,7 @@ const PatientList = (props) => {
     const [redirectToImages, setRedirectToImages] = useState(false);
     const [patients, setPatients] = useState([]);
     const [redirectToLogin, setRedirectToLogin] = useState(false);
+    const [redirectToNewPatient, setRedirectToNewPatient] = useState(false)
     useEffect(() => {
         const practiceId = sessionStorage.getItem('practiceId');
         const getPatientList = async () => {
@@ -81,7 +82,28 @@ const PatientList = (props) => {
         sessionStorage.setItem('patientName', fullName);
         setRedirectToImages(true);
     };
-
+    const handleEditClick = (e,patient) => {
+        // return <Navigate to="/login" />
+        e.stopPropagation();
+        console.log(patient);
+        sessionStorage.setItem('patientFName', patient.first_name);
+        sessionStorage.setItem('patientLName', patient.last_name);
+        sessionStorage.setItem('patientEmail', patient.email);
+        sessionStorage.setItem('patientTelephone', patient.telephone);
+        sessionStorage.setItem('patientId', patient._id);
+        sessionStorage.setItem('patientAddress', patient.address);
+        sessionStorage.setItem('patientGender', patient.gender);
+        sessionStorage.setItem('patientGFName', patient.guardian_first_name);
+        sessionStorage.setItem('patientGLName', patient.guardian_last_name);
+        sessionStorage.setItem('patientGRelationship', patient.guardian_relationship);
+        if(patient.date_of_birth){
+            sessionStorage.setItem('patientDOB', patient.date_of_birth);
+        }
+        else{
+            sessionStorage.setItem('patientAge', patient.reference_dob_for_age);
+        }
+        setRedirectToNewPatient(true);
+    }
     const handlePrint = () => {
         const practiceName = sessionStorage.getItem('practiceName') 
         const printWindow = window.open('', '_blank');
@@ -150,7 +172,9 @@ const PatientList = (props) => {
         return <Navigate to="/patientImagesList" />;
     }
 
-
+    if(redirectToNewPatient){
+        return <Navigate to="/newPatient"/>;
+    }
     return (
         <React.Fragment>
             <Card>
@@ -188,6 +212,18 @@ const PatientList = (props) => {
                                             <td>
                                                 {patient.gender}
                                             </td>
+                                            <td><button
+                                                        id="btnEdit"
+                                                        type="button"
+                                                        style={{ cssText: 'padding: 2px !important', fontSize: '25px' }}
+                                                        className="btn"
+                                                        onClick={(e) =>{e.stopPropagation(); handleEditClick(e, patient)}}
+                                                    >
+                                                        <i className='mdi mdi-pencil-box-outline'></i>
+                                                    </button>
+                                                        <UncontrolledTooltip placement="bottom" target="btnEdit">Edit Practice
+                                                        </UncontrolledTooltip>
+                                                    </td>
                                         </tr>
                                     )
                                 }

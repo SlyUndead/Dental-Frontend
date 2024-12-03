@@ -13,7 +13,7 @@ const PracticeList = (props) => {
 
     const breadcrumbItems = [
         { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
-        { title: "Practice List", link: "#" }
+        { title: "Practice Name", link: "#" }
     ]
     const [redirectToLogin, setRedirectToLogin] = useState(false);
     const [practices, setPractices] = useState([]);

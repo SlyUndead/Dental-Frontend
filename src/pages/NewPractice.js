@@ -23,6 +23,7 @@ const NewPractice = (props) => {
     const [error, setError] = useState("")
     const [errorClr, setErrorClr] = useState('red')
     const [edit, setEdit] = useState(false)
+    const [redirectToPracticeList, setRedirectToPracticeList] = useState(false);
     const breadcrumbItems = [
         { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
         { title: "New Practice", link: "/NewPractice" },
@@ -36,7 +37,14 @@ const NewPractice = (props) => {
             setEdit(true);
         }
     }, [])
-   
+    const handleCancelSubmit = ()=>{
+        if(edit){
+            sessionStorage.removeItem('practiceAddress');
+            sessionStorage.removeItem('practiceTelephone');
+            sessionStorage.removeItem('practiceName');
+        }
+        setRedirectToPracticeList(true);
+    }
     const handleNewPracticeSubmit = async () => {
         if (practiceName !== "" && telephone !== "" && address !== "") {
             try {
@@ -93,6 +101,9 @@ const NewPractice = (props) => {
         }
     }
     const [redirect, setRedirect] = useState(false);
+    if(redirectToPracticeList){
+        return <Navigate to="/practiceList"/>
+    }
     if(redirectToLogin){
         return <Navigate to="/login"/>
     }
@@ -162,6 +173,13 @@ const NewPractice = (props) => {
                                         className="btn btn-primary waves-effect waves-light"
                                     >
                                         Submit
+                                    </button>
+                                    <button onClick={() => { handleCancelSubmit() }}
+                                        type="button"
+                                        className="btn btn-primary waves-effect waves-light"
+                                        style={{marginLeft:'1%'}}
+                                    >
+                                        Cancel
                                     </button>
                                 </div>
                             </Row>

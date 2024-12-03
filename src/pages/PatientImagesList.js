@@ -493,7 +493,7 @@ const PatientImagesList = (props) => {
                                                                             <div className="form-check">
                                                                                 {/* <input type="hidden" name="imageId" value={patient._id} /> */}
                                                                                 <input type="checkbox" data-id={patient._id} className="form-check-input"
-                                                                                    id="formrow-customCheck" data-src={`${apiUrl}/${patient.thumbnail_url}`} />
+                                                                                    id="formrow-customCheck" data-src={`${apiUrl}/${patient.thumbnail_url}`}  style={{zIndex:10}} onClick={(e)=>{e.stopPropagation()}}/>
                                                                             </div>
                                                                         </FormGroup>{" "}
                                                                     </td>

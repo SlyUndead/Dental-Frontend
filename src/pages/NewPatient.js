@@ -23,19 +23,20 @@ const NewPatient = (props) => {
     const [telephone, setTelephone] = useState("")
     const [gender, setGender] = useState("");
     const [dob, setDob] = useState('');
-    //const [displayDob, setDisplayDob] = useState("")
+    const [errorClr, setErrorClr] = useState('red')
     const [ref_dob, setRef_dob] = useState(0);
-    const [dateOfXray, setDateOfXray] = useState(new Date());
-    const [dateOfVisit, setDateOfVisit] = useState(new Date());
-    // const [displayDateOfXray, setDisplayDateOfXray] = useState("");
-    const [notes, setNotes] = useState('');
-    const [summary, setSummary] = useState('');
     const [age, setAge] = useState(0)
     const [guardian_first_name, setGuardianFirstName] = useState("")
     const [guardian_last_name, setGuardianLastName] = useState("")
     const [guardian_relationship, setGuardianRelationship] = useState("")
     const [address, setAddress] = useState("")
     const [redirectToLogin, setRedirectToLogin] = useState(false);
+    const [edit, setEdit] = useState(false);
+    const [defaultAge, setDefaultAge] = useState(true);
+    const [displayDob, setDisplayDob] = useState("")
+    const [redirectToPatientList, setRedirectToPatientList] = useState(false);
+    const [patientActive, setPatientActive] = useState(true);
+    const [error, setError] = useState("")
     const breadcrumbItems = [
         { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
         { title: sessionStorage.getItem('practiceName'), link: "/patientList" },
@@ -44,47 +45,158 @@ const NewPatient = (props) => {
     const [patientId, setPatientId] = useState('');
     useEffect(() => {
         props.setBreadcrumbItems('New Patient', breadcrumbItems)
-        if (sessionStorage.getItem('patientId')) {
+        if(sessionStorage.getItem('patientAddress')){
+            setFirstName(sessionStorage.getItem('patientFName'));
+            setLastName(sessionStorage.getItem('patientLName'));
+            setAddress(sessionStorage.getItem('patientAddress'));
+            setGender(sessionStorage.getItem('patientGender'));
+            setPatientId(sessionStorage.getItem('patientId'));
+            setEmail(sessionStorage.getItem('patientEmail'));
+            setTelephone(sessionStorage.getItem('patientTelephone'));
+            setGuardianFirstName(sessionStorage.getItem('patientGFName'));
+            setGuardianLastName(sessionStorage.getItem('patientGLName'));
+            setGuardianRelationship(sessionStorage.getItem('patientGRelationship'));
+            if(sessionStorage.getItem('patientDOB')){
+                setDob(sessionStorage.getItem('patientDOB'));
+                setDisplayDob(new Date(sessionStorage.getItem('patientDOB')))
+                setDefaultAge(false);
+            }
+            else{
+                const currentDate = new Date(); // Current date
+                const birthDate = new Date(sessionStorage.getItem('patientAge')); 
+                setAge(currentDate.getFullYear()-birthDate.getFullYear());
+            }
+            setEdit(true);
+        }
+        else if (sessionStorage.getItem('patientId')) {
             sessionStorage.removeItem('patientId');
         }
     }, [])
-   
+    const handleCancelSubmit = async() =>{
+        if(edit){
+            sessionStorage.removeItem('patientFName');
+            sessionStorage.removeItem('patientLName');
+            sessionStorage.removeItem('patientAddress');
+            sessionStorage.removeItem('patientGender');
+            sessionStorage.removeItem('patientEmail');
+            sessionStorage.removeItem('patientTelephone');
+            sessionStorage.removeItem('patientGLName');
+            sessionStorage.removeItem('patientGFName');
+            sessionStorage.removeItem('patientGRelationship');
+            if(sessionStorage.getItem('patientDOB')){
+                sessionStorage.removeItem('patientDOB');
+            }
+            else{
+                sessionStorage.removeItem('patientAge');
+            }
+        }
+        setRedirectToPatientList(true);
+    }
+    const checkAge=()=>{
+        if(defaultAge){
+            if(age<18 && (guardian_first_name=== "" || guardian_last_name==="" || guardian_relationship==="")){
+                console.log(false,age,"age")
+                return false
+            }
+        }
+        else{
+            const birthDate = new Date(dob);
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+            if(age<18 && (guardian_first_name=== "" || guardian_last_name==="" || guardian_relationship==="")){
+                console.log(false,age)
+                return false
+            }
+        }
+        return true;
+    }
     const handleNewPatientSubmit = async () => {
-        if (email !== "" && firstName !== "" && lastName !== "" && (dob !== "" || ref_dob !== "") && telephone !== "" && (gender === "Male" || gender === "Female")) {
+        if (email !== "" && firstName !== "" && lastName !== "" && (dob !== "" || ref_dob !== "") && telephone !== "" && (gender === "Male" || gender === "Female") && checkAge()) {
             try {
                 let response;
-                if (dob !== "") {
+                if (!defaultAge) {
                     // console.log(dob);
+                    if(edit){
+                        response = await axios.post(`${apiUrl}/edit-patient`, {
+                            //    response = await axios.post('http://localhost:3001/add-patient', {
+                            first_name: firstName, last_name: lastName, email: email, telephone: telephone, gender: gender, dob: dob,
+                            guardian_first_name: guardian_first_name, guardian_last_name: guardian_last_name, guardian_relationship: guardian_relationship, address: address,
+                            is_active: true, created_by: "test", practiceId: sessionStorage.getItem('practiceId'), patientId:patientId, patientActive:patientActive
+                        },
+                        {
+                          headers:{
+                            Authorization:sessionStorage.getItem('token')
+                          }
+                        })
+                    }
+                    else{
                     response = await axios.post(`${apiUrl}/add-patient`, {
                         //    response = await axios.post('http://localhost:3001/add-patient', {
                         first_name: firstName, last_name: lastName, email: email, telephone: telephone, gender: gender, dob: dob,
                         guardian_first_name: guardian_first_name, guardian_last_name: guardian_last_name, guardian_relationship: guardian_relationship, address: address,
-                        is_active: true, created_by: "test", practiceId: sessionStorage.getItem('practiceId')
+                        is_active: true, created_by: "test", practiceId: sessionStorage.getItem('practiceId'), patientActive:patientActive
                     },
                     {
                       headers:{
                         Authorization:sessionStorage.getItem('token')
                       }
                     })
+                    }
                 }
                 else {
+                    if(edit){
+                        response = await axios.post(`${apiUrl}/edit-patient`, {
+                            //    response = await axios.post('http://localhost:3001/add-patient', {
+                            first_name: firstName, last_name: lastName, email: email, telephone: telephone, gender: gender, reference_dob_for_age: ref_dob,
+                            guardian_first_name: guardian_first_name, guardian_last_name: guardian_last_name, guardian_relationship: guardian_relationship, address: address,
+                            is_active: true, created_by: 'test', practiceId: sessionStorage.getItem('practiceId'), patientId:patientId, patientActive:patientActive
+                        },
+                        {
+                          headers:{
+                            Authorization:sessionStorage.getItem('token')
+                          }
+                        })
+                    }
+                    else{
                     response = await axios.post(`${apiUrl}/add-patient`, {
                         //    response = await axios.post('http://localhost:3001/add-patient', {
                         first_name: firstName, last_name: lastName, email: email, telephone: telephone, gender: gender, reference_dob_for_age: ref_dob,
                         guardian_first_name: guardian_first_name, guardian_last_name: guardian_last_name, guardian_relationship: guardian_relationship, address: address,
-                        is_active: true, created_by: 'test', practiceId: sessionStorage.getItem('practiceId')
+                        is_active: true, created_by: 'test', practiceId: sessionStorage.getItem('practiceId'), patientActive:patientActive
                     },
                     {
                       headers:{
                         Authorization:sessionStorage.getItem('token')
                       }
                     })
+                    }
                 }
                 if (response.status === 200) {
                     sessionStorage.setItem('patientId', response.data.user1._id);
                     sessionStorage.setItem('token', response.headers['new-token'])
                     setPatientId(response.data.user1._id);
-                    sessionStorage.setItem('patientName', `${firstName} ${lastName}`)
+                    sessionStorage.setItem('patientName', `${firstName} ${lastName}`);
+                    if(edit){
+                        sessionStorage.removeItem('patientFName');
+                        sessionStorage.removeItem('patientLName');
+                        sessionStorage.removeItem('patientAddress');
+                        sessionStorage.removeItem('patientGender');
+                        sessionStorage.removeItem('patientEmail');
+                        sessionStorage.removeItem('patientTelephone');
+                        sessionStorage.removeItem('patientGLName');
+                        sessionStorage.removeItem('patientGFName');
+                        sessionStorage.removeItem('patientGRelationship');
+                        if(sessionStorage.getItem('patientDOB')){
+                            sessionStorage.removeItem('patientDOB');
+                        }
+                        else{
+                            sessionStorage.removeItem('patientAge');
+                        }
+                    }
                     setRedirect(true);
                 }
             }
@@ -99,16 +211,22 @@ const NewPatient = (props) => {
                 }
             }
         }
+        else{
+            setError("Please fill out all the fields.\n For children guardian details are mandatory as well.");
+        }
     }
     const setRef = (age) => {
         const date = new Date();
         setAge(age);
-        const tmpDate = `${date.getFullYear() - age}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate()}`;
+        const tmpDate = `${date.getFullYear() - age}-01-01`;
         const refDob = new Date(tmpDate);
         //console.log(refDob);
         setRef_dob(refDob);
     }
     const [redirect, setRedirect] = useState(false);
+    if(redirectToPatientList){
+        return <Navigate to="/patientList"/>
+    }
     if(redirectToLogin){
         return <Navigate to="/login"/>
     }
@@ -122,6 +240,7 @@ const NewPatient = (props) => {
 
                     <Card>
                         <CardBody>
+                        {error && <p style={{ color: errorClr }}>{error}</p>}
                             <Row className="mb-3">
                                 <label
                                     htmlFor="example-text-input"
@@ -222,7 +341,8 @@ const NewPatient = (props) => {
                                                             name="exampleRadios"
                                                             id="exampleRadios1"
                                                             value="option1"
-                                                            defaultChecked
+                                                            checked={defaultAge}
+                                                            onClick={()=>{setDefaultAge(true)}}
                                                         />
                                                         <label
                                                             className="form-check-label"
@@ -253,6 +373,8 @@ const NewPatient = (props) => {
                                                             name="exampleRadios"
                                                             id="exampleRadios2"
                                                             value="option2"
+                                                            checked={!defaultAge}
+                                                            onClick={()=>{setDefaultAge(false)}}
                                                         />
                                                         <label
                                                             className="form-check-label"
@@ -278,20 +400,12 @@ const NewPatient = (props) => {
                                                                     //     : "";
                                                                     if (selectedDates.length > 0) {
                                                                         const selectedDate = selectedDates[0];
-
-                                                                        // Format the date to 'Sep 23 2024'
-                                                                        const formattedDate = selectedDate.toLocaleDateString('en-US', {
-                                                                            year: 'numeric',
-                                                                            month: 'short',
-                                                                            day: 'numeric'
-                                                                        });
-
                                                                         setDob(selectedDate);
                                                                         // console.log(formattedDate);
                                                                     }
-                                                                    //setDisplayDob(selectedDates[0]);
+                                                                    setDisplayDob(selectedDates[0]);
                                                                 }}
-                                                            //value={displayDob}
+                                                            value={displayDob}
                                                             />
                                                         </InputGroup>
                                                     </div>
@@ -317,7 +431,69 @@ const NewPatient = (props) => {
                                     />
                                 </div>
                             </Row>
-
+                            <Row className="mb-3">
+                                <label
+                                    htmlFor="example-text-input"
+                                    className="col-md-3 col-form-label"
+                                >
+                                    Guardian First Name
+                                </label>
+                                <div className="col-md-9">
+                                    <input
+                                        className="form-control"
+                                        type="text"
+                                        value={guardian_first_name}
+                                        onChange={(e) => { setGuardianFirstName(e.target.value) }}
+                                    />
+                                </div>
+                            </Row>
+                            <Row className="mb-3">
+                                <label
+                                    htmlFor="example-text-input"
+                                    className="col-md-3 col-form-label"
+                                >
+                                    Guardian Last Name
+                                </label>
+                                <div className="col-md-9">
+                                    <input
+                                        className="form-control"
+                                        type="text"
+                                        value={guardian_last_name}
+                                        onChange={(e) => { setGuardianLastName(e.target.value) }}
+                                    />
+                                </div>
+                            </Row>
+                            <Row className="mb-3">
+                                <label
+                                    htmlFor="example-text-input"
+                                    className="col-md-3 col-form-label"
+                                >
+                                    Guardian Relationsip
+                                </label>
+                                <div className="col-md-9">
+                                    <input
+                                        className="form-control"
+                                        type="text"
+                                        value={guardian_relationship}
+                                        onChange={(e) => { setGuardianRelationship(e.target.value) }}
+                                    />
+                                </div>
+                            </Row>
+                            <Row className="mb-3">
+                            <label htmlFor="example-text-input"
+                                    className="col-md-3 col-form-label">
+                                Active
+                            </label>
+                            <div className="col-md-9">
+                                <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id="modelSwitch"
+                                checked={patientActive}
+                                onChange={() => setPatientActive(!patientActive)}
+                                />
+                            </div>
+                            </Row>
                             <Row className="mb-3">
                                 <div className="text-center mt-4">
                                     <button onClick={() => { handleNewPatientSubmit() }}
@@ -325,6 +501,13 @@ const NewPatient = (props) => {
                                         className="btn btn-primary waves-effect waves-light"
                                     >
                                         Submit
+                                    </button>
+                                    <button onClick={() => { handleCancelSubmit() }}
+                                        type="button"
+                                        className="btn btn-primary waves-effect waves-light"
+                                        style={{marginLeft:'1%'}}
+                                    >
+                                        Cancel
                                     </button>
                                 </div>
                             </Row>
