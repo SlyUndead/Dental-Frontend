@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react"
 import {
   Table, Card, CardBody, Button, Col, Row, FormGroup, Label, Input, Container, InputGroup, InputGroupText, Dropdown,
   DropdownMenu, DropdownToggle, DropdownItem, Popover, PopoverBody, Modal, ModalBody, ModalFooter, ModalHeader, Spinner,
-  UncontrolledTooltip
+  UncontrolledTooltip, PopoverHeader
 } from "reactstrap";
 import AnnotationList from "./AnnotationTools/AnnotationList";
 import { MAX_HISTORY } from "./AnnotationTools/constants";
@@ -99,47 +99,14 @@ const AnnotationPage = () => {
   const [message, setMessage] = useState('')
   const [isClassCategoryVisible, setIsClassCategoryVisible] = useState(false);
   const [selectedClassCategory, setSelectedClassCategory] = useState(null);
-  // const fetchMostRecentImage = async () => {
-  //     try {
-  //         const response = await axios.get('https://agp-ui-node-api.mdbgo.io/most-recent-image'); // Adjust the API endpoint as needed
-  //         const data = response.data;
-  //         // setMainImage(data.image);
-  //         // setAnnotations(data.annotations);
-  //         console.log(data)
-  //         return data;
-  //     } catch (error) {
-  //       if(error.code==="ECONNREFUSED" || error.code==="ERR_NETWORK" || error.code==="ERR_CONNECTION_TIMED_OUT"){
-  //         const response = await axios.get('https://agp-ui-node-api.mdbgo.io/most-recent-image'); // Adjust the API endpoint as needed
-  //         const data = response.data;
-  //         // setMainImage(data.image);
-  //         // setAnnotations(data.annotations);
-  //         return data;
-  //       }
-  //       else{
-  //         console.error('Error fetching most recent image:', error);
-  //       }
-  //     }
-  // };
-
-  // // Function to fetch up to 3 other recent images
-  // const fetchRecentImages = async () => {
-  //     try {
-  //         const response = await axios.get('https://agp-ui-node-api.mdbgo.io/recent-images?limit=3'); // Adjust the API endpoint as needed
-  //         const data = response.data;
-  //         // setRecentImages(data.images);
-  //         return data;
-  //     } catch (error) {
-  //       if(error.code==="ECONNREFUSED" || error.code==="ERR_NETWORK" || error.code==="ERR_CONNECTION_TIMED_OUT"){
-  //         const response = await axios.get('https://agp-ui-node-api.mdbgo.io/recent-images?limit=3'); // Adjust the API endpoint as needed
-  //         const data = response.data;
-  //         // setRecentImages(data.images);
-  //         return data;
-  //       }
-  //       else{
-  //         console.error('Error fetching recent images:', error);
-  //       }
-  //     }
-  // };
+  const [patient_first_name, setPatient_first_name] = useState('');
+  const [patient_last_name, setPatient_last_name] = useState('');
+  const [patient_email, setPatient_email] = useState('');
+  const [patient_phone, setPatient_phone] = useState('');
+  const [patient_gender, setPatient_gender] = useState('');
+  const [patient_add, setPatient_add] = useState('');
+  const [patient_age, setPatient_age] = useState('');
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const fetchNotesContent = async () => {
     try {
       const response = await axios.get(`${apiUrl}/notes-content?visitID=` + sessionStorage.getItem('visitId'),
@@ -155,15 +122,6 @@ const AnnotationPage = () => {
       // setAnnotations(data.annotations);
       return data.notes;
     } catch (error) {
-      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200") {
-        const response = await axios.get('http://localhost:3000/notes-content?visitID=' + sessionStorage.getItem('visitId')); // Adjust the API endpoint as needed
-        const data = response.data;
-        sessionStorage.setItem('token', response.headers['new-token'])
-        // setMainImage(data.image);
-        // setAnnotations(data.annotations);
-        return data.notes;
-      }
-      else {
       if(error.status===403||error.status===401){
         if(sessionStorage.getItem('preLayoutMode')){
           dispatch(changeMode(preLayoutMode));
@@ -177,7 +135,6 @@ const AnnotationPage = () => {
         console.error('Error fetching most recent image:', error);
         }
       }
-    }
   }
   const fetchVisitDateImages = async () => {
     try {
@@ -193,16 +150,6 @@ const AnnotationPage = () => {
       // setAnnotations(data.annotations);
       return data.images;
     } catch (error) {
-      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200") {
-        const response = await axios.get('http://localhost:3000/visitid-images?visitID=' + sessionStorage.getItem('visitId')); // Adjust the API endpoint as needed
-        const data = response.data;
-        sessionStorage.setItem('token', response.headers['new-token'])
-        // setMainImage(data.image);
-        // setAnnotations(data.annotations);
-        return data.images;
-      }
-      else {
-        
       if(error.status===403||error.status===401){
         if(sessionStorage.getItem('preLayoutMode')){
           dispatch(changeMode(preLayoutMode));
@@ -217,7 +164,6 @@ const AnnotationPage = () => {
         console.error('Error fetching most recent image:', error);
         }
       }
-    }
   };
   const fetchClassCategories = async () => {
     try {
@@ -242,24 +188,6 @@ const AnnotationPage = () => {
       setLabelColors(updatedLabelColors)
       setClassCategories(updatedClassCategories)
     } catch (error) {
-      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200") {
-        const response = await axios.get('http://localhost:3000/get-classCategories'); // Adjust the API endpoint as needed
-        const data = response.data;
-        sessionStorage.setItem('token', response.headers['new-token'])
-        let updatedClassCategories = {}
-        let updatedLabelColors = {}
-        data.forEach(element => {
-          if (updatedClassCategories[element.className] === undefined) {
-            updatedClassCategories[element.className] = element.category
-          }
-          if (updatedLabelColors[element.className] === undefined) {
-            updatedLabelColors[element.className.toLowerCase()] = element.color
-          }
-        });
-        setLabelColors(updatedLabelColors)
-        setClassCategories(updatedClassCategories)
-      }
-      else{
         if(error.status===403||error.status===401){
           if(sessionStorage.getItem('preLayoutMode')){
             dispatch(changeMode(preLayoutMode));
@@ -272,7 +200,6 @@ const AnnotationPage = () => {
           }
       }
       }
-    }
   };
   const getBoxDimensions = (vertices) => {
     const xCoords = vertices.map(v => v.x);
@@ -970,12 +897,63 @@ const AnnotationPage = () => {
         setMessage("Unable to load this visit images. Pls contact admin.")
     }
   };
+  const calculateAge = (dob) => {
+    try {
+        const today = new Date();
+        const birthDate = new Date(dob);
+        let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+        const monthDifference = today.getMonth() - birthDate.getMonth();
 
+        if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
+            calculatedAge--;
+        }
+        return calculatedAge;
+    }
+    catch (error) {
+        console.log(error);
+        logErrorToServer(error, "calculateAge");
+    }
+};
+  const getPatientDetails = async()=>{
+    try{
+      const response = await axios.get(`${apiUrl}/getPatientByID?patientId=`+sessionStorage.getItem('patientId'),
+    {
+      headers:{
+        Authorization:sessionStorage.getItem('token')
+      }
+    });
+    setPatient_first_name(response.data.patientList.first_name)
+    setPatient_last_name(response.data.patientList.last_name)
+    setPatient_email(response.data.patientList.email)
+    setPatient_phone(response.data.patientList.telephone)
+    setPatient_gender(response.data.patientList.gender)
+    setPatient_add(response.data.patientList.address)
+    if (response.data.patientList.date_of_birth)
+        setPatient_age(calculateAge(response.data.patientList.date_of_birth));
+    else if (response.data.patientList.reference_dob_for_age)
+        setPatient_age(calculateAge(response.data.patientList.reference_dob_for_age));
+    }
+    catch(error){
+      if(error.status===403||error.status===401){
+        if(sessionStorage.getItem('preLayoutMode')){
+          dispatch(changeMode(preLayoutMode));
+          sessionStorage.removeItem('preLayoutMode');
+        }
+        sessionStorage.removeItem('token');
+        setRedirectToLogin(true);
+    }
+      else{
+        logErrorToServer(error, "getPatientDetails");
+        console.error('Error getting patient details:', error);
+      }
+    }
+  }
   useEffect(() => {
     try{
       setFirstVisit(sessionStorage.getItem('first') === 'true' ? true : false)
       setLastVisit(sessionStorage.getItem('last') === 'true' ? true : false)
       loadImages();
+      getPatientDetails();
       fetchClassCategories();
       if(!sessionStorage.getItem('preLayoutMode')){
         setPreLayoutMode(mode);
@@ -1224,18 +1202,6 @@ const AnnotationPage = () => {
         return data.notes;
       } catch (error) {
         // Fallback logic if connection fails
-        if (["ECONNREFUSED", "ERR_NETWORK", "ERR_CONNECTION_TIMED_OUT", "ERR_SSL_PROTOCOL_ERROR"].includes(error.code)) {
-          const response = await axios.get('http://localhost:3000/save-notes', {
-            params: {
-              visitID: sessionStorage.getItem('visitId'),
-              notes: notesContent
-            }
-          });
-          const data = response.data;
-          sessionStorage.setItem('token', response.headers['new-token'])
-          setOldNotesContent(notesContent);
-          return data.notes;
-        } else {
             if(error.status===403||error.status===401){
               if(sessionStorage.getItem('preLayoutMode')){
                 dispatch(changeMode(preLayoutMode));
@@ -1247,7 +1213,6 @@ const AnnotationPage = () => {
         else{
           logErrorToServer(error, "saveNotes");
           console.error('Error saving notes:', error);
-        }
         }
       }
     }
@@ -1282,28 +1247,6 @@ const AnnotationPage = () => {
       sessionStorage.setItem('token', response.headers['new-token'])
       return data;
     } catch (error) {
-      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200") {
-        const scaledResponse = {
-          annotations: {
-            model: model,
-            status: "OPEN",
-            annotations: newAnnotations
-          },
-          status: "OPEN"
-        }
-        const response = await axios.put(`http://localhost:3000/save-annotations`,
-          {
-            patientId: sessionStorage.getItem('patientId'),
-            visitId: sessionStorage.getItem('visitId'),
-            scaledResponse: scaledResponse,
-            imageNumber: (mainImageIndex + 1)
-          }
-        );
-        const data = response.data;
-        sessionStorage.setItem('token', response.headers['new-token'])
-        return data;
-      }
-      else {
           if(error.status===403||error.status===401){
             if(sessionStorage.getItem('preLayoutMode')){
               dispatch(changeMode(preLayoutMode));
@@ -1317,7 +1260,6 @@ const AnnotationPage = () => {
         console.error('Error saving annotations:', error);
       }
       }
-    }
   }
   const handleNotesClick = () => {
     if (!isNotesOpen) {
@@ -1458,24 +1400,6 @@ const AnnotationPage = () => {
       setHiddenAnnotations([]);
       loadImages();
     } catch (error) {
-      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200" || error.code === "ERR_BAD_REQUEST") {
-        const response = await axios.get('http://localhost:3000/next-previousVisit?patientId=' + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=true');
-        const data = response.data;
-        // setMainImage(data.image);
-        // setAnnotations(data.annotations);
-        sessionStorage.setItem('visitId', data.visitId._id)
-        sessionStorage.setItem('token', response.headers['new-token'])
-        sessionStorage.setItem('xrayDate', data.visitId.date_of_xray)
-        // console.log(data);
-        setLastVisit(data.last);
-        setMainImageIndex(0);
-        setFirstVisit(false);
-        sessionStorage.setItem('first', false);
-        sessionStorage.setItem('last', data.last);
-        setHiddenAnnotations([]);
-        loadImages();
-      }
-      else {
           if(error.status===403||error.status===401){
             if(sessionStorage.getItem('preLayoutMode')){
               dispatch(changeMode(preLayoutMode));
@@ -1489,7 +1413,6 @@ const AnnotationPage = () => {
         console.error('Error fetching most recent image:', error);
       }
       }
-    }
     setIsLoading(false)
   }
   const handlePreviousClick = async () => {
@@ -1525,24 +1448,6 @@ const AnnotationPage = () => {
       setHiddenAnnotations([]);
       loadImages();
     } catch (error) {
-      if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_SSL_PROTOCOL_ERROR 200" || error.code === "ERR_BAD_REQUEST") {
-        const response = await axios.get('http://localhost:3000/next-previousVisit?patientId=' + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=false');
-        const data = response.data;
-        // setMainImage(data.image);
-        // setAnnotations(data.annotations);
-        sessionStorage.setItem('visitId', data.visitId._id)
-        sessionStorage.setItem('token', response.headers['new-token'])
-        sessionStorage.setItem('xrayDate', data.visitId.date_of_xray)
-        // console.log(data);
-        setLastVisit(false);
-        setFirstVisit(data.first);
-        sessionStorage.setItem('first', data.first);
-        sessionStorage.setItem('last', false);
-        setMainImageIndex(0);
-        setHiddenAnnotations([]);
-        loadImages();
-      }
-      else {
           if(error.status===403||error.status===401){
             if(sessionStorage.getItem('preLayoutMode')){
               dispatch(changeMode(preLayoutMode));
@@ -1557,7 +1462,6 @@ const AnnotationPage = () => {
         console.error('Error fetching most recent image:', error);
       }
       }
-    }
     setIsLoading(false)
   }
   const DateFormatter = (date) => {
@@ -1645,8 +1549,132 @@ const AnnotationPage = () => {
                 <Table>
                   {message!==''?<Row>
                     <Col md={4}>
-                      <h5>Name :  {fullName}</h5>
+                      <h5 id="patientDetails" style={{cursor:"pointer"}}>Name :  {fullName}</h5>
                     </Col>
+                    <Popover
+                      placement="bottom"
+                      isOpen={popoverOpen}
+                      toggle={()=>{setPopoverOpen(!popoverOpen)}}
+                      target="patientDetails"
+                    >
+                      <PopoverHeader>Patient Details</PopoverHeader>
+                      <PopoverBody>
+                        {/* Content of the Popover */}
+                        <Row>
+                          <Col sm={4} className="card">
+                            <table>
+                              <Row>
+                                <label
+                                  htmlFor="example-text-input"
+                                  className="col-md-6 col-form-label"
+                                >
+                                  First Name:
+                                </label>
+                                <label
+                                  style={{ fontWeight: 100 }}
+                                  className="col-md-6 col-form-label"
+                                >
+                                  {patient_first_name}
+                                </label>
+                              </Row>
+                              <Row>
+                                <label
+                                  htmlFor="example-text-input"
+                                  className="col-md-6 col-form-label"
+                                >
+                                  Last Name:
+                                </label>
+                                <label
+                                  style={{ fontWeight: 100 }}
+                                  className="col-md-6 col-form-label"
+                                >
+                                  {patient_last_name}
+                                </label>
+                              </Row>
+                              <Row>
+                                <label
+                                  htmlFor="example-text-input"
+                                  className="col-md-6 col-form-label"
+                                >
+                                  Email:
+                                </label>
+                                <label
+                                  style={{ fontWeight: 100 }}
+                                  className="col-md-6 col-form-label"
+                                >
+                                  {patient_email}
+                                </label>
+                              </Row>
+                              </table>
+                            </Col>
+                            <Col sm={4} className="card">
+                              <table>
+                              <Row>
+                                <label
+                                  htmlFor="example-text-input"
+                                  className="col-md-7 col-form-label"
+                                >
+                                  Telephone:
+                                </label>
+                                <label
+                                  style={{ fontWeight: 100 }}
+                                  className="col-md-5 col-form-label"
+                                >
+                                  {patient_phone}
+                                </label>
+                              </Row>
+                              <Row>
+                                <label
+                                  htmlFor="example-text-input"
+                                  className="col-md-6 col-form-label"
+                                >
+                                  Gender:
+                                </label>
+                                <label
+                                  style={{ fontWeight: 100 }}
+                                  className="col-md-6 col-form-label"
+                                >
+                                  {patient_gender}
+                                </label>
+                              </Row>
+                              <Row>
+                                <label
+                                  htmlFor="example-text-input"
+                                  className="col-md-6 col-form-label"
+                                >
+                                  Age:
+                                </label>
+                                <label
+                                  style={{ fontWeight: 100 }}
+                                  className="col-md-6 col-form-label"
+                                >
+                                  {patient_age}
+                                </label>
+                              </Row>
+                            </table>
+                          </Col>
+
+                          <Col sm={4} className="card">
+                            <table>
+                              <Row>
+                                <label
+                                  htmlFor="example-text-input"
+                                  className="col-md-6 col-form-label"
+                                >
+                                  Address:
+                                </label>
+                                <label
+                                  style={{ fontWeight: 100 }}
+                                  className="col-md-6 col-form-label"
+                                >
+                                  {patient_add}
+                                </label>
+                              </Row>
+                            </table>
+                          </Col>
+                        </Row>
+                      </PopoverBody>
+                    </Popover>
                     <Col md={4}>
                           <h5 style={{ color: 'red', whiteSpace: 'pre-line' }}>
                               {message}
@@ -1675,8 +1703,133 @@ const AnnotationPage = () => {
                   :
                   <Row>
                     <Col md={6}>
-                      <h5 style={{ padding: 0 }}>Name :  {fullName}</h5>
+                      <h5 style={{ padding: 0,cursor:"pointer" }} id="patientDetails">Name :  {fullName}</h5>
                     </Col>
+                      
+                    <Popover
+                      placement="bottom"
+                      isOpen={popoverOpen}
+                      toggle={()=>{setPopoverOpen(!popoverOpen)}}
+                      target="patientDetails"
+                    >
+                      <PopoverHeader>Patient Details</PopoverHeader>
+                      <PopoverBody>
+                        {/* Content of the Popover */}
+                        <Row>
+                          <Col sm={4} className="card">
+                            <table>
+                              <Row>
+                                <label
+                                  htmlFor="example-text-input"
+                                  className="col-md-6 col-form-label"
+                                >
+                                  First Name:
+                                </label>
+                                <label
+                                  style={{ fontWeight: 100 }}
+                                  className="col-md-6 col-form-label"
+                                >
+                                  {patient_first_name}
+                                </label>
+                              </Row>
+                              <Row>
+                                <label
+                                  htmlFor="example-text-input"
+                                  className="col-md-6 col-form-label"
+                                >
+                                  Last Name:
+                                </label>
+                                <label
+                                  style={{ fontWeight: 100 }}
+                                  className="col-md-6 col-form-label"
+                                >
+                                  {patient_last_name}
+                                </label>
+                              </Row>
+                              <Row>
+                                <label
+                                  htmlFor="example-text-input"
+                                  className="col-md-6 col-form-label"
+                                >
+                                  Email:
+                                </label>
+                                <label
+                                  style={{ fontWeight: 100 }}
+                                  className="col-md-6 col-form-label"
+                                >
+                                  {patient_email}
+                                </label>
+                              </Row>
+                              </table>
+                            </Col>
+                            <Col sm={4} className="card">
+                              <table>
+                              <Row>
+                                <label
+                                  htmlFor="example-text-input"
+                                  className="col-md-7 col-form-label"
+                                >
+                                  Telephone:
+                                </label>
+                                <label
+                                  style={{ fontWeight: 100 }}
+                                  className="col-md-5 col-form-label"
+                                >
+                                  {patient_phone}
+                                </label>
+                              </Row>
+                              <Row>
+                                <label
+                                  htmlFor="example-text-input"
+                                  className="col-md-6 col-form-label"
+                                >
+                                  Gender:
+                                </label>
+                                <label
+                                  style={{ fontWeight: 100 }}
+                                  className="col-md-6 col-form-label"
+                                >
+                                  {patient_gender}
+                                </label>
+                              </Row>
+                              <Row>
+                                <label
+                                  htmlFor="example-text-input"
+                                  className="col-md-6 col-form-label"
+                                >
+                                  Age:
+                                </label>
+                                <label
+                                  style={{ fontWeight: 100 }}
+                                  className="col-md-6 col-form-label"
+                                >
+                                  {patient_age}
+                                </label>
+                              </Row>
+                            </table>
+                          </Col>
+
+                          <Col sm={4} className="card">
+                            <table>
+                              <Row>
+                                <label
+                                  htmlFor="example-text-input"
+                                  className="col-md-6 col-form-label"
+                                >
+                                  Address:
+                                </label>
+                                <label
+                                  style={{ fontWeight: 100 }}
+                                  className="col-md-6 col-form-label"
+                                >
+                                  {patient_add}
+                                </label>
+                              </Row>
+                            </table>
+                          </Col>
+                        </Row>
+                      </PopoverBody>
+                    </Popover>
                     <Col md={6} style={{
                       display: 'flex',
                       justifyContent: 'flex-end', // Align content to the right

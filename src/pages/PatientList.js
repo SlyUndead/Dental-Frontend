@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Table, Card, CardBody, Button, Col, Row, UncontrolledTooltip } from "reactstrap";
+import { Table, Card, CardBody, Button, Col, Row, UncontrolledTooltip, FormGroup, Input } from "reactstrap";
 import { Navigate } from "react-router-dom";
 import withRouter from 'components/Common/withRouter';
 import { setBreadcrumbItems } from "../store/actions";
@@ -35,6 +35,18 @@ const PatientList = (props) => {
     const [patients, setPatients] = useState([]);
     const [redirectToLogin, setRedirectToLogin] = useState(false);
     const [redirectToNewPatient, setRedirectToNewPatient] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('');
+    const filteredPatients = patients.filter((patient) => {
+        const query = searchQuery.toLowerCase();
+        return (
+        patient.first_name.toLowerCase().includes(query) ||
+        patient.telephone.toLowerCase().includes(query) ||
+        patient.last_name.toLowerCase().includes(query) ||
+        patient.gender.toLowerCase().includes(query) ||
+        patient.email.toLowerCase().includes(query) ||
+        (patient.first_name.toLowerCase()+ " " + patient.last_name).toLowerCase().includes(query)
+        );
+    });
     useEffect(() => {
         const practiceId = sessionStorage.getItem('practiceId');
         const getPatientList = async () => {
@@ -96,6 +108,7 @@ const PatientList = (props) => {
         sessionStorage.setItem('patientGFName', patient.guardian_first_name);
         sessionStorage.setItem('patientGLName', patient.guardian_last_name);
         sessionStorage.setItem('patientGRelationship', patient.guardian_relationship);
+        sessionStorage.setItem('patientActive', patient.patient_active);
         if(patient.date_of_birth){
             sessionStorage.setItem('patientDOB', patient.date_of_birth);
         }
@@ -159,7 +172,7 @@ const PatientList = (props) => {
         </div>
         <div>
           ${printRef.current.innerHTML}
-          </div>
+          </div>y
         </body>
       </html>
     `);
@@ -185,6 +198,17 @@ const PatientList = (props) => {
                             <Button type="button" color="primary" className="waves-effect waves-light" onClick={handlePrint}>Print</Button>
                         </Col>
                     </Row>
+                    <Row style={{marginTop:'1%'}}>
+                    <FormGroup>
+                        <Input
+                        type="text"
+                        className="form-control"
+                        placeholder="Search patients..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </FormGroup>
+                    </Row>
                     <div className="table-responsive" ref={printRef}>
                         <Table className="align-middle table-centered table-vertical table-nowrap  table-hover">
                             <thead>
@@ -197,7 +221,7 @@ const PatientList = (props) => {
                             </thead>
                             <tbody>
                                 {
-                                    patients.map((patient, key) =>
+                                    filteredPatients.map((patient, key) =>
                                         <tr key={key} onClick={() => handleClick(patient._id, patient.first_name, patient.last_name)}>
                                             <td>{patient.last_name}  &nbsp;  {patient.first_name}
                                                 {/* <Link to="/patientImagesList" type="button" outline color="success" className="waves-effect waves-light">

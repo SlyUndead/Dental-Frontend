@@ -96,7 +96,7 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
         // console.log(data);
         try {
           const apiUrl = process.env.REACT_APP_NODEAPIURL;
-          await axios.put(`${apiUrl}/upload/image-and-annotations`, {
+          const response = await axios.put(`${apiUrl}/upload/image-and-annotations`, {
           //  await axios.put('http://localhost:3001/upload/image-and-annotations', {
             fileName: imageFileName,
             base64Image: base64Image,
@@ -115,41 +115,12 @@ export const getCoordinatesFromAPI = async (file,model, base64Image, thumbnailBa
           // console.log('Image, annotations and thumbnail uploaded successfully');
           return {success:true};
         } catch (error) {
-          if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK" || error.code === "ERR_CONNECTION_TIMED_OUT" || error.code === "ERR_BAD_REQUEST") {
-            try {
-              await axios.put('http://192.168.155.19:3001/upload/image-and-annotations', {
-                fileName: imageFileName,
-                base64Image: base64Image,
-                thumbnailBase64: thumbnailBase64, //AnotatedFiles/fileName
-                patientID: patientID,
-                imageNumber: imageNumber,
-                scaledResponse: scaledResponse,
-                annotationFileName: annotationFileName
-              }, {
-                headers: { 'Content-Type': 'application/json' }
-              });
-              // console.log('Image, annotations and thumbnail uploaded successfully');
-              sessionStorage.setItem('token', response.headers['new-token'])
-              return {success:true};
-            }
-            catch (err) {
-                if(err.status===403||err.status===401){ 
-                  return {success:false, error:"Unauthorized"}
-              }
-              else{
-                logErrorToServer(error, "getCoordinatesFromAPI");
-              console.log(err)
-              }
-              return {success:false, error:`${imageFileName} - Error uploading image and annotations`}
-            }
-          } else {
               if(error.status===403||error.status===401){
                 return {success:false, error:"Unauthorized"}
             }
             console.error('Error uploading image and annotations:', error);
             return {success:false, error:`${imageFileName} - Error uploading image and annotations`}
           }
-        }
       }
       else {
         console.error(response)

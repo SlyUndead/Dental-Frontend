@@ -56,6 +56,7 @@ const NewPatient = (props) => {
             setGuardianFirstName(sessionStorage.getItem('patientGFName'));
             setGuardianLastName(sessionStorage.getItem('patientGLName'));
             setGuardianRelationship(sessionStorage.getItem('patientGRelationship'));
+            setPatientActive(sessionStorage.getItem('patientActive')==="false"?false:true);
             if(sessionStorage.getItem('patientDOB')){
                 setDob(sessionStorage.getItem('patientDOB'));
                 setDisplayDob(new Date(sessionStorage.getItem('patientDOB')))
@@ -83,6 +84,7 @@ const NewPatient = (props) => {
             sessionStorage.removeItem('patientGLName');
             sessionStorage.removeItem('patientGFName');
             sessionStorage.removeItem('patientGRelationship');
+            sessionStorage.removeItem('patientActive');
             if(sessionStorage.getItem('patientDOB')){
                 sessionStorage.removeItem('patientDOB');
             }
@@ -190,6 +192,7 @@ const NewPatient = (props) => {
                         sessionStorage.removeItem('patientGLName');
                         sessionStorage.removeItem('patientGFName');
                         sessionStorage.removeItem('patientGRelationship');
+                        sessionStorage.removeItem('patientActive');
                         if(sessionStorage.getItem('patientDOB')){
                             sessionStorage.removeItem('patientDOB');
                         }
@@ -490,7 +493,7 @@ const NewPatient = (props) => {
                                 type="checkbox"
                                 id="modelSwitch"
                                 checked={patientActive}
-                                onChange={() => setPatientActive(!patientActive)}
+                                onClick={() => setPatientActive(!patientActive)}
                                 />
                             </div>
                             </Row>

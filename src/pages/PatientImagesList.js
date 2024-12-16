@@ -372,7 +372,7 @@ const PatientImagesList = (props) => {
         <React.Fragment>
             <Card>
                 <CardBody>
-                    <h4 className="card-title mb-12">Patient List</h4>
+                    <h4 className="card-title mb-12">Visit List</h4>
                     <Row>
                         <Col sm={2}>
                             <Button type="button" onClick={() => { handleClickPatientImage() }} color="primary" className="waves-effect waves-light">New Visit</Button>{" "}
@@ -410,7 +410,7 @@ const PatientImagesList = (props) => {
                                         htmlFor="example-text-input"
                                         className="col-md-3 col-form-label"
                                     >
-                                        Telephone :
+                                        Telephone:
                                     </label>
                                     <label style={{ fontWeight: 100 }} className="col-md-9 col-form-label">{patient_phone}</label>
                                 </Row>
