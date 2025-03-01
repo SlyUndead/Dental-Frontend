@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect, useCallback } from "react"
 import {
   Table, Card, CardBody, Button, Col, Row, FormGroup, Label, Input, Container, InputGroup, InputGroupText, Dropdown,
   DropdownMenu, DropdownToggle, DropdownItem, Popover, PopoverBody, Modal, ModalBody, ModalFooter, ModalHeader, Spinner,
-  UncontrolledTooltip, PopoverHeader
+  UncontrolledTooltip, PopoverHeader,
+  CardFooter
 } from "reactstrap";
 import AnnotationList from "./AnnotationTools/AnnotationList";
 import { MAX_HISTORY } from "./AnnotationTools/constants";
@@ -18,6 +19,8 @@ import '../assets/scss/custom/custom.scss';
 import { modifyPath } from "./AnnotationTools/path-utils";
 import { logErrorToServer } from "utils/logError";
 import { desiredOrder } from "./AnnotationTools/constants";
+import ChatButton from "./Llama Chat/ChatButton";
+import DentalChatPopup from "./Llama Chat/ChatPopup";
 const AnnotationPage = () => {
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   const [exitClick, setExitClick] = useState(false);
@@ -107,6 +110,7 @@ const AnnotationPage = () => {
   const [patient_add, setPatient_add] = useState('');
   const [patient_age, setPatient_age] = useState('');
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [isChatPopupOpen, setIsChatPopupOpen] = useState(false);
   const fetchNotesContent = async () => {
     try {
       const response = await axios.get(`${apiUrl}/notes-content?visitID=` + sessionStorage.getItem('visitId'),
@@ -659,6 +663,31 @@ const AnnotationPage = () => {
       setEditingPath([]);
       // console.log(newAnnotations)
       setSelectedAnnotation(null);
+    }
+  };
+  const handleLabelChange = (newValue) => {
+    if (selectedAnnotation && !isNaN(parseInt(selectedAnnotation.label))) {
+      const updatedAnnotation = { 
+        ...selectedAnnotation, 
+        label: newValue,
+        created_by: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`,
+        created_on: new Date().toISOString()
+      };
+      
+      const newAnnotations = annotations.map(anno =>
+        anno === selectedAnnotation ? updatedAnnotation : anno
+      );
+      
+      // Update the selected annotation
+      setSelectedAnnotation(updatedAnnotation);
+      
+      setAnnotations(newAnnotations)
+      saveAnnotations(newAnnotations);
+      
+      // Update annotations in the component
+      let updatedSmallCanvasData = smallCanvasData;
+      updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations = newAnnotations;
+      setSmallCanvasData(updatedSmallCanvasData);
     }
   };
   const completeFreehandDrawing = () => {
@@ -1702,7 +1731,7 @@ const AnnotationPage = () => {
                   </Row>
                   :
                   <Row>
-                    <Col md={6}>
+                    <Col md={4}>
                       <h5 style={{ padding: 0,cursor:"pointer" }} id="patientDetails">Name :  {fullName}</h5>
                     </Col>
                       
@@ -1830,7 +1859,24 @@ const AnnotationPage = () => {
                         </Row>
                       </PopoverBody>
                     </Popover>
-                    <Col md={6} style={{
+                    <Col md={4}>
+                    <div>
+                        <Button 
+                          id="dentalChatButton"
+                          color="primary"
+                          onClick={()=>{setIsChatPopupOpen(!isChatPopupOpen)}}
+                        >
+                          Chat with Dental Assistant
+                        </Button>
+                        
+                        <DentalChatPopup 
+                          isOpen={isChatPopupOpen} 
+                          toggle={()=>{setIsChatPopupOpen(!isChatPopupOpen)}}
+                          target="dentalChatButton"
+                        />
+                      </div>
+                    </Col>
+                    <Col md={4} style={{
                       display: 'flex',
                       justifyContent: 'flex-end', // Align content to the right
                       alignItems: 'center',
@@ -1847,7 +1893,6 @@ const AnnotationPage = () => {
                           <UncontrolledTooltip placement="bottom" target="btnNextVisit">Show Next Visit</UncontrolledTooltip>
                         </Button>
                       </h5>
-
                     </Col>
                   </Row>}
                   <Row>
@@ -2093,7 +2138,7 @@ const AnnotationPage = () => {
                       </FormGroup>
                     </Col>
                   </Row>
-                  <Row style={{ height: 'calc(100vh - 225px)', margin: '0px', paddingBottom: '0px', display: 'flex', flexGrow: 1, overflow: 'hidden', color: '#fff' }}
+                  <Row style={{ height: 'calc(70vh)', margin: '0px', paddingBottom: '0px', display: 'flex', flexGrow: 1, overflow: 'hidden', color: '#fff' }}
                   >
                     {isClassCategoryVisible ? (
                       <>
@@ -2345,50 +2390,6 @@ const AnnotationPage = () => {
                         </Col>
                       </>} */}
                   </Row>
-
-                  <Row style={{ overflowX: 'auto', maxWidth: '100%', maxHeight: '15vh', display: 'flex', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-                    {smallCanvasData.map((image, index) => (
-                      <Col
-                        key={index}
-                        md={2}
-                        className="d-flex flex-column"
-                        style={{ height: '15vh', overflowY: 'hidden', paddingBottom: '10px' }}
-                      >
-                        <Card style={{ height: '100%' }}>
-                          <CardBody style={{ padding: 0, height: '80%' }}>
-                            {index === mainImageIndex ? <canvas
-                              ref={smallCanvasRefs[index]}
-                              width="100%"
-                              height="100%"
-                              style={{
-                                cursor: 'pointer',
-                                width: '100%',
-                                height: '100%',
-                                display: 'block',
-                                borderColor: 'yellow',
-                                borderWidth: '5px',
-                                borderStyle: 'solid',
-                              }}
-                              onClick={() => handleSmallCanvasClick(index)}
-                            />
-                              :
-                              <canvas
-                                ref={smallCanvasRefs[index]}
-                                width="100%"
-                                height="100%"
-                                style={{
-                                  cursor: 'pointer',
-                                  width: '100%',
-                                  height: '100%',
-                                  display: 'block',
-                                }}
-                                onClick={() => handleSmallCanvasClick(index)}
-                              />}
-                          </CardBody>
-                        </Card>
-                      </Col>
-                    ))}
-                  </Row>
                 </Table>
               </Col>
               <Col md={3} style={{
@@ -2422,6 +2423,7 @@ const AnnotationPage = () => {
                           selectedAnnotation={selectedAnnotation}
                           classCategories={classCategories}
                           setIsEraserActive={setIsEraserActive}
+                          handleLabelChange={handleLabelChange}
                         />
                       </div>
 
@@ -2466,6 +2468,53 @@ const AnnotationPage = () => {
             </Row>
           </Container>
         </CardBody>
+        <CardFooter>
+        <Col md={9}>
+        <Row style={{ overflowX: 'auto', maxWidth: '100%', maxHeight: '15vh', display: 'flex', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+                    {smallCanvasData.map((image, index) => (
+                      <Col
+                        key={index}
+                        md={2}
+                        className="d-flex flex-column"
+                        style={{ height: '15vh', overflowY: 'hidden', paddingBottom: '10px' }}
+                      >
+                        <Card style={{ height: '100%' }}>
+                          <CardBody style={{ padding: 0, height: '80%' }}>
+                            {index === mainImageIndex ? <canvas
+                              ref={smallCanvasRefs[index]}
+                              width="100%"
+                              height="100%"
+                              style={{
+                                cursor: 'pointer',
+                                width: '100%',
+                                height: '100%',
+                                display: 'block',
+                                borderColor: 'yellow',
+                                borderWidth: '5px',
+                                borderStyle: 'solid',
+                              }}
+                              onClick={() => handleSmallCanvasClick(index)}
+                            />
+                              :
+                              <canvas
+                                ref={smallCanvasRefs[index]}
+                                width="100%"
+                                height="100%"
+                                style={{
+                                  cursor: 'pointer',
+                                  width: '100%',
+                                  height: '100%',
+                                  display: 'block',
+                                }}
+                                onClick={() => handleSmallCanvasClick(index)}
+                              />}
+                          </CardBody>
+                        </Card>
+                      </Col>
+                    ))}
+                  </Row>
+                  </Col>
+        </CardFooter>
       </Card>
     </React.Fragment>
 

@@ -183,6 +183,7 @@ const PatientImagesList = (props) => {
     }
     const [redirect, setRedirect] = useState(false);
     const [redirectToAnnotationPage, setRedirectToAnnotationPage] = useState(false);
+    const [redirectToTreatmentPlan, setRedirectToTreatmentPlan] = useState(false);
     const handleClickPatientImage = () => {
         setError("");
         sessionStorage.setItem('patientId', patientId);
@@ -192,6 +193,19 @@ const PatientImagesList = (props) => {
 
     if (redirect) {
         return <Navigate to="/newPatientVisit" />;
+    }
+    if(redirectToLogin){
+        return <Navigate to="/login"/>
+    }
+    const handleClickTreatmentPlan = () => {
+        setError("");
+        sessionStorage.setItem('patientId', patientId);
+        setRedirectToTreatmentPlan(true);
+        sessionStorage.removeItem('visitId');
+    };
+
+    if (redirectToTreatmentPlan) {
+        return <Navigate to="/treatmentPlan" />;
     }
     if(redirectToLogin){
         return <Navigate to="/login"/>
@@ -377,7 +391,10 @@ const PatientImagesList = (props) => {
                         <Col sm={2}>
                             <Button type="button" onClick={() => { handleClickPatientImage() }} color="primary" className="waves-effect waves-light">New Visit</Button>{" "}
                         </Col>
-                        <Col sm={10} style={{ textAlign: 'right' }}>
+                        <Col sm={2}>
+                            <Button type="button" onClick={() => { handleClickTreatmentPlan() }} color="primary" className="waves-effect waves-light">Treatment Plan</Button>{" "}
+                        </Col>
+                        <Col sm={8} style={{ textAlign: 'right' }}>
                             <Button type="button" color="primary" className="waves-effect waves-light" onClick={() => { handleDownloadClick() }}>Download</Button>&nbsp;&nbsp;&nbsp;&nbsp;
                             <Button type="button" color="primary" className="waves-effect waves-light" onClick={() => { handleDeleteClick() }}>Delete</Button>
                         </Col>

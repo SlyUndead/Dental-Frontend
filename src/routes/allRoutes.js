@@ -100,6 +100,7 @@ import AnnotationPage from "pages/AnnotationPage"
 import Preferences from "pages/Preferences"
 import NewPatientVisit from "pages/NewPatientVisit"
 import NewPractice from "pages/NewPractice"
+import DentalTreatmentPlan from "pages/TreatmentPlan/TreatmentPlan"
 const userRoutes = [
   { path: "/patientList", component: <PatientList /> },
   { path: "/newPatient", component: <NewPatient /> },
@@ -109,6 +110,7 @@ const userRoutes = [
   { path: "/preferences", component: <Preferences /> },
   { path: "/newPatientVisit", component: <NewPatientVisit /> },
   { path: "/newPractice", component: <NewPractice/> },
+  { path: "/treatmentPlan", component: <DentalTreatmentPlan/> },
   // { path: "/dashboard", component: <Dashboard /> },
 
   // // //calendar
