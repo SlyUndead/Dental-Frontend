@@ -239,7 +239,7 @@ const AnnotationPage = () => {
               ctx.moveTo(anno.vertices[0].x * scale, anno.vertices[0].y * scale);
               ctx.lineTo(anno.vertices[1].x * scale, anno.vertices[1].y * scale);
               ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
-              ctx.lineWidth = 2;
+              ctx.lineWidth =  Math.ceil(2/(1000/image.width));
               ctx.stroke();
 
               // Calculate length
@@ -269,7 +269,7 @@ const AnnotationPage = () => {
                   ctx.fill();
                 }
                 ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
-                ctx.lineWidth = 2;
+                ctx.lineWidth =  Math.ceil(2/(1000/image.width));
                 ctx.stroke();
               }
               else if (anno.bounding_box) {
@@ -284,7 +284,7 @@ const AnnotationPage = () => {
                   ctx.fill();
                 }
                 ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
-                ctx.lineWidth = 2;
+                ctx.lineWidth = Math.ceil(2/(1000/image.width));
                 ctx.stroke();
               }
               if (selectedAnnotation !== anno) {
@@ -322,12 +322,10 @@ const AnnotationPage = () => {
                   // Position below the annotation
                   rectY = top + height + 5;
                   labelY = rectY + textHeight + 5;
-                  console.log("Positioning below", anno.label, labelValue);
                 } else {
                   // Position above the annotation
                   rectY = top - 28 - textHeight;
                   labelY = rectY + textHeight + 5;
-                  console.log("Positioning above", anno.label, isNumeric ? labelValue : "non-numeric");
                 }
                 
                 // Draw background and text
@@ -351,7 +349,7 @@ const AnnotationPage = () => {
             ctx.moveTo(anno.vertices[0].x * scale, anno.vertices[0].y * scale);
             ctx.lineTo(anno.vertices[1].x * scale, anno.vertices[1].y * scale);
             ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = Math.ceil(2/(1000/image.width));
             ctx.stroke();
 
             // Calculate length
@@ -382,7 +380,7 @@ const AnnotationPage = () => {
               ctx.fill();
             }
             ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = Math.ceil(2/(1000/image.width));
             ctx.stroke();
             if (selectedAnnotation !== anno) {
               const area = calculatePolygonArea(anno.vertices.map(v => ({ x: v.x * scale, y: v.y * scale })), areaScale).toFixed(2);
@@ -416,12 +414,10 @@ const AnnotationPage = () => {
                 // Position below the annotation
                 rectY = top + height + 5;
                 labelY = rectY + textHeight + 5;
-                console.log("Positioning below", anno.label, labelValue);
               } else {
                 // Position above the annotation
                 rectY = top - 28 - textHeight;
                 labelY = rectY + textHeight + 5;
-                console.log("Positioning above", anno.label, isNumeric ? labelValue : "non-numeric");
               }
               
               // Draw background and text
@@ -787,7 +783,7 @@ const AnnotationPage = () => {
       ctx.lineTo(editingPath[i][0], editingPath[i][1]);
     }
     ctx.strokeStyle = 'blue';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = Math.ceil(2/(1000/image.width));
     ctx.stroke();
   };
   const drawHybridPath = (path) => {
@@ -799,7 +795,7 @@ const AnnotationPage = () => {
         ctx.lineTo(path[i][0], path[i][1]);
       }
       ctx.strokeStyle = 'purple';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = Math.ceil(2/(1000/image.width));
       ctx.stroke();
 
       // Draw start point
@@ -817,7 +813,7 @@ const AnnotationPage = () => {
       ctx.moveTo(lineStart[0], lineStart[1]);
       ctx.lineTo(lineEnd[0], lineEnd[1]);
       ctx.strokeStyle = 'blue';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = Math.ceil(2/(1000/image.width));
       ctx.stroke();
 
       // Calculate and display length
@@ -842,7 +838,7 @@ const AnnotationPage = () => {
       }
     });
     ctx.strokeStyle = 'blue';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = Math.ceil(2/(1000/image.width));
     ctx.stroke();
   };
   const drawLivewirePath = (ctx) => {
@@ -863,7 +859,7 @@ const AnnotationPage = () => {
         ctx.lineTo(px, py);
       });
       ctx.strokeStyle = 'red';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = Math.ceil(2/(1000/image.width));
       ctx.stroke();
     }
   };
