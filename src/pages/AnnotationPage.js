@@ -97,7 +97,7 @@ const AnnotationPage = () => {
   const [saveTimeout, setSaveTimeout] = useState(null); // Timeout for debounced auto-save
   const [autoSaveInterval, setAutoSaveInterval] = useState(null)
   const [fullName, setFullName] = useState("")
-  const [isArea ,setIsShowArea] = useState(true);
+  const [isArea ,setIsShowArea] = useState(false);
   const [redirectToLogin, setRedirectToLogin] = useState(false);
   const [message, setMessage] = useState('')
   const [isClassCategoryVisible, setIsClassCategoryVisible] = useState(false);
@@ -227,7 +227,7 @@ const AnnotationPage = () => {
     return Math.abs(area / 2) / areaScale;
   };
   const drawAnnotations = (ctx, image, x, y, scale, selectedAnnotation, areaScale) => {
-    const fontSize=Math.ceil(12/(1000/image.width));
+    const fontSize = Math.ceil(12/(1000/image.width));
     // console.log(mainCanvasRef.current.width,image.width)
     if (model === "segmentation") {
       annotations.forEach((anno, index) => {
@@ -288,25 +288,54 @@ const AnnotationPage = () => {
                 ctx.stroke();
               }
               if (selectedAnnotation !== anno) {
-                const { left, top } = getBoxDimensions(anno.segmentation.map(v => ({ x: v.x * scale, y: v.y * scale })));
-                const area = calculatePolygonArea(anno.segmentation.map(v => ({ x: v.x * scale, y: v.y * scale })), areaScale).toFixed(2);
-                ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
-                let labelText=''
+                // Get vertices to use
+                const vertices = anno.segmentation ? anno.segmentation : anno.bounding_box;
+                const { left, top, width, height } = getBoxDimensions(vertices.map(v => ({ x: v.x * scale, y: v.y * scale })));
+                const area = calculatePolygonArea(vertices.map(v => ({ x: v.x * scale, y: v.y * scale })), areaScale).toFixed(2);
+                
+                // Prepare label text
+                let labelText = '';
                 if(isArea){
                   labelText = `${anno.label} (${area} mm²)`;
                 }
                 else{
                   labelText = `${anno.label}`;
                 }
+                
+                // Set font and measure text
                 ctx.font = `${fontSize}px Arial`;
-
-                // Measure the text width and height
                 const textMetrics = ctx.measureText(labelText);
-                const textHeight = parseInt(ctx.font, 10); // Get the font size as height
-                ctx.fillRect(left, top - 28 - textHeight, textMetrics.width + 10, textHeight + 10); // Draw background
-
-                ctx.fillStyle = 'black'; // Set text color
-                ctx.fillText(labelText, left + 5, top - 25);
+                const textWidth = textMetrics.width;
+                const textHeight = parseInt(ctx.font, 10);
+                
+                // Calculate center position
+                const centerX = left + (width / 2) - (textWidth / 2);
+                
+                // Parse label value for comparison
+                const labelValue = parseInt(anno.label);
+                const isNumeric = !isNaN(labelValue);
+                
+                // Determine position based on label value (if numeric)
+                let labelY, rectY;
+                
+                if (isNumeric && labelValue >= 17 && labelValue <= 32) {
+                  // Position below the annotation
+                  rectY = top + height + 5;
+                  labelY = rectY + textHeight + 5;
+                  console.log("Positioning below", anno.label, labelValue);
+                } else {
+                  // Position above the annotation
+                  rectY = top - 28 - textHeight;
+                  labelY = rectY + textHeight + 5;
+                  console.log("Positioning above", anno.label, isNumeric ? labelValue : "non-numeric");
+                }
+                
+                // Draw background and text
+                ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
+                ctx.fillRect(centerX - 5, rectY, textWidth + 10, textHeight + 10);
+                
+                ctx.fillStyle = 'black';
+                ctx.fillText(labelText, centerX, labelY);
               }
             }
           }
@@ -339,7 +368,7 @@ const AnnotationPage = () => {
               ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
             }
           } else {
-            const { left, top } = getBoxDimensions(anno.vertices.map(v => ({ x: v.x * scale, y: v.y * scale })));
+            const { left, top, width, height } = getBoxDimensions(anno.vertices.map(v => ({ x: v.x * scale, y: v.y * scale })));
 
             ctx.beginPath();
             ctx.moveTo(anno.vertices[0].x * scale, anno.vertices[0].y * scale);
@@ -357,23 +386,50 @@ const AnnotationPage = () => {
             ctx.stroke();
             if (selectedAnnotation !== anno) {
               const area = calculatePolygonArea(anno.vertices.map(v => ({ x: v.x * scale, y: v.y * scale })), areaScale).toFixed(2);
+              
+              // Prepare label text
+              let labelText = '';
+              if(isArea){
+                labelText = `${anno.label} (${area} mm²)`;
+              }
+              else{
+                labelText = `${anno.label}`;
+              }
+              
+              // Set font and measure text
+              ctx.font = `${fontSize}px Arial`;
+              const textMetrics = ctx.measureText(labelText);
+              const textWidth = textMetrics.width;
+              const textHeight = parseInt(ctx.font, 10);
+              
+              // Calculate center position
+              const centerX = left + (width / 2) - (textWidth / 2);
+              
+              // Parse label value for comparison
+              const labelValue = parseInt(anno.label);
+              const isNumeric = !isNaN(labelValue);
+              
+              // Determine position based on label value (if numeric)
+              let labelY, rectY;
+              
+              if (isNumeric && labelValue >= 17 && labelValue <= 32) {
+                // Position below the annotation
+                rectY = top + height + 5;
+                labelY = rectY + textHeight + 5;
+                console.log("Positioning below", anno.label, labelValue);
+              } else {
+                // Position above the annotation
+                rectY = top - 28 - textHeight;
+                labelY = rectY + textHeight + 5;
+                console.log("Positioning above", anno.label, isNumeric ? labelValue : "non-numeric");
+              }
+              
+              // Draw background and text
               ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
-              let labelText=''
-                if(isArea){
-                  labelText = `${anno.label} (${area} mm²)`;
-                }
-                else{
-                  labelText = `${anno.label}`;
-                }
-                ctx.font = `${fontSize}px Arial`;
-
-                // Measure the text width and height
-                const textMetrics = ctx.measureText(labelText);
-                const textHeight = parseInt(ctx.font, 10); // Get the font size as height
-                ctx.fillRect(left, top - 28 - textHeight, textMetrics.width + 10, textHeight + 10); // Draw background
-
-                ctx.fillStyle = 'black'; // Set text color
-                ctx.fillText(labelText, left + 5, top - 25);
+              ctx.fillRect(centerX - 5, rectY, textWidth + 10, textHeight + 10);
+              
+              ctx.fillStyle = 'black';
+              ctx.fillText(labelText, centerX, labelY);
             }
           }
         }
@@ -2424,6 +2480,7 @@ const AnnotationPage = () => {
                           classCategories={classCategories}
                           setIsEraserActive={setIsEraserActive}
                           handleLabelChange={handleLabelChange}
+                          mainImageIndex={mainImageIndex}
                         />
                       </div>
 

@@ -400,7 +400,6 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
       const data = await response.json();
       if (data.success) {
         setTreatmentPlanSaved(true);
-        alert("Treatment plan saved successfully!");
       }
     } catch (error) {
       console.error("Error saving treatment plan:", error);
@@ -410,7 +409,6 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
     }
   };
 
-  // Generate treatment plan
 const generateTreatmentPlan = async () => {
   setIsLoading(true);
   setGeneratingPlan(true);
@@ -501,7 +499,6 @@ const generateTreatmentPlan = async () => {
       }
     });
   };
-
   // Function to handle "Add to Treatment Plan" button click
   const handleAddToTreatmentPlan = () => {
     if (checkedAnnotations.length - lockedAnnotations.length === 0) {
@@ -579,28 +576,49 @@ const generateTreatmentPlan = async () => {
     };
   }, []);
   
-  useEffect(()=>{
-    let updatedGroupedAnnotations={}
-    let updatedHideGroups={}
-    annotations.forEach(anno => {
-      const category = classCategories[anno.label.toLowerCase()]; // Get category from label
-      if (category) {
-        if(updatedGroupedAnnotations[category]===undefined){
-          updatedGroupedAnnotations[category]=[]
-          updatedHideGroups[category]=false
+  useEffect(() => {
+    let updatedGroupedAnnotations = {};
+    let updatedHideGroups = {};
+    let hiddenAnnotationsList = [...hiddenAnnotations];
+    
+    annotations.forEach((anno, index) => {
+        const category = classCategories[anno.label.toLowerCase()];
+        if (category) {
+            if (updatedGroupedAnnotations[category] === undefined) {
+                updatedGroupedAnnotations[category] = [];
+                
+                // Hide Dental Chart by default and add its annotations to hiddenAnnotations
+                if (category === "Dental Chart") {
+                    updatedHideGroups[category] = true;
+                    hiddenAnnotationsList.push(index);
+                } else {
+                    updatedHideGroups[category] = false;
+                }
+            }
+            updatedGroupedAnnotations[category].push(anno);
+            if (category === "Dental Chart" || category === "Landmarks") {
+              hiddenAnnotationsList.push(index);
+            }
+        } else {
+            if (updatedGroupedAnnotations['Others'] === undefined) {
+                updatedGroupedAnnotations['Others'] = [];
+                updatedHideGroups['Others'] = false;
+            }
+            updatedGroupedAnnotations['Others'].push(anno);
         }
-        updatedGroupedAnnotations[category].push(anno);
-      } else {
-        if(updatedGroupedAnnotations['Others']===undefined){
-          updatedGroupedAnnotations['Others']=[]
-          updatedHideGroups['Others']=false
-        }
-        updatedGroupedAnnotations['Others'].push(anno); // Add to 'Others' if no matching category
-      }
-      setGroupedAnnotations(updatedGroupedAnnotations);
-      setHideGroup(updatedHideGroups);
     });
-  },[classCategories,annotations])
+    if (updatedGroupedAnnotations["Dental Chart"]) {
+      updatedGroupedAnnotations["Dental Chart"].sort((a, b) => {
+          const numA = parseInt(a.label, 10);
+          const numB = parseInt(b.label, 10);
+          return numA - numB;
+      });
+    }
+    setGroupedAnnotations(updatedGroupedAnnotations);
+    setHideGroup(updatedHideGroups);
+    setHiddenAnnotations([...new Set(hiddenAnnotationsList)]);
+}, [classCategories, annotations]);
+
   
   useEffect(() => {
     hiddenAnnotations.length !== annotations.length ? setHideAllAnnotations(false) : setHideAllAnnotations(true);
@@ -702,7 +720,7 @@ const generateTreatmentPlan = async () => {
                       onMouseLeave={() => handleHover(null)}
                     >
                       {/* Checkbox */}
-                      <div className="pl-2 pr-2 d-flex align-items-center">
+                      <div className="pl-2 pr-2 d-flex align-items-center" style={{marginRight:'5px'}}>
                         <Input
                           type="checkbox"
                           checked={checkedAnnotations.includes(globalIndex)}
