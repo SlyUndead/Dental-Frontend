@@ -48,7 +48,35 @@ const AnnotationList = ({
   const [anomalyCache, setAnomalyCache] = useState({});
   const [newLabel, setNewLabel] = useState("");
   const [lockedAnnotations, setLockedAnnotations] = useState([]);
+  const [globalCheckedAnnotations, setGlobalCheckedAnnotations] = useState(() => {
+    // Initialize from localStorage or an empty object
+    const saved = localStorage.getItem('globalCheckedAnnotations');
+    return saved ? JSON.parse(saved) : {};
+  });
+  useEffect(() => {
+    localStorage.setItem('globalCheckedAnnotations', JSON.stringify(globalCheckedAnnotations));
+  }, [globalCheckedAnnotations]);
+  const isAnnotationChecked = (anno) => {
+    // For tooth annotations (numeric labels)
+    if (!isNaN(parseInt(anno.label))) {
+      return false; // Always start unchecked for teeth
+    }
 
+    // Get unique key for the annotation
+    const uniqueKey = getAnnotationUniqueKey(anno);
+    return !!globalCheckedAnnotations[uniqueKey];
+  };
+  const getAnnotationUniqueKey = (anno) => {
+    // For tooth annotations (numeric labels), return null
+    if (!isNaN(parseInt(anno.label))) {
+      return null;
+    }
+    
+    // For anomaly annotations, use a combination of label and bounding box coordinates
+    const bbox = anno.bounding_box;
+    const coordString = bbox.map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join('|');
+    return `${anno.label}__${coordString}`;
+  };
 // Add this useEffect to fetch existing treatment plan on component mount
 useEffect(() => {
   const loadExistingTreatmentPlan = async () => {
@@ -196,10 +224,10 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
   // Get which quadrant a tooth belongs to
   const getQuadrantForTooth = (toothNumber) => {
     const num = parseInt(toothNumber);
-    if (num >= 1 && num <= 8) return "UR"; // Upper Right
-    if (num >= 9 && num <= 16) return "UL"; // Upper Left
-    if (num >= 17 && num <= 24) return "LL"; // Lower Left
-    if (num >= 25 && num <= 32) return "LR"; // Lower Right
+    if (num >= 1 && num <= 8) return "1st Quadrant"; // Upper Right
+    if (num >= 9 && num <= 16) return "2nd Quadrant"; // Upper Left
+    if (num >= 17 && num <= 24) return "3rd Quadrant"; // Lower Left
+    if (num >= 25 && num <= 32) return "4th Quadrant"; // Lower Right
     return "unknown";
   };
 
@@ -230,7 +258,7 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
         console.error("Error checking anomalies:", error);
       }
     }
-
+    console.log(anomalyCache)
     return anomalyCache;
   };
 
@@ -294,22 +322,22 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
         }
       }
     }
-    console.log(cdtCodes, ragResponse, convertedCdtCode, anomalyType)
+    // console.log(cdtCodes, ragResponse, convertedCdtCode, anomalyType)
     return cdtCodes;
   };
 
   // Autofill treatments based on annotations
   const autofillTreatments = async (annotationsList, convertedCdtCode) => {
     await checkAnomaliesWithServer(annotationsList);
-  
-    const anomalyToToothMap = findToothForAnomaly(annotationsList);
-    console.log(anomalyToToothMap)
-    for (const [anomaly, toothNumbers] of Object.entries(anomalyToToothMap)) {
-      const cdtCodes = await fetchCdtCodesFromRAG(anomaly, convertedCdtCode);
+    let finalResult = treatments
+    for (const [index,annotation] of Object.entries(annotationsList)) {
+      console.log(annotation, annotationsList)
+      const cdtCodes = await fetchCdtCodesFromRAG(annotation.label, convertedCdtCode);
       if (cdtCodes.length > 0) {
-        return handleAutoFillTreatments(toothNumbers, cdtCodes, anomaly);
+        finalResult =  [...finalResult,...handleAutoFillTreatments([annotation.associatedTooth], cdtCodes, annotation.label)];
       }
     }
+    return finalResult
   };
 
   // Handle auto-filling treatments
@@ -370,9 +398,8 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
     });
     
     if (newTreatments.length > 0) {
-      const updatedTreatments = [...treatments, ...newTreatments]
-      setTreatments(prev => [...prev, ...newTreatments]);
-      console.log(newTreatments)
+      const updatedTreatments = newTreatments
+      console.log(newTreatments, updatedTreatments)
       // Ensure all new tooth numbers are added to selectedTeeth (avoid duplicates)
       const toothNumsToAdd = toothNumberArray.filter(t => !isNaN(parseInt(t)));
       setSelectedTeeth(prev => [...new Set([...prev, ...toothNumsToAdd])]);
@@ -399,6 +426,7 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
 
       const data = await response.json();
       if (data.success) {
+        localStorage.removeItem('globalCheckedAnnotations')
         setTreatmentPlanSaved(true);
       }
     } catch (error) {
@@ -409,88 +437,95 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
     }
   };
 
-const generateTreatmentPlan = async () => {
-  setIsLoading(true);
-  setGeneratingPlan(true);
-  
-  try {
-    // Get only the non-locked selected annotations
-    const nonLockedCheckedAnnotations = checkedAnnotations.filter(
-      index => !lockedAnnotations.includes(index)
-    );
+  const generateTreatmentPlan = async () => {
+    setIsLoading(true);
+    setGeneratingPlan(true);
     
-    // First fetch the DCT codes if they're not already loaded
-    if (dctCodes.length === 0) {
-      const response = await fetch(`${apiUrl}/getCDTCodes`, {
-        headers: {
-          Authorization: sessionStorage.getItem('token')
-        }
-      });
-      const data = await response.json();
-      const convertedCodes = convertCdtCode(data.cdtCodes);
-      setDctCodes(convertedCodes);
-      setFilteredCodes(convertedCodes);
+    try {
+      // First fetch the DCT codes if they're not already loaded
+      let convertedCodes = dctCodes
+      if (dctCodes.length === 0) {
+        const response = await fetch(`${apiUrl}/getCDTCodes`, {
+          headers: {
+            Authorization: sessionStorage.getItem('token')
+          }
+        });
+        const data = await response.json();
+        convertedCodes = convertCdtCode(data.cdtCodes);
+        setDctCodes(convertedCodes);
+        setFilteredCodes(convertedCodes);
+      }
+
+      // Gather all checked anomaly annotations from global state
+      const checkedAnomalyAnnotations = Object.values(globalCheckedAnnotations)
+        .filter(anno => isNaN(parseInt(anno.label))); // Exclude tooth annotations
+
+      // Prepare tooth annotations to pass along with anomalies
+      const toothAnnotations = checkedAnomalyAnnotations.map(anno => ({
+        label: anno.associatedTooth,
+        bounding_box: null // We don't need bbox for tooth annotations
+      })).filter(tooth => tooth.label !== null);
       
-      // Now handle ONLY the non-locked selected annotations
-      if (nonLockedCheckedAnnotations.length > 0) {
-        // Get the non-locked selected annotations
-        const newAnomalyAnnotations = nonLockedCheckedAnnotations.map(index => annotations[index]);
-        
-        // Get all tooth annotations (numeric labels) regardless of locked status
-        const toothAnnotations = annotations.filter(anno => !isNaN(parseInt(anno.label)));
-        
-        // Combine them for processing
-        const selectedAnnos = [...newAnomalyAnnotations, ...toothAnnotations];
-        
-        const updatedTreatments = await autofillTreatments(selectedAnnos, convertedCodes);
-        
-        // Lock the newly added anomalies
-        const newLockedAnnotations = nonLockedCheckedAnnotations.filter(index => {
-          const anno = annotations[index];
-          return isNaN(parseInt(anno.label)) && anomalyCache[anno.label]; // Only lock anomalies
+      // Combine them for processing
+      const selectedAnnos = [...checkedAnomalyAnnotations];
+      console.log(selectedAnnos)
+      const updatedTreatments = await autofillTreatments(selectedAnnos, convertedCodes);
+      
+      // Lock the newly added anomalies
+      const newLockedAnnotationKeys = Object.keys(globalCheckedAnnotations)
+        .filter(key => {
+          const anno = globalCheckedAnnotations[key];
+          return isNaN(parseInt(anno.label)) && anomalyCache[anno.label];
         });
-        setLockedAnnotations(prev => [...new Set([...prev, ...newLockedAnnotations])]);
-        saveTreatmentPlan(updatedTreatments)
-      }
-    } else {
-      // DCT codes already loaded, just process selected annotations
-      if (nonLockedCheckedAnnotations.length > 0) {
-        // Get the non-locked selected annotations
-        const newAnomalyAnnotations = nonLockedCheckedAnnotations.map(index => annotations[index]);
-        
-        // Get all tooth annotations (numeric labels) regardless of locked status
-        const toothAnnotations = annotations.filter(anno => !isNaN(parseInt(anno.label)));
-        
-        // Combine them for processing
-        const selectedAnnos = [...newAnomalyAnnotations, ...toothAnnotations];
-        
-        const updatedTreatments = await autofillTreatments(selectedAnnos, dctCodes);
-        
-        // Lock the newly added anomalies
-        const newLockedAnnotations = nonLockedCheckedAnnotations.filter(index => {
-          const anno = annotations[index];
-          return isNaN(parseInt(anno.label)) && anomalyCache[anno.label]; // Only lock anomalies
-        });
-        setLockedAnnotations(prev => [...new Set([...prev, ...newLockedAnnotations])]);
-        saveTreatmentPlan(updatedTreatments)
-      }
+      
+      // Save the treatment plan
+      await saveTreatmentPlan(updatedTreatments);
+      
+    } catch (error) {
+      console.error("Error generating treatment plan:", error);
+      alert("Error generating treatment plan");
+    } finally {
+      setGeneratingPlan(false);
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error("Error generating treatment plan:", error);
-    alert("Error generating treatment plan");
-  } finally {
-    setGeneratingPlan(false);
-    setIsLoading(false);
-  }
-};
+  };
 
   // Function to handle checkbox changes
   const handleCheckboxChange = (index) => {
-    // If the annotation is locked, don't allow unchecking
-    if (lockedAnnotations.includes(index)) {
-      return; // Do nothing - the checkbox must remain checked
+    const anno = annotations[index];
+    
+    // If it's a tooth annotation, do nothing
+    if (!isNaN(parseInt(anno.label))) {
+      return;
     }
     
+    // If the annotation is locked, don't allow unchecking
+    if (lockedAnnotations.includes(index)) {
+      return;
+    }
+    
+    // Get tooth annotations from current image
+    const toothAnnotations = annotations.filter(a => !isNaN(parseInt(a.label)));
+    
+    // Find the associated tooth for this anomaly
+    const associatedTooth = findToothForStoredAnomaly(anno, toothAnnotations);
+    
+    // Create a copy of the global checked annotations
+    const updatedGlobalChecked = { ...globalCheckedAnnotations };
+    const uniqueKey = getAnnotationUniqueKey(anno);
+    // Toggle the checked state
+    if (updatedGlobalChecked[uniqueKey]) {
+      delete updatedGlobalChecked[uniqueKey];
+    } else {
+      updatedGlobalChecked[uniqueKey] = {
+        label: anno.label,
+        bounding_box: anno.bounding_box,
+        associatedTooth: associatedTooth, // Add the associated tooth number
+      };
+    }
+    
+    // Update the state
+    setGlobalCheckedAnnotations(updatedGlobalChecked);
     setCheckedAnnotations(prev => {
       if (prev.includes(index)) {
         return prev.filter(i => i !== index);
@@ -499,6 +534,18 @@ const generateTreatmentPlan = async () => {
       }
     });
   };
+  useEffect(() => {
+    // Reset checked annotations based on current annotations and persistent state
+    const newCheckedAnnotations = annotations.reduce((acc, anno, index) => {
+      // Check if the annotation should be checked
+      if (isAnnotationChecked(anno)) {
+        acc.push(index);
+      }
+      return acc;
+    }, []);
+    
+    setCheckedAnnotations(newCheckedAnnotations);
+  }, [annotations]);
   // Function to handle "Add to Treatment Plan" button click
   const handleAddToTreatmentPlan = () => {
     if (checkedAnnotations.length - lockedAnnotations.length === 0) {
@@ -508,7 +555,20 @@ const generateTreatmentPlan = async () => {
     
     generateTreatmentPlan();
   };
+  const findToothForStoredAnomaly = (anomaly, toothAnnotations) => {
+    let maxOverlap = 0;
+    let associatedTooth = null;
 
+    toothAnnotations.forEach(tooth => {
+      const overlapArea = calculateOverlap(anomaly.bounding_box, tooth.bounding_box);
+      if (overlapArea > maxOverlap) {
+        maxOverlap = overlapArea;
+        associatedTooth = tooth.label;
+      }
+    });
+
+    return associatedTooth;
+  };
   const dispatch = useDispatch();
   
   const getYouTubeId = (url) => {
@@ -721,19 +781,19 @@ const generateTreatmentPlan = async () => {
                     >
                       {/* Checkbox */}
                       <div className="pl-2 pr-2 d-flex align-items-center" style={{marginRight:'5px'}}>
-                        <Input
-                          type="checkbox"
-                          checked={checkedAnnotations.includes(globalIndex)}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleCheckboxChange(globalIndex);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          disabled={lockedAnnotations.includes(globalIndex)}
-                          style={{
-                            cursor: lockedAnnotations.includes(globalIndex) ? 'not-allowed' : 'pointer'
-                          }}
-                        />
+                      <Input
+                        type="checkbox"
+                        checked={checkedAnnotations.includes(globalIndex)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleCheckboxChange(globalIndex);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        disabled={lockedAnnotations.includes(globalIndex)}
+                        style={{
+                          cursor: lockedAnnotations.includes(globalIndex) ? 'not-allowed' : 'pointer'
+                        }}
+                      />
                         {lockedAnnotations.includes(globalIndex) && (
                           <>
                           <span
@@ -846,19 +906,19 @@ const generateTreatmentPlan = async () => {
         
         {/* Add the "Add to Treatment Plan" button */}
         <Row className="mt-3">
-          <Col md={12}>
-            <Button 
-              color="primary" 
-              block
-              disabled={checkedAnnotations.length - lockedAnnotations.length === 0 || isLoading || generatingPlan}
-              onClick={handleAddToTreatmentPlan}
-            >
-              {isLoading || generatingPlan ? 
-                "Processing..." : 
-                `Add to Treatment Plan (${checkedAnnotations.length - lockedAnnotations.length} selected)`}
-            </Button>
-          </Col>
-        </Row>
+        <Col md={12}>
+          <Button 
+            color="primary" 
+            block
+            disabled={Object.keys(globalCheckedAnnotations).length === 0 || isLoading || generatingPlan}
+            onClick={generateTreatmentPlan}
+          >
+            {isLoading || generatingPlan ? 
+              "Processing..." : 
+              `Add to Treatment Plan (${Object.keys(globalCheckedAnnotations).length} selected)`}
+          </Button>
+        </Col>
+      </Row>
 
         {/* Show saved confirmation if applicable */}
         {treatmentPlanSaved && (
