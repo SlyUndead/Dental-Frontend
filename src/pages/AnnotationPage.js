@@ -1581,6 +1581,7 @@ const AnnotationPage = () => {
     }
   };
   if (exitClick) {
+      localStorage.removeItem('globalCheckedAnnotations')
       dispatch(changeMode(preLayoutMode));
       sessionStorage.removeItem('preLayoutMode');
     return <Navigate to="/patientImagesList" />

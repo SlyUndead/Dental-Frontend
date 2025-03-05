@@ -78,50 +78,91 @@ const AnnotationList = ({
     return `${anno.label}__${coordString}`;
   };
 // Add this useEffect to fetch existing treatment plan on component mount
-useEffect(() => {
-  const loadExistingTreatmentPlan = async () => {
-    // Fetch the existing treatment plan
-    const response = await fetch(`${apiUrl}/get-treatment-plan?patientId=${sessionStorage.getItem('patientId')}`, {
-      method: "GET",
-      headers: {
-        Authorization: sessionStorage.getItem("token"),
-      },
-    });
+const loadExistingTreatmentPlan = async () => {
+  // Fetch the existing treatment plan
+  const response = await fetch(`${apiUrl}/get-treatment-plan?patientId=${sessionStorage.getItem('patientId')}`, {
+    method: "GET",
+    headers: {
+      Authorization: sessionStorage.getItem("token"),
+    },
+  });
 
-    const data = await response.json();
-    console.log(data)
-    if (data.success && data.treatmentPlan) {
-      setTreatments(data.treatmentPlan.treatments || []);
-      
-      // Get unique anomaly types from the treatments
-      const anomalyTypesInTreatment = [...new Set(
-        data.treatmentPlan.treatments
-          .filter(t => t.anomalyType) // Only consider treatments with anomalyType
-          .map(t => t.anomalyType)
-      )];
-      
-      // Find the annotation indices for these specific anomaly types
-      const lockedAnomalies = [];
-      
-      annotations.forEach((anno, index) => {
-        if (anomalyTypesInTreatment.includes(anno.label)) {
-          lockedAnomalies.push(index);
+  const data = await response.json();
+  console.log(data)
+  if (data.success && data.treatmentPlan) {
+    setTreatments(data.treatmentPlan.treatments || []);
+    
+    // Quadrant mapping
+    const quadrantMapping = {
+      "1st Quadrant": [1, 2, 3, 4, 5, 6, 7, 8],
+      "2nd Quadrant": [9, 10, 11, 12, 13, 14, 15, 16],
+      "3rd Quadrant": [17, 18, 19, 20, 21, 22, 23, 24],
+      "4th Quadrant": [25, 26, 27, 28, 29, 30, 31, 32]
+    };
+
+    // Get unique anomaly types and their corresponding tooth numbers/quadrants from the treatments
+    const anomalyToTeethMap = data.treatmentPlan.treatments.reduce((acc, treatment) => {
+      if (treatment.anomalyType) {
+        if (!acc[treatment.anomalyType]) {
+          acc[treatment.anomalyType] = [];
         }
-      });
+        
+        // If full mouth, add a special flag
+        if (treatment.toothNumber === "fullmouth") {
+          acc[treatment.anomalyType] = "fullmouth";
+        } 
+        // If quadrant, add the corresponding teeth
+        else if (quadrantMapping[treatment.toothNumber]) {
+          acc[treatment.anomalyType] = quadrantMapping[treatment.toothNumber];
+        }
+        // For specific teeth, add them to the array
+        else if (!isNaN(parseInt(treatment.toothNumber))) {
+          acc[treatment.anomalyType].push(parseInt(treatment.toothNumber));
+        }
+      }
+      return acc;
+    }, {});
+    
+    // Find the annotation indices for specific anomaly types
+    const lockedAnomalies = [];
+    
+    annotations.forEach((anno, index) => {
+      // Check if the annotation's label matches an anomaly type in the map
+      const teethForAnomaly = anomalyToTeethMap[anno.label];
       
-      // Lock these specific anomalies and check them
-      setLockedAnnotations(lockedAnomalies);
-      setCheckedAnnotations(prev => [...new Set([...prev, ...lockedAnomalies])]);
+      // Locking conditions
+      const shouldLock = 
+        // Full mouth condition
+        (teethForAnomaly === "fullmouth") ||
+        
+        // Quadrant condition (when associatedTooth is a quadrant)
+        (Array.isArray(teethForAnomaly) && 
+         // Either associatedTooth is in the teeth array 
+         // OR associatedTooth is a specific tooth in the quadrant
+         (teethForAnomaly.includes(parseInt(anno.associatedTooth)) || 
+          teethForAnomaly.includes(parseInt(findToothForStoredAnomaly(anno, 
+            annotations.filter(a => !isNaN(parseInt(a.label)))
+          )))));
       
-      // Update selectedTeeth based on treatments
-      const teethFromTreatments = data.treatmentPlan.treatments
-        .filter(t => !isNaN(parseInt(t.toothNumber)))
-        .map(t => parseInt(t.toothNumber));
-      
-      setSelectedTeeth([...new Set(teethFromTreatments)]);
-    }
-  };
-  
+      if (shouldLock) {
+        lockedAnomalies.push(index);
+      }
+    });
+    
+    // Lock these specific anomalies and check them
+    setLockedAnnotations(lockedAnomalies);
+    setCheckedAnnotations(prev => [...new Set([...prev, ...lockedAnomalies])]);
+    
+    // Update selectedTeeth based on treatments
+    const teethFromTreatments = data.treatmentPlan.treatments
+      .filter(t => !isNaN(parseInt(t.toothNumber)))
+      .map(t => parseInt(t.toothNumber));
+    
+    setSelectedTeeth([...new Set(teethFromTreatments)]);
+  }
+};
+
+useEffect(() => {
   if (annotations.length > 0) {
     loadExistingTreatmentPlan();
   }
@@ -426,7 +467,8 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
 
       const data = await response.json();
       if (data.success) {
-        localStorage.removeItem('globalCheckedAnnotations')
+        setGlobalCheckedAnnotations({});
+        await loadExistingTreatmentPlan();
         setTreatmentPlanSaved(true);
       }
     } catch (error) {
