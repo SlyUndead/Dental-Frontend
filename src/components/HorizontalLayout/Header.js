@@ -19,6 +19,8 @@ import ProfileMenu from "../CommonForBoth/TopbarDropdown/ProfileMenu"
 import logo from "../../assets/images/logo-sm.png"
 import logoLight from "../../assets/images/logo-light.png"
 import logoDark from "../../assets/images/logo-dark.png"
+import logo9 from "../../assets/images/9-removebg-preview.png"
+import logo10 from "../../assets/images/12.png"
 
 //i18n
 import { withTranslation } from "react-i18next"
@@ -64,7 +66,7 @@ const Header = props => {
                   <img src={logo} alt="" height="45" />
                 </span>
                 <span className="logo-lg">
-                  <img src={logoDark} alt="" height="45" />
+                  <img src={logo9} alt="" height="45" />
                 </span>
               </Link>
 
@@ -73,7 +75,7 @@ const Header = props => {
                   <img src={logo} alt="" height="45" />
                 </span>
                 <span className="logo-lg">
-                  <img src={logoLight} alt="" height="45" />
+                  <img src={logo10} alt="" height="45" />
                 </span>
               </Link>
             </div>

@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { Alert, Card, CardBody, Col, Container, FormFeedback, Input, Label, Row } from 'reactstrap';
 import logoDark from "../../assets/images/logo-dark.png";
 import logoLight from "../../assets/images/logo-light.png";
+import logo9 from "../../assets/images/9-removebg-preview.png"
+import logo10 from "../../assets/images/12.png"
 import { useDispatch, useSelector } from 'react-redux';
 import { createSelector } from "reselect";
 import withRouter from 'components/Common/withRouter';
@@ -59,8 +61,8 @@ const ForgetPasswordPage = props => {
                 <CardBody className="pt-0">
                   <h3 className="text-center mt-5 mb-4">
                     <Link to="/" className="d-block auth-logo">
-                      <img src={logoDark} alt="" height="30" className="auth-logo-dark" />
-                      <img src={logoLight} alt="" height="30" className="auth-logo-light" />
+                      <img src={logo9} alt="" height="30" className="auth-logo-dark" />
+                      <img src={logo10} alt="" height="30" className="auth-logo-light" />
                     </Link>
                   </h3>
                   <div className="p-3">

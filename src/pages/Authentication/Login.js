@@ -1,8 +1,17 @@
 import React, {  useState,useEffect } from 'react'
 import { Link } from 'react-router-dom';
-import { Container, Row, Col, Card, CardBody, Label } from 'reactstrap';
+import { Container, Row, Col, Card, CardBody, Form, Input, Button } from 'reactstrap';
 import logoDark from "../../assets/images/logo-dark.png";
-import logoLight from "../../assets/images/logo-dark.png";
+import logoLight from "../../assets/images/logo-light.png";
+import logo3 from "../../assets/images/logo3.png"
+import logo4 from "../../assets/images/logo4.png"
+import logo5 from "../../assets/images/logo5.png"
+import logo7 from "../../assets/images/logo7.png"
+import logo8 from "../../assets/images/logo8.png"
+import dentalLaser from "../../assets/images/PX/Dental Laser.png"
+import surgicalMicroscope from "../../assets/images/PX/Surgical Microscope.png"
+import dentalServices from "../../assets/images/PX/Dental Services.png"
+import toothExtraction from "../../assets/images/PX/Tooth Extraction.png"
 // import { useSelector, useDispatch } from "react-redux";
 // import { createSelector } from "reselect";
 // import PropTypes, { resetWarningCache } from "prop-types";
@@ -77,125 +86,128 @@ const Login = props => {
 
   return (
     <React.Fragment>
-      <div className="account-pages my-5 pt-sm-5">
-        <Container>
-          <Row className="justify-content-center">
-            <Col md={8} lg={6} xl={5}>
-              <Card className="overflow-hidden">
-                <CardBody className="pt-0">
+      <div className="login-page d-flex align-items-center vh-100">
+      <Container fluid>
+        <Row className="justify-content-center">
+          {/* Left Section - Logo & AI Dental Care */}
+          <Col md={7} className="left-section d-flex flex-column justify-content-center text-blue">
+            <div className="text-start">
+              {/* Add Your Logo Here */}
+              <img src={logo8} alt="Logo" className="mb-3" height="40%" width="100%"/>
+              <h2 className="mt-3" style={{fontSize:'32px', marginLeft:'5%'}}>Smarter dental care, powered by AI wisdom.</h2><br/>
+              <p className="mt-2" style={{fontSize:'28px', marginLeft:'5%'}}>Enhancing diagnostics, optimizing workflows, and improving patient outcomes with AI-driven solutions.</p><br/>
+              <ul className="list-unstyled" style={{fontSize:'24px', marginLeft:'5%'}}>
+              <li><img src={dentalLaser} height="8%" width="8%"></img> <strong>Efficiency</strong> - Automating diagnostics, treatment planning, and workflows</li>
+              <li><img src={surgicalMicroscope} height="8%" width="8%"/> <strong>Accuracy</strong> - Reducing errors in dental assessments</li>
+              <li><img src={dentalServices} height="8%" width="8%"/> <strong>Seamless Integration</strong> - Embedding AI wisdom into dental workflows</li>
+              <li><img src={toothExtraction} height="8%" width="8%"/> <strong>Trust & Compliance</strong> - Ensuring transparency for dentists and insurers</li>
+            </ul>
+            </div>
+          </Col>
 
-                  <h3 className="text-center mt-5 mb-4">
-                    <Link to="/" className="d-block auth-logo">
-                      <img src={logoDark} alt="" height="55" className="auth-logo-dark" />
-                      <img src={logoLight} alt="" height="55" className="auth-logo-light" />
-                    </Link>
-                  </h3>
+          {/* Right Section - Login Form */}
+          <Col md={5} className="d-flex align-items-center justify-content-center">
+          <Card className="login-card shadow-lg p-4">
+            <CardBody>
+              <h3 className="text-center">Sign in</h3>
+              <p className="text-muted text-center">
+                Don't have an account? <Link to="/signup" style={{color:'#1b69b2'}}>Sign up</Link>
+              </p>
 
-                  <div className="p-3">
-                    <h4 className="text-muted font-size-18 mb-1 text-center">Welcome Back !</h4>
-                    <p className="text-muted text-center">Sign in to continue to AGP Dental Tool.</p>
-                    <AvForm
-                      className="form-horizontal mt-4 needs-validation"
-                      onValidSubmit={handleSubmit}
-                    >
-                      {error && <p style={{ color: 'red' }}>{error}</p>}
-                      <div className="mb-3">
-                        <Label htmlFor="validationCustom01">Username</Label>
-                        <AvField
-                          name="firstname"
-                          placeholder="User name"
-                          type="text"
-                          errorMessage="Enter User Name"
-                          className="form-control"
-                          validate={{ required: { value: true } }}
-                          id="validationCustom01"
-                          onChange={(e) => setUsername(e.target.value)} 
-                          value={username} 
-                        />
-                        {/* <Input
-                          name="email"
-                          className="form-control"
-                          placeholder="Enter email"
-                          type="email"
-                          onChange={validation.handleChange}
-                          onBlur={validation.handleBlur}
-                          value={validation.values.email || ""}
-                          invalid={
-                            validation.touched.email && validation.errors.email ? true : false
-                          }
-                        />
-                        {validation.touched.email && validation.errors.email ? (
-                          <FormFeedback type="invalid">{validation.errors.email}</FormFeedback>
-                        ) : null} */}
-                      </div>
-                      <div className="mb-3">
-                        <Label htmlFor="validationCustom02">Password</Label>
-                        <AvField
-                          name="password"
-                          placeholder="Password"
-                          type="password"
-                          errorMessage="Enter Password"
-                          className="form-control"
-                          validate={{ required: { value: true } }}
-                          id="validationCustom02"
-                          value={password} 
-                          onChange={(e) => setPassword(e.target.value)} 
-                        />
-                        {/* <Input
-                          name="password"
-                          value={validation.values.password || ""}
-                          type="password"
-                          placeholder="Enter Password"
-                          onChange={validation.handleChange}
-                          onBlur={validation.handleBlur}
-                          invalid={
-                            validation.touched.password && validation.errors.password ? true : false
-                          }
-                        />
-                        {validation.touched.password && validation.errors.password ? (
-                          <FormFeedback type="invalid">{validation.errors.password}</FormFeedback>
-                        ) : null} */}
-                      </div>
-                      <Row className="mb-3 mt-4">
-                        <div className="col-6">
-                          <div className="form-check">
-                            <input type="checkbox" className="form-check-input" id="customControlInline" />
-                            <label className="form-check-label" htmlFor="customControlInline">Remember me
-                            </label>
-                          </div>
-                        </div>
-                        <div className="col-6 text-end">
-                          <button className="btn btn-primary w-md waves-effect waves-light" type="submit">Log In</button>
-                        </div>
-                      </Row>
-                      <Row className="form-group mb-0">
-                        <Link to="/forgot-password" className="text-muted"><i className="mdi mdi-lock"></i> Forgot your password?</Link>
-                        {/* <div className="col-12 mt-4 d-flex justify-content-center">
-                          <Link
-                            to="#"
-                            className="social-list-item bg-danger text-white border-danger"
-                            onClick={e => {
-                              e.preventDefault();
-                              socialResponse("google");
-                            }}
-                          >
-                            <i className="mdi mdi-google" />
-                          </Link>
-                        </div> */}
-                      </Row>
-                    </AvForm>
+              <Form className="mt-3" onSubmit={handleSubmit}>
+                <div className="mb-3">
+                  <Input
+                    name="email"
+                    type="email"
+                    value={username}
+                    className="form-control"
+                    placeholder="Enter email"
+                    required
+                    onChange={(e) => setUsername(e.target.value)}
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <Input
+                    name="password"
+                    type="password"
+                    value={password}
+                    className="form-control"
+                    placeholder="Enter Password"
+                    required
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <div className="form-check">
+                    <input type="checkbox" className="form-check-input" id="rememberMe" />
+                    <label className="form-check-label" htmlFor="rememberMe">Keep me logged in</label>
                   </div>
-                </CardBody>
-              </Card>
+                  <Link to="/forgot-password" className="text-muted" style={{color:'#1b69b2'}}>Forgot password?</Link>
+                </div>
 
-              <div className="mt-5 text-center">
-                <p>Don't have an account ? <Link to="/register" className="text-primary"> Signup Now </Link></p>
-                © {new Date().getFullYear()} <span className="d-none d-sm-inline-block"> - Crafted with <i className="mdi mdi-heart text-danger"></i> by AGP.</span>
+                <Button color="primary" block onClick={handleSubmit} style={{backgroundColor:'#1b69b2'}}>Log in</Button>
+              </Form>
+
+              <div className="text-center mt-4">
+                <p className="text-muted">Or continue with</p>
+                <div className="d-flex justify-content-center">
+                  <Button color="light" className="social-btn me-2">
+                    <i className="mdi mdi-google"></i>
+                  </Button>
+                  <Button color="light" className="social-btn me-2">
+                    <i className="mdi mdi-facebook"></i>
+                  </Button>
+                  <Button color="light" className="social-btn">
+                    <i className="mdi mdi-apple"></i>
+                  </Button>
+                </div>
               </div>
-            </Col>
-          </Row>
-        </Container>
-      </div>
+            </CardBody>
+          </Card>
+
+          </Col>
+        </Row>
+      </Container>
+
+      {/* Custom Styles */}
+      <style>{`
+        .login-page {
+          background-color: white;
+        }
+        .left-section {
+          background: white;
+          height: 100vh;
+          color: #1b69b2;
+          text-align: center;
+          padding: 40px;
+        }
+        .brand-logo-img {
+          height: 100px;
+          width: 300px;
+        }
+        .brand-logo {
+          font-size: 32px;
+          font-weight: bold;
+        }
+        .login-card {
+          width: 100%;
+          max-width: 400px;
+          border-radius: 10px;
+          background-color: #D3D3D3;
+        }
+        .social-btn {
+          width: 45px;
+          height: 45px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 20px;
+          border-radius: 50%;
+        }
+      `}</style>
+    </div>
 
     </React.Fragment>
   )

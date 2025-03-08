@@ -7,6 +7,8 @@ import user from "../../assets/images/users/user-6.jpg";
 // import images
 import logoLightPng from "../../assets/images/logo-light.png"
 import logoDark from "../../assets/images/logo-dark.png"
+import logo9 from "../../assets/images/9-removebg-preview.png"
+import logo10 from "../../assets/images/12.png"
 
 const LockScreen = () => {
   document.title = "Lockscreen | Lexa - Responsive Bootstrap 5 Admin Dashboard";
@@ -21,8 +23,8 @@ const LockScreen = () => {
                                     <CardBody className="pt-0">
                                         <h3 className="text-center mt-5 mb-4">
                                             <Link to="/" className="d-block auth-logo">
-                                                <img src={logoDark} alt="" height="30" className="auth-logo-dark" />
-                                                <img src={logoLightPng} alt="" height="30" className="auth-logo-light" />
+                                                <img src={logo9} alt="" height="30" className="auth-logo-dark" />
+                                                <img src={logo10} alt="" height="30" className="auth-logo-light" />
                                             </Link>
                                         </h3>
                                         <div className="p-3">

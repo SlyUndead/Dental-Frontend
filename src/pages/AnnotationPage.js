@@ -19,7 +19,6 @@ import '../assets/scss/custom/custom.scss';
 import { modifyPath } from "./AnnotationTools/path-utils";
 import { logErrorToServer } from "utils/logError";
 import { desiredOrder } from "./AnnotationTools/constants";
-import ChatButton from "./Llama Chat/ChatButton";
 import DentalChatPopup from "./Llama Chat/ChatPopup";
 const AnnotationPage = () => {
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
@@ -98,6 +97,7 @@ const AnnotationPage = () => {
   const [autoSaveInterval, setAutoSaveInterval] = useState(null)
   const [fullName, setFullName] = useState("")
   const [isArea ,setIsShowArea] = useState(false);
+  const [showLabel ,setShowLabel] = useState(false);
   const [redirectToLogin, setRedirectToLogin] = useState(false);
   const [message, setMessage] = useState('')
   const [isClassCategoryVisible, setIsClassCategoryVisible] = useState(false);
@@ -295,13 +295,13 @@ const AnnotationPage = () => {
                 
                 // Prepare label text
                 let labelText = '';
-                if(isArea){
+                if((isArea && showLabel) || (isArea && index === hoveredAnnotation)){
                   labelText = `${anno.label} (${area} mm²)`;
                 }
-                else{
+                else if(showLabel || index === hoveredAnnotation){
                   labelText = `${anno.label}`;
                 }
-                
+                if (labelText!==''){
                 // Set font and measure text
                 ctx.font = `${fontSize}px Arial`;
                 const textMetrics = ctx.measureText(labelText);
@@ -317,23 +317,29 @@ const AnnotationPage = () => {
                 
                 // Determine position based on label value (if numeric)
                 let labelY, rectY;
-                
-                if (isNumeric && labelValue >= 17 && labelValue <= 32) {
+
+                if ((isNumeric && labelValue >= 17 && labelValue <= 32)) {
                   // Position below the annotation
                   rectY = top + height + 5;
+                  labelY = rectY + textHeight + 5;
+                } else if (labelText === "lower jaw") {
+                  // Special positioning for lower jaw - place it above the lowest point but still inside the annotation
+                  // Calculate a position that's slightly above the bottom edge
+                  rectY = top + height - (textHeight + 15); // Position above bottom edge
                   labelY = rectY + textHeight + 5;
                 } else {
                   // Position above the annotation
                   rectY = top - 28 - textHeight;
                   labelY = rectY + textHeight + 5;
                 }
-                
+                              
                 // Draw background and text
                 ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
                 ctx.fillRect(centerX - 5, rectY, textWidth + 10, textHeight + 10);
                 
                 ctx.fillStyle = 'black';
                 ctx.fillText(labelText, centerX, labelY);
+              }
               }
             }
           }
@@ -387,13 +393,13 @@ const AnnotationPage = () => {
               
               // Prepare label text
               let labelText = '';
-              if(isArea){
+              if((isArea && showLabel) || (isArea && index === hoveredAnnotation)){
                 labelText = `${anno.label} (${area} mm²)`;
               }
-              else{
+              else if(showLabel || index === hoveredAnnotation){
                 labelText = `${anno.label}`;
               }
-              
+              if (labelText!==''){
               // Set font and measure text
               ctx.font = `${fontSize}px Arial`;
               const textMetrics = ctx.measureText(labelText);
@@ -409,10 +415,15 @@ const AnnotationPage = () => {
               
               // Determine position based on label value (if numeric)
               let labelY, rectY;
-              
-              if (isNumeric && labelValue >= 17 && labelValue <= 32) {
+
+              if ((isNumeric && labelValue >= 17 && labelValue <= 32)) {
                 // Position below the annotation
                 rectY = top + height + 5;
+                labelY = rectY + textHeight + 5;
+              } else if (labelText === "lower jaw") {
+                // Special positioning for lower jaw - place it above the lowest point but still inside the annotation
+                // Calculate a position that's slightly above the bottom edge
+                rectY = top + height - (textHeight + 15); // Position above bottom edge
                 labelY = rectY + textHeight + 5;
               } else {
                 // Position above the annotation
@@ -427,6 +438,7 @@ const AnnotationPage = () => {
               ctx.fillStyle = 'black';
               ctx.fillText(labelText, centerX, labelY);
             }
+          }
           }
         }
       })
@@ -481,6 +493,7 @@ const AnnotationPage = () => {
       tmpX,
       tmpY
     ];
+    console.log(clickPoint)
     // const context = mainCanvasRef.current.getContext('2d');
     // context.beginPath();
     // context.arc(tmpX, tmpY, 5, 0, Math.PI * 2);
@@ -1076,7 +1089,7 @@ const AnnotationPage = () => {
         drawImageOnCanvas(ref.current, smallCanvasData[index].image, null, "small");
       }
     });
-  }, [zoom, brightness, contrast, areaScale, hiddenAnnotations, annotations, hoveredAnnotation, editingMode, isNegative, selectedAnnotation, isArea]);
+  }, [zoom, brightness, contrast, areaScale, hiddenAnnotations, annotations, hoveredAnnotation, editingMode, isNegative, selectedAnnotation, isArea, showLabel]);
   useEffect(() => {
     if (image) {
       const canvas = mainCanvasRef.current;
@@ -1784,7 +1797,7 @@ const AnnotationPage = () => {
                   </Row>
                   :
                   <Row>
-                    <Col md={4}>
+                    <Col md={6}>
                       <h5 style={{ padding: 0,cursor:"pointer" }} id="patientDetails">Name :  {fullName}</h5>
                     </Col>
                       
@@ -1912,24 +1925,7 @@ const AnnotationPage = () => {
                         </Row>
                       </PopoverBody>
                     </Popover>
-                    <Col md={4}>
-                    <div>
-                        <Button 
-                          id="dentalChatButton"
-                          color="primary"
-                          onClick={()=>{setIsChatPopupOpen(!isChatPopupOpen)}}
-                        >
-                          Chat with Dental Assistant
-                        </Button>
-                        
-                        <DentalChatPopup 
-                          isOpen={isChatPopupOpen} 
-                          toggle={()=>{setIsChatPopupOpen(!isChatPopupOpen)}}
-                          target="dentalChatButton"
-                        />
-                      </div>
-                    </Col>
-                    <Col md={4} style={{
+                    <Col md={6} style={{
                       display: 'flex',
                       justifyContent: 'flex-end', // Align content to the right
                       alignItems: 'center',
@@ -2143,12 +2139,20 @@ const AnnotationPage = () => {
                         >
                           <i id="icnScale" class="fas fa-redo"></i>
                         </Button>
-                          <InputGroupText>Show Area</InputGroupText>
+                          <InputGroupText>Area</InputGroupText>
                           <Input
                             type="switch"
                             id="area-toggle"
                             checked={isArea}
                             onChange={(e) => setIsShowArea(!isArea)}
+                            style={{ width: '2%', paddingRight: '0', height: '30px' }}
+                          />
+                          <InputGroupText>Labels</InputGroupText>
+                          <Input
+                            type="switch"
+                            id="labels-toggle"
+                            checked={showLabel}
+                            onChange={(e) => setShowLabel(!showLabel)}
                             style={{ width: '2%', paddingRight: '0', height: '30px' }}
                           />
                         <UncontrolledTooltip placement="bottom" target="btnRedo">Redo</UncontrolledTooltip>
@@ -2196,7 +2200,7 @@ const AnnotationPage = () => {
                     {isClassCategoryVisible ? (
                       <>
                       <Col md={1} style={{marginLeft:'0px', paddingLeft:'0px'}}>
-                      <div style={{ marginTop: '10px', height: 'calc(100vh - 235px)', overflowY:"auto", overflowX:"hidden",marginLeft:'0%', paddingLeft:'0px', zIndex:10 }}>
+                      <div style={{ marginTop: '0px', height: 'calc(100vh - 235px)', overflowY:"auto", overflowX:"hidden",marginLeft:'0%', paddingLeft:'0px', zIndex:10 }}>
                         <Table bordered style={{paddingLeft:'0px', marginLeft:'1%'}} >
                           {/* <thead>
                             <tr>
@@ -2244,7 +2248,7 @@ const AnnotationPage = () => {
                                         }}
                                       >
                                         <td 
-                                          id={`${safeId}-Start`} 
+                                          id={`Start-${safeId}`} 
                                           className="category-cell"
                                           style={{
                                             cursor: 'pointer', 
@@ -2266,7 +2270,7 @@ const AnnotationPage = () => {
                                         </td>
                                         <UncontrolledTooltip 
                                           placement="right" 
-                                          target={`${safeId}-Start`}
+                                          target={`Start-${safeId}`}
                                         >
                                           Start New
                                         </UncontrolledTooltip>
@@ -2303,9 +2307,9 @@ const AnnotationPage = () => {
                                 top: 0,
                                 left: 0
                               }}
-                              onMouseDown={handleMouseDown}
-                              onMouseMove={handleMouseMove}
-                              onMouseUp={handleMouseUp}
+                              onMouseDown={(e)=>handleMouseDown(e)}
+                              onMouseMove={(e)=>handleMouseMove(e)}
+                              onMouseUp={(e)=>handleMouseUp(e)}
                             />
                           </CardBody>
                         </Card>
@@ -2335,9 +2339,9 @@ const AnnotationPage = () => {
                                   top: 0,
                                   left: 0
                                 }}
-                                onMouseDown={handleMouseDown}
-                                onMouseMove={handleMouseMove}
-                                onMouseUp={handleMouseUp}
+                                onMouseDown={(e)=>handleMouseDown(e)}
+                                onMouseMove={(e)=>handleMouseMove(e)}
+                                onMouseUp={(e)=>handleMouseUp(e)}
                               />
                             </CardBody>
                           </Card>
@@ -2496,18 +2500,42 @@ const AnnotationPage = () => {
                     </Col>
                   </Row>
                   <Row style={{ marginTop: 'auto', width: '100%' }}> {/* Push to bottom */}
-                    <Col md={6} style={{
+                  <Row>
+                    <Col md={4} style={{
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'flex-end',
                       height: '100%',
                       alignItems: 'start'
                     }}>
-                      <Button onClick={() => handleNotesClick()} color="primary">
-                        {isNotesOpen ? 'Close Notes' : 'Open Notes'}
+                      <Button onClick={() => handleNotesClick()} color="primary" id="notes-btn">
+                      <i className="fas fa-sticky-note"></i>
+                      <UncontrolledTooltip target={"notes-btn"}>{isNotesOpen?"Close Notes":"Open Notes"}</UncontrolledTooltip>
                       </Button>
                     </Col>
-                    <Col md={6} style={{
+                    <Col md={4} style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'flex-end',
+                      height: '100%',
+                      alignItems: 'start'
+                    }}>
+                        <Button 
+                          id="dentalChatButton"
+                          color="primary"
+                          onClick={()=>{setIsChatPopupOpen(!isChatPopupOpen)}}
+                        >
+                          <i className="fas fa-comments" style={{height:'80%', width:'80%'}}/>
+                          <UncontrolledTooltip target={"dentalChatButton"}>Chat with Dental AI</UncontrolledTooltip>
+                        </Button>
+                        
+                        <DentalChatPopup 
+                          isOpen={isChatPopupOpen} 
+                          toggle={()=>{setIsChatPopupOpen(!isChatPopupOpen)}}
+                          target="dentalChatButton"
+                        />
+                    </Col>
+                    <Col md={4} style={{
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'flex-end',
@@ -2516,6 +2544,7 @@ const AnnotationPage = () => {
                     }}>
                       <h4 className="card-title mb-6">Model : {model !== "" ? model ? model : "Object Det." : "Older Model"}</h4>
                     </Col>
+                    </Row>
                   </Row>
                 </div>
               </Col>

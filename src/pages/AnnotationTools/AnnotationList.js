@@ -88,7 +88,7 @@ const loadExistingTreatmentPlan = async () => {
   });
 
   const data = await response.json();
-  console.log(data)
+  // console.log(data)
   if (data.success && data.treatmentPlan) {
     setTreatments(data.treatmentPlan.treatments || []);
     
@@ -241,7 +241,7 @@ useEffect(() => {
 const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) => {
   const toothAnnotations = annotationsList.filter(a => !isNaN(parseInt(a.label)));
   const anomalyAnnotations = annotationsList.filter(a => anomalyCacheData[a.label]);
-  console.log(toothAnnotations, anomalyAnnotations, annotationsList)
+  // console.log(toothAnnotations, anomalyAnnotations, annotationsList)
   const anomalyToToothMap = {};
 
   anomalyAnnotations.forEach(anomaly => {
@@ -299,7 +299,7 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
         console.error("Error checking anomalies:", error);
       }
     }
-    console.log(anomalyCache)
+    // console.log(anomalyCache)
     return anomalyCache;
   };
 
@@ -342,9 +342,9 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
         for (const code of codeMatches) {
           // Find the complete details from the dctCodes array and add only if it does not already exist
           const codeDetails = convertedCdtCode.find(c => c.code === code);
-          console.log(codeDetails, code)
+          // console.log(codeDetails, code)
           if (codeDetails && !codeList.find(c => c.code === code)) {
-            console.log(codeDetails)
+            // console.log(codeDetails)
             cdtCodes.push({
               code: code,
               description: codeDetails.description,
@@ -372,7 +372,7 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
     await checkAnomaliesWithServer(annotationsList);
     let finalResult = treatments
     for (const [index,annotation] of Object.entries(annotationsList)) {
-      console.log(annotation, annotationsList)
+      // console.log(annotation, annotationsList)
       const cdtCodes = await fetchCdtCodesFromRAG(annotation.label, convertedCdtCode);
       if (cdtCodes.length > 0) {
         finalResult =  [...finalResult,...handleAutoFillTreatments([annotation.associatedTooth], cdtCodes, annotation.label)];
@@ -384,7 +384,7 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
   // Handle auto-filling treatments
   const handleAutoFillTreatments = (toothNumberArray, cdtData, anomalyType) => {
     const newTreatments = [];
-    console.log(newTreatments, toothNumberArray, cdtData, anomalyType)
+    // console.log(newTreatments, toothNumberArray, cdtData, anomalyType)
     cdtData.forEach(code => {
       // Handle different unit types
       if (code.unit && code.unit.toLowerCase() === "full mouth") {
@@ -440,7 +440,7 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
     
     if (newTreatments.length > 0) {
       const updatedTreatments = newTreatments
-      console.log(newTreatments, updatedTreatments)
+      // console.log(newTreatments, updatedTreatments)
       // Ensure all new tooth numbers are added to selectedTeeth (avoid duplicates)
       const toothNumsToAdd = toothNumberArray.filter(t => !isNaN(parseInt(t)));
       setSelectedTeeth(prev => [...new Set([...prev, ...toothNumsToAdd])]);
@@ -510,7 +510,7 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
       
       // Combine them for processing
       const selectedAnnos = [...checkedAnomalyAnnotations];
-      console.log(selectedAnnos)
+      // console.log(selectedAnnos)
       const updatedTreatments = await autofillTreatments(selectedAnnos, convertedCodes);
       
       // Lock the newly added anomalies
@@ -690,7 +690,7 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
                 updatedGroupedAnnotations[category] = [];
                 
                 // Hide Dental Chart by default and add its annotations to hiddenAnnotations
-                if (category === "Dental Chart") {
+                if (category === "Dental Chart" || category === "Landmark") {
                     updatedHideGroups[category] = true;
                     hiddenAnnotationsList.push(index);
                 } else {
@@ -698,7 +698,7 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
                 }
             }
             updatedGroupedAnnotations[category].push(anno);
-            if (category === "Dental Chart" || category === "Landmarks") {
+            if (category === "Dental Chart" || category === "Landmark") {
               hiddenAnnotationsList.push(index);
             }
         } else {
@@ -709,13 +709,20 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
             updatedGroupedAnnotations['Others'].push(anno);
         }
     });
-    if (updatedGroupedAnnotations["Dental Chart"]) {
-      updatedGroupedAnnotations["Dental Chart"].sort((a, b) => {
-          const numA = parseInt(a.label, 10);
-          const numB = parseInt(b.label, 10);
-          return numA - numB;
-      });
-    }
+    Object.keys(updatedGroupedAnnotations).forEach(category => {
+        updatedGroupedAnnotations[category].sort((a, b) => {
+            // Try to sort numerically if both are numbers
+            const numA = parseInt(a.label, 10);
+            const numB = parseInt(b.label, 10);
+            
+            // If both can be parsed as numbers, sort numerically
+            if (!isNaN(numA) && !isNaN(numB)) {
+                return numA - numB;
+            }
+            // Otherwise sort alphabetically
+            return a.label.localeCompare(b.label);
+        });
+    });
     setGroupedAnnotations(updatedGroupedAnnotations);
     setHideGroup(updatedHideGroups);
     setHiddenAnnotations([...new Set(hiddenAnnotationsList)]);
@@ -737,243 +744,256 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
   }
   
   return (
-    <Card style={{ maxHeight: '90vh', maxWidth: '100%', borderRight: '1px solid #ccc', overflowY:'auto' }}>
-      <CardBody>
-        <Row>
-          <Col md={8}><h5>Annotations ({annotations.length})</h5></Col>
-          <Col md={4} style={{ justifyContent: 'right', alignItems: 'right', textAlign: 'right' }}>
-            <button
-                id="btnHideShowAll"
-                type="button"
-                style={{
-                  cssText: 'padding: 2px !important',
-                }}
-                className="btn noti-icon"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (hideAllAnnotations) {
-                    unhideAllBoxes();
-                    setHideAllAnnotations(false);
-                  } else {
-                    hideAllBoxes();
-                    setHideAllAnnotations(true);
-                  }
-                }}
-              >
-                <i className={`ion ${hideAllAnnotations ? 'ion-md-eye-off' : 'ion-md-eye'}`}></i>
-              </button>
-                <UncontrolledTooltip placement="bottom" target="btnHideShowAll">
-                  {`${hideAllAnnotations ? 'Show All' : 'Hide All'}`}
-                </UncontrolledTooltip>
-          </Col>
-        </Row>
-        <Row>
-          <Col md={12}>
-          <div>
-    {/* Loop over each category */}
-    {desiredOrder.map((category) => {
-      if (groupedAnnotations[category]) {
-        return (
-          <div key={category}>
-            {/* Display the category name */}
-            <h5>
-              {category}
-              <button
-                id={`btnHide${category}`}
-                type="button"
-                className="btn noti-icon"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (hideGroup[category]) {
-                    unhideCategory(category);
-                    setHideGroup((prev) => ({ ...prev, [category]: false }));
-                  } else {
-                    hideCategory(category);
-                    setHideGroup((prev) => ({ ...prev, [category]: true }));
-                  }
-                }}
-              >
-                <i className={`ion ${hideGroup[category] ? 'ion-md-eye-off' : 'ion-md-eye'}`}></i>
-              </button>
-            </h5>
-
-            <ListGroup flush>
-              {/* Loop over each annotation in the current category */}
-              {groupedAnnotations[category].map((anno, index) => {
-                const globalIndex = annotations.findIndex((a) => a === anno);
-                if (globalIndex !== -1) {
-                  return (
-                    <ListGroupItem
-                      key={globalIndex}
-                      id={`annotation-${globalIndex}`}
-                      className="d-flex align-items-center justify-content-between list-group-item-hover"
-                      style={{
-                        cursor: 'pointer',
-                        paddingRight: '0',
-                        paddingLeft: '0',
-                        paddingTop: '0',
-                        paddingBottom: '0',
-                      }}
+    <Card style={{ maxHeight: '90vh', maxWidth: '100%', borderRight: '1px solid #ccc', display: 'flex', flexDirection: 'column' }}>
+  {/* Header section with title and hide/show all button */}
+  <CardBody style={{ paddingBottom: '0' }}>
+    <Row>
+      <Col md={8}><h5>Annotations ({annotations.length})</h5></Col>
+      <Col md={4} style={{ justifyContent: 'right', alignItems: 'right', textAlign: 'right' }}>
+        <button
+          id="btnHideShowAll"
+          type="button"
+          style={{
+            cssText: 'padding: 2px !important',
+          }}
+          className="btn noti-icon"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (hideAllAnnotations) {
+              unhideAllBoxes();
+              setHideAllAnnotations(false);
+            } else {
+              hideAllBoxes();
+              setHideAllAnnotations(true);
+            }
+          }}
+        >
+          <i className={`ion ${hideAllAnnotations ? 'ion-md-eye-off' : 'ion-md-eye'}`}></i>
+        </button>
+        <UncontrolledTooltip placement="bottom" target="btnHideShowAll">
+          {`${hideAllAnnotations ? 'Show All' : 'Hide All'}`}
+        </UncontrolledTooltip>
+      </Col>
+    </Row>
+  </CardBody>
+  
+  {/* Scrollable section for annotations */}
+  <div style={{ overflowY: 'auto', flexGrow: 1, padding: '0 1.25rem' }}>
+    <Row>
+      <Col md={12}>
+        <div>
+          {/* Loop over each category */}
+          {desiredOrder.map((category) => {
+            if (groupedAnnotations[category]) {
+              return (
+                <div key={category}>
+                  {/* Display the category name */}
+                  <h5>
+                    {category}
+                    <button
+                      id={`btnHide${category}`}
+                      type="button"
+                      className="btn noti-icon"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleAnnotationClick(anno, globalIndex);
+                        if (hideGroup[category]) {
+                          unhideCategory(category);
+                          setHideGroup((prev) => ({ ...prev, [category]: false }));
+                        } else {
+                          hideCategory(category);
+                          setHideGroup((prev) => ({ ...prev, [category]: true }));
+                        }
                       }}
-                      onMouseEnter={() => handleHover(globalIndex)}
-                      onMouseLeave={() => handleHover(null)}
                     >
-                      {/* Checkbox */}
-                      <div className="pl-2 pr-2 d-flex align-items-center" style={{marginRight:'5px'}}>
-                      <Input
-                        type="checkbox"
-                        checked={checkedAnnotations.includes(globalIndex)}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          handleCheckboxChange(globalIndex);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        disabled={lockedAnnotations.includes(globalIndex)}
-                        style={{
-                          cursor: lockedAnnotations.includes(globalIndex) ? 'not-allowed' : 'pointer'
-                        }}
-                      />
-                        {lockedAnnotations.includes(globalIndex) && (
-                          <>
-                          <span
-                            className="ml-1 text-muted"
-                            style={{ fontSize: '12px' }}
-                            id={`locked-${globalIndex}`}
+                      <i className={`ion ${hideGroup[category] ? 'ion-md-eye-off' : 'ion-md-eye'}`}></i>
+                    </button>
+                  </h5>
+
+                  <ListGroup flush>
+                    {/* Loop over each annotation in the current category */}
+                    {groupedAnnotations[category].map((anno, index) => {
+                      const globalIndex = annotations.findIndex((a) => a === anno);
+                      if (globalIndex !== -1) {
+                        return (
+                          <ListGroupItem
+                            key={globalIndex}
+                            id={`annotation-${globalIndex}`}
+                            className="d-flex align-items-center justify-content-between list-group-item-hover"
+                            style={{
+                              cursor: 'pointer',
+                              paddingRight: '0',
+                              paddingLeft: '0',
+                              paddingTop: '0',
+                              paddingBottom: '0',
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAnnotationClick(anno, globalIndex);
+                            }}
+                            onMouseEnter={() => handleHover(globalIndex)}
+                            onMouseLeave={() => handleHover(null)}
                           >
-                            <i className="mdi mdi-lock-outline"></i>
-                          </span>
-                        
-                        <UncontrolledTooltip placement="top" target={`locked-${globalIndex}`}>
-                          This anomaly is included in the treatment plan and cannot be unchecked
-                        </UncontrolledTooltip></>
-                        )}
-                      </div>
-                      
-                      {/* Show dropdown if this annotation is selected and has a numeric label */}
-                      {selectedAnnotation === anno && !isNaN(parseInt(anno.label)) ? (
-                        <div style={{ flexGrow: 1 }} onClick={e => e.stopPropagation()}>
-                          <InputGroup size="sm">
+                            {/* Checkbox */}
+                            <div className="pl-2 pr-2 d-flex align-items-center" style={{marginRight:'5px'}}>
                             <Input
-                              type="select"
-                              value={newLabel || anno.label}
-                              onChange={e => {
-                                setNewLabel(e.target.value);
-                                handleLabelChange(e.target.value);
+                              type="checkbox"
+                              checked={checkedAnnotations.includes(globalIndex)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                handleCheckboxChange(globalIndex);
                               }}
-                            >
-                              {Array.from({ length: 32 }, (_, i) => i + 1).map(num => (
-                                <option key={num} value={num.toString()}>
-                                  {num}
-                                </option>
-                              ))}
-                            </Input>
-                          </InputGroup>
-                        </div>
-                      ) : (
-                        <span style={{ flexGrow: 1 }}>{anno.label}{anno.created_by ? anno.created_by.startsWith("Model v") ? "" : " (M)" : ""}</span>
-                      )}
-                      
-                      <div className="d-flex">
-                        {/* Delete Button */}
-                        <button
-                          id="btnRemove"
-                          type="button"
-                          style={{ cssText: 'padding: 2px !important', fontSize: '20px' }}
-                          className="btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteBox(globalIndex);
-                          }}
-                        >
-                          <i className="mdi mdi-trash-can"></i>
-                        </button>
+                              onClick={(e) => e.stopPropagation()}
+                              disabled={lockedAnnotations.includes(globalIndex)}
+                              style={{
+                                cursor: lockedAnnotations.includes(globalIndex) ? 'not-allowed' : 'pointer'
+                              }}
+                            />
+                              {lockedAnnotations.includes(globalIndex) && (
+                                <>
+                                <span
+                                  className="ml-1 text-muted"
+                                  style={{ fontSize: '12px' }}
+                                  id={`locked-${globalIndex}`}
+                                >
+                                  <i className="mdi mdi-lock-outline"></i>
+                                </span>
+                              
+                              <UncontrolledTooltip placement="top" target={`locked-${globalIndex}`}>
+                                This anomaly is included in the treatment plan and cannot be unchecked
+                              </UncontrolledTooltip></>
+                              )}
+                            </div>
+                            
+                            {/* Show dropdown if this annotation is selected and has a numeric label */}
+                            {selectedAnnotation === anno && !isNaN(parseInt(anno.label)) ? (
+                              <div style={{ flexGrow: 1 }} onClick={e => e.stopPropagation()}>
+                                <InputGroup size="sm">
+                                  <Input
+                                    type="select"
+                                    value={newLabel || anno.label}
+                                    onChange={e => {
+                                      setNewLabel(e.target.value);
+                                      handleLabelChange(e.target.value);
+                                    }}
+                                  >
+                                    {Array.from({ length: 32 }, (_, i) => i + 1).map(num => (
+                                      <option key={num} value={num.toString()}>
+                                        {num}
+                                      </option>
+                                    ))}
+                                  </Input>
+                                </InputGroup>
+                              </div>
+                            ) : (
+                              <span style={{ flexGrow: 1 }}>{anno.label}{anno.created_by ? anno.created_by.startsWith("Model v") ? "" : " (M)" : ""}</span>
+                            )}
+                            
+                            <div className="d-flex">
+                              {/* Delete Button */}
+                              <button
+                                id="btnRemove"
+                                type="button"
+                                style={{ cssText: 'padding: 2px !important', fontSize: '20px' }}
+                                className="btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteBox(globalIndex);
+                                }}
+                              >
+                                <i className="mdi mdi-trash-can"></i>
+                              </button>
 
-                        {/* Hide/Show Button */}
-                        <button
-                          id="btnHideShow"
-                          type="button"
-                          className="btn noti-icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            hiddenAnnotations.includes(globalIndex)
-                              ? unhideBox(globalIndex)
-                              : hideBox(globalIndex);
-                          }}
-                        >
-                          <i className={`ion ${hiddenAnnotations.includes(globalIndex) ? 'ion-md-eye-off' : 'ion-md-eye'}`}></i>
-                        </button>
+                              {/* Hide/Show Button */}
+                              <button
+                                id="btnHideShow"
+                                type="button"
+                                className="btn noti-icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  hiddenAnnotations.includes(globalIndex)
+                                    ? unhideBox(globalIndex)
+                                    : hideBox(globalIndex);
+                                }}
+                              >
+                                <i className={`ion ${hiddenAnnotations.includes(globalIndex) ? 'ion-md-eye-off' : 'ion-md-eye'}`}></i>
+                              </button>
 
-                        {/* Edit Button */}
-                        <button
-                          id="btnEdit"
-                          type="button"
-                          style={{ cssText: 'padding: 2px !important', fontSize: '20px' }}
-                          className="btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (selectedAnnotation === anno) {
-                              handleSelectAnnotation();
-                            } else {
-                              setSelectedAnnotation(anno);
-                              if (!isNaN(parseInt(anno.label))) {
-                                setNewLabel(anno.label);
-                              }
-                            }
-                          }}
-                        >
-                          <i
-                            className={`mdi ${
-                              selectedAnnotation === anno
-                                ? 'mdi-lead-pencil'
-                                : 'mdi-pencil-box-outline'
-                            }`}
-                          ></i>
-                        </button>
-                      </div>
-                    </ListGroupItem>
-                  );
-                }
-              })}
-            </ListGroup>
-          </div>
-        );
-      }
-    })}
-            </div>
-            </Col>
-        </Row>
-        
-        {/* Add the "Add to Treatment Plan" button */}
-        <Row className="mt-3">
+                              {/* Edit Button */}
+                              <button
+                                id="btnEdit"
+                                type="button"
+                                style={{ cssText: 'padding: 2px !important', fontSize: '20px' }}
+                                className="btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (selectedAnnotation === anno) {
+                                    handleSelectAnnotation();
+                                  } else {
+                                    setSelectedAnnotation(anno);
+                                    if (!isNaN(parseInt(anno.label))) {
+                                      setNewLabel(anno.label);
+                                    }
+                                  }
+                                }}
+                              >
+                                <i
+                                  className={`mdi ${
+                                    selectedAnnotation === anno
+                                      ? 'mdi-lead-pencil'
+                                      : 'mdi-pencil-box-outline'
+                                  }`}
+                                ></i>
+                              </button>
+                            </div>
+                          </ListGroupItem>
+                        );
+                      }
+                    })}
+                  </ListGroup>
+                </div>
+              );
+            }
+          })}
+        </div>
+      </Col>
+    </Row>
+  </div>
+
+  {/* Fixed footer section with the button */}
+  <CardBody style={{ 
+    paddingTop: '0.75rem', 
+    borderTop: '1px solid rgba(0,0,0,0.125)', 
+    position: 'sticky',
+    bottom: '0'
+  }}>
+    {/* Add to Treatment Plan button */}
+    <Row>
+      <Col md={12}>
+        <Button 
+          color="primary" 
+          block
+          disabled={Object.keys(globalCheckedAnnotations).length === 0 || isLoading || generatingPlan}
+          onClick={generateTreatmentPlan}
+        >
+          {isLoading || generatingPlan ? 
+            "Processing..." : 
+            `Add to Treatment Plan (${Object.keys(globalCheckedAnnotations).length} selected)`}
+        </Button>
+      </Col>
+    </Row>
+
+    {/* Show saved confirmation if applicable */}
+    {treatmentPlanSaved && (
+      <Row className="mt-2">
         <Col md={12}>
-          <Button 
-            color="primary" 
-            block
-            disabled={Object.keys(globalCheckedAnnotations).length === 0 || isLoading || generatingPlan}
-            onClick={generateTreatmentPlan}
-          >
-            {isLoading || generatingPlan ? 
-              "Processing..." : 
-              `Add to Treatment Plan (${Object.keys(globalCheckedAnnotations).length} selected)`}
-          </Button>
-        </Col>
-      </Row>
-
-        {/* Show saved confirmation if applicable */}
-        {treatmentPlanSaved && (
-          <Row className="mt-2">
-            <Col md={12}>
-              <div className="alert alert-success">
-                Treatment plan saved successfully!
-              </div>
-            </Col>
-          </Row>
-        )}
-      </CardBody>
-    </Card>
+          <div className="alert alert-success">
+            Treatment plan saved successfully!
+          </div>
+          </Col>
+        </Row>
+    )}
+  </CardBody>
+  </Card>
   );
 };
 
