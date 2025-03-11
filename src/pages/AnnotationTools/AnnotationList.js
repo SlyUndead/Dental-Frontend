@@ -72,9 +72,9 @@ const AnnotationList = ({
       return null;
     }
     
-    // For anomaly annotations, use a combination of label and bounding box coordinates
-    const bbox = anno.bounding_box;
-    const coordString = bbox.map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join('|');
+    // For anomaly annotations, use a combination of label and segmentation coordinates
+    const segmentation = anno.segmentation;
+    const coordString = segmentation.map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join('|');
     return `${anno.label}__${coordString}`;
   };
 // Add this useEffect to fetch existing treatment plan on component mount
@@ -227,10 +227,10 @@ useEffect(() => {
     }));
   };
 
-  // Calculate overlap between two bounding boxes
-  const calculateOverlap = (boxA, boxB) => {
-    const [ax1, ay1, ax2, ay2] = [boxA[0].x, boxA[0].y, boxA[2].x, boxA[2].y];
-    const [bx1, by1, bx2, by2] = [boxB[0].x, boxB[0].y, boxB[2].x, boxB[2].y];
+  // Calculate overlap between two segmentations
+  const calculateOverlap = (segA, segB) => {
+    const [ax1, ay1, ax2, ay2] = [segA[0].x, segA[0].y, segA[2].x, segA[2].y];
+    const [bx1, by1, bx2, by2] = [segB[0].x, segB[0].y, segB[2].x, segB[2].y];
   
     const x_overlap = Math.max(0, Math.min(ax2, bx2) - Math.max(ax1, bx1));
     const y_overlap = Math.max(0, Math.min(ay2, by2) - Math.max(ay1, by1));
@@ -248,7 +248,7 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
     let teethWithOverlap = [];
 
     toothAnnotations.forEach(tooth => {
-      const overlapArea = calculateOverlap(anomaly.bounding_box, tooth.bounding_box);
+      const overlapArea = calculateOverlap(anomaly.segmentation, tooth.segmentation);
       if (overlapArea > 0) {
         teethWithOverlap.push({ tooth: tooth.label, overlap: overlapArea });
       }
@@ -505,12 +505,12 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
       // Prepare tooth annotations to pass along with anomalies
       const toothAnnotations = checkedAnomalyAnnotations.map(anno => ({
         label: anno.associatedTooth,
-        bounding_box: null // We don't need bbox for tooth annotations
+        segmentation: null // We don't need segmentation for tooth annotations
       })).filter(tooth => tooth.label !== null);
       
       // Combine them for processing
       const selectedAnnos = [...checkedAnomalyAnnotations];
-      // console.log(selectedAnnos)
+      console.log(selectedAnnos)
       const updatedTreatments = await autofillTreatments(selectedAnnos, convertedCodes);
       
       // Lock the newly added anomalies
@@ -561,7 +561,7 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
     } else {
       updatedGlobalChecked[uniqueKey] = {
         label: anno.label,
-        bounding_box: anno.bounding_box,
+        segmentation: anno.segmentation,
         associatedTooth: associatedTooth, // Add the associated tooth number
       };
     }
@@ -602,7 +602,7 @@ const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) =
     let associatedTooth = null;
 
     toothAnnotations.forEach(tooth => {
-      const overlapArea = calculateOverlap(anomaly.bounding_box, tooth.bounding_box);
+      const overlapArea = calculateOverlap(anomaly.segmentation, tooth.segmentation);
       if (overlapArea > maxOverlap) {
         maxOverlap = overlapArea;
         associatedTooth = tooth.label;
