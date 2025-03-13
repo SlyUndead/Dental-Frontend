@@ -181,7 +181,7 @@ const AnnotationPage = () => {
   };
   const fetchClassCategories = async () => {
     try {
-      const response = await axios.get(`${apiUrl}/get-classCategories`,
+      const response = await axios.get(`${apiUrl}/get-classCategories?clientId=`+sessionStorage.getItem('clientId'),
         {
           headers:{
             Authorization:sessionStorage.getItem('token')
