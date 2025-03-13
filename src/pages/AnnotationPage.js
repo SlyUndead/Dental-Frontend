@@ -2,8 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react"
 import {
   Table, Card, CardBody, Button, Col, Row, FormGroup, Label, Input, Container, InputGroup, InputGroupText, Dropdown,
   DropdownMenu, DropdownToggle, DropdownItem, Popover, PopoverBody, Modal, ModalBody, ModalFooter, ModalHeader, Spinner,
-  UncontrolledTooltip, PopoverHeader,
-  CardFooter
+  UncontrolledTooltip, PopoverHeader, Form, CardFooter
 } from "reactstrap";
 import AnnotationList from "./AnnotationTools/AnnotationList";
 import { MAX_HISTORY } from "./AnnotationTools/constants";
@@ -115,6 +114,13 @@ const AnnotationPage = () => {
   const [isChatPopupOpen, setIsChatPopupOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingLabelChange, setPendingLabelChange] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredClasses, setFilteredClasses] = useState([]);
+  const [isAddingNewClass, setIsAddingNewClass] = useState(false);
+  const [newClassName, setNewClassName] = useState('');
+  const [newClassCategory, setNewClassCategory] = useState('');
+  const [newClassColor, setNewClassColor] = useState('#ffffff');
+  const [classSearchModalOpen, setClassSearchModalOpen] = useState(false);
   const fetchNotesContent = async () => {
     try {
       const response = await axios.get(`${apiUrl}/notes-content?visitID=` + sessionStorage.getItem('visitId'),
@@ -679,14 +685,107 @@ const AnnotationPage = () => {
     }
   };
   const handleTraceClick = () => {
-    setIsClassCategoryVisible(!isClassCategoryVisible); // Show the class category selection
+    setClassSearchModalOpen(true);
+    setSearchTerm('');
+    setFilteredClasses([]);
+    setIsAddingNewClass(false);
   };
+  const handleClassSearch = (e) => {
+    const term = e.target.value.toLowerCase();
+    setSearchTerm(term);
+    
+    if (term.trim() === '') {
+      setFilteredClasses([]);
+      return;
+    }
+    
+    const matches = Object.keys(labelColors)
+      .filter(className => className.toLowerCase().includes(term))
+      .sort((a, b) => a.localeCompare(b));
+    
+    setFilteredClasses(matches);
+  };
+  
+  const handleAddNewClass = async () => {
+    if (!newClassName || !newClassCategory) return;
+    try {
+      const response = await axios.post(
+        `${apiUrl}/add-className`,
+        {
+          className: newClassName,
+          category: newClassCategory,
+          color: newClassColor,
+          clientId: sessionStorage.getItem('clientId'),
+          created_by: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`
+        },
+        {
+          headers: {
+            Authorization: sessionStorage.getItem('token')
+          }
+        }
+      );
+      sessionStorage.setItem('token', response.headers['new-token'])
+      
+      // Update local state
+      const updateState = () => {
+        return new Promise(resolve => {
+          const updatedLabelColors = {...labelColors, [newClassName.toLowerCase()]: newClassColor};
+          const updatedClassCategories = {...classCategories, [newClassName.toLowerCase()]: newClassCategory};
+          
+          // Update the first state
+          setLabelColors(updatedLabelColors);
+          
+          // Update the second state and use requestAnimationFrame to ensure the
+          // state has been updated before resolving
+          setClassCategories(updatedClassCategories);
+          
+          // Use requestAnimationFrame to wait for React to process the state updates
+          requestAnimationFrame(() => {
+            // Use another rAF to ensure state updates have been applied
+            requestAnimationFrame(() => {
+              resolve();
+            });
+          });
+        });
+      };
+    
+      // Call the function and handle the promise
+      updateState().then(() => {
+        console.log(classCategories, labelColors);
+        handleCategorySelect(newClassName);
+      });
+      
+      // Reset form
+      setNewClassName('');
+      setNewClassCategory('');
+      setNewClassColor('#ffffff');
+      setIsAddingNewClass(false);
+      setClassSearchModalOpen(false);
+      
+      // Refresh class categories
+      // fetchClassCategories();
+    } catch (error) {
+      if(error.status===403||error.status===401){
+        if(sessionStorage.getItem('preLayoutMode')){
+          dispatch(changeMode(preLayoutMode));
+          sessionStorage.removeItem('preLayoutMode');
+        }
+        sessionStorage.removeItem('token');
+        setRedirectToLogin(true);
+    }
+    else{
+      logErrorToServer(error, "saveAnnotations");
+      console.error('Error saving annotations:', error);
+    }
+  }
+  };
+  
   const handleCategorySelect = (category) => {
-    setSelectedClassCategory(category); // Set the selected category
-    setIsClassCategoryVisible(false); // Hide the category list
+    setSelectedClassCategory(category);
     setNewBoxLabel(category);
-    startHybridTracing(); // Start hybrid tracing
-  };    
+    setClassSearchModalOpen(false);
+    startHybridTracing();
+  };  
   const mergeEditingPathWithAnnotation = () => {
     if (editingPath.length > 1 && selectedAnnotation) {
       const editingPathVertices = editingPath.map(point => ({ x: point[0], y: point[1] }));
@@ -2631,93 +2730,8 @@ const handleConfirmUpdate = (autoUpdate = false) => {
                   <Row style={{ height: 'calc(70vh)', margin: '0px', paddingBottom: '0px', display: 'flex', flexGrow: 1, overflow: 'hidden', color: '#fff' }}
                   >
                     {isClassCategoryVisible ? (
-                      <>
-                      <Col md={1} style={{marginLeft:'0px', paddingLeft:'0px'}}>
-                      <div style={{ marginTop: '0px', height: 'calc(100vh - 235px)', overflowY:"auto", overflowX:"hidden",marginLeft:'0%', paddingLeft:'0px', zIndex:10 }}>
-                        <Table bordered style={{paddingLeft:'0px', marginLeft:'1%'}} >
-                          {/* <thead>
-                            <tr>
-                              <th>Class Name</th>
-                              {console.log(classCategories)}
-                            </tr>
-                          </thead> */}
-                          <tbody>
-                          {desiredOrder.map((group) => {
-                              // Filter classCategories to get items in this group
-                              const groupItems = Object.keys(classCategories)
-                                .filter(category => 
-                                  classCategories[category].toLowerCase() === group.toLowerCase()
-                                );
-                              
-                              // Only render groups that have items
-                              if (groupItems.length === 0) return null;
-                              
-                              return (
-                                <>
-                                  {/* Group Header */}
-                                  <tr>
-                                    <td 
-                                      colSpan="1" 
-                                      style={{
-                                        fontWeight: 'bold', 
-                                        backgroundColor: '#333', 
-                                        color: 'white',
-                                        padding: '8px'
-                                      }}
-                                    >
-                                      {group}
-                                    </td>
-                                  </tr>
-                                  {/* Group Items */}
-                                  {groupItems.map((category) => {
-                                    const safeId = category.replace(/\s+/g, '-').toLowerCase();
-                                    
-                                    return (
-                                      <tr 
-                                        key={`row-${safeId}`}
-                                        className="category-row"
-                                        style={{
-                                          color: 'white'
-                                        }}
-                                      >
-                                        <td 
-                                          id={`Start-${safeId}`} 
-                                          className="category-cell"
-                                          style={{
-                                            cursor: 'pointer', 
-                                            padding: '0px',
-                                            color: 'white'
-                                          }} 
-                                          onMouseEnter={(e) => {
-                                            const color = labelColors[category.toLowerCase()] || 'white';
-                                            e.target.style.color = color;
-                                            e.target.parentElement.style.color = color;
-                                          }}
-                                          onMouseLeave={(e) => {
-                                            e.target.style.color = 'white';
-                                            e.target.parentElement.style.color = 'white';
-                                          }}
-                                          onClick={() => handleCategorySelect(category)}
-                                        >
-                                          {category}
-                                        </td>
-                                        <UncontrolledTooltip 
-                                          placement="right" 
-                                          target={`Start-${safeId}`}
-                                        >
-                                          Start New
-                                        </UncontrolledTooltip>
-                                      </tr>
-                                    );
-                                  })}
-                              </>);
-                            })}
-                          </tbody>
-                        </Table>
-                      </div>
-                      </Col>
                       <Col
-                        md={11}
+                        md={12}
                         className="d-flex flex-column"
                         style={{ maxHeight: '100%' }}
                       >
@@ -2726,8 +2740,8 @@ const handleConfirmUpdate = (autoUpdate = false) => {
                             style={{
                               padding: 0,
                               height: '100%',
-                              overflow: 'auto',  // Add scrollbars
-                              position: 'relative',  // For absolute positioning of canvas                              
+                              overflow: 'auto',
+                              position: 'relative',
                               maxHeight: '600px',
                             }}
                             ref={containerRef}
@@ -2736,7 +2750,7 @@ const handleConfirmUpdate = (autoUpdate = false) => {
                               ref={mainCanvasRef}
                               style={{
                                 cursor: 'default',
-                                position: 'absolute',  // Position absolutely within container
+                                position: 'absolute',
                                 top: 0,
                                 left: 0
                               }}
@@ -2746,8 +2760,9 @@ const handleConfirmUpdate = (autoUpdate = false) => {
                             />
                           </CardBody>
                         </Card>
-                      </Col></>
-                    ):<>
+                      </Col>
+                    ) : (
+                      <>
                         <Col md={1} />
                         <Col
                           md={11}
@@ -2759,8 +2774,8 @@ const handleConfirmUpdate = (autoUpdate = false) => {
                               style={{
                                 padding: 0,
                                 height: '100%',
-                                overflow: 'auto',  // Add scrollbars
-                                position: 'relative',  // For absolute positioning of canvas
+                                overflow: 'auto',
+                                position: 'relative',
                                 maxHeight: '600px',
                               }}
                             >
@@ -2768,7 +2783,7 @@ const handleConfirmUpdate = (autoUpdate = false) => {
                                 ref={mainCanvasRef}
                                 style={{
                                   cursor: 'default',
-                                  position: 'absolute',  // Position absolutely within container
+                                  position: 'absolute',
                                   top: 0,
                                   left: 0
                                 }}
@@ -2779,7 +2794,8 @@ const handleConfirmUpdate = (autoUpdate = false) => {
                             </CardBody>
                           </Card>
                         </Col>
-                      </>}
+                      </>
+                    )}
                     {/* {editingMode ? <>
                       <Col
                         md={1}
@@ -3038,6 +3054,136 @@ const handleConfirmUpdate = (autoUpdate = false) => {
           onClose={() => handleConfirmUpdate(false)}
           message="Would you like to automatically update adjacent teeth labels?"
         />
+        <Modal isOpen={classSearchModalOpen} toggle={() => setClassSearchModalOpen(false)} size="lg">
+          <ModalHeader toggle={() => setClassSearchModalOpen(false)}>
+            {isAddingNewClass ? 'Add New Class' : 'Search Classes'}
+          </ModalHeader>
+          <ModalBody>
+            {!isAddingNewClass ? (
+              <>
+                <FormGroup>
+                  <Label for="classSearch">Search for a class</Label>
+                  <Input
+                    type="text"
+                    id="classSearch"
+                    placeholder="Type to search..."
+                    value={searchTerm}
+                    onChange={handleClassSearch}
+                    autoFocus
+                  />
+                </FormGroup>
+                
+                {filteredClasses.length > 0 ? (
+                  <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                    <Table bordered hover>
+                      <thead>
+                        <tr>
+                          <th>Class Name</th>
+                          <th>Category</th>
+                          <th>Color</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredClasses.map(className => (
+                          <tr 
+                            key={className} 
+                            onClick={() => handleCategorySelect(className)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <td>{className}</td>
+                            <td>{classCategories[className] || 'Unknown'}</td>
+                            <td>
+                              <div 
+                                style={{ 
+                                  backgroundColor: labelColors[className] || '#ffffff',
+                                  width: '20px',
+                                  height: '20px',
+                                  borderRadius: '4px',
+                                  border: '1px solid #ccc'
+                                }} 
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  </div>
+                ) : searchTerm.trim() !== '' ? (
+                  <div className="text-center my-4">
+                    <p>No matching classes found.</p>
+                    <Button color="primary" onClick={() => {setIsAddingNewClass(true); setNewClassName(searchTerm)}}>
+                      Add New Class
+                    </Button>
+                  </div>
+                ) : null}
+                
+                {searchTerm.trim() === '' && (
+                  <div className="text-center my-4">
+                    <p>Type to search for classes or add a new one.</p>
+                    <Button color="primary" onClick={() => setIsAddingNewClass(true)}>
+                      Add New Class
+                    </Button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <Form>
+                <FormGroup>
+                  <Label for="newClassName">Class Name</Label>
+                  <Input
+                    type="text"
+                    id="newClassName"
+                    value={newClassName}
+                    onChange={(e) => setNewClassName(e.target.value)}
+                    placeholder="Enter class name"
+                    autoFocus
+                  />
+                </FormGroup>
+                <FormGroup>
+                  <Label for="newClassCategory">Category</Label>
+                  <Input
+                    type="select"
+                    id="newClassCategory"
+                    value={newClassCategory}
+                    onChange={(e) => setNewClassCategory(e.target.value)}
+                  >
+                    <option value="">Select a category</option>
+                    {Array.from(new Set(Object.values(classCategories))).map(category => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </Input>
+                </FormGroup>
+                <FormGroup>
+                  <Label for="newClassColor">Color</Label>
+                  <Input
+                    type="color"
+                    id="newClassColor"
+                    value={newClassColor}
+                    onChange={(e) => setNewClassColor(e.target.value)}
+                  />
+                </FormGroup>
+              </Form>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            {isAddingNewClass ? (
+              <>
+                <Button color="primary" onClick={handleAddNewClass}>
+                  Add Class
+                </Button>
+                <Button color="secondary" onClick={() => setIsAddingNewClass(false)}>
+                  Back to Search
+                </Button>
+              </>
+            ) : (
+              <Button color="secondary" onClick={() => setClassSearchModalOpen(false)}>
+                Cancel
+              </Button>
+            )}
+          </ModalFooter>
+        </Modal>
       </Card>
     </React.Fragment>
 
