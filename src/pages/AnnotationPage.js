@@ -20,6 +20,8 @@ import { modifyPath } from "./AnnotationTools/path-utils";
 import { logErrorToServer } from "utils/logError";
 import { desiredOrder } from "./AnnotationTools/constants";
 import DentalChatPopup from "./Llama Chat/ChatPopup";
+import { findAdjacentTeeth } from "helpers/DrawingTools/tooth-utils";
+import ConfirmationModal from "./AnnotationTools/ConfirmationModal";
 const AnnotationPage = () => {
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   const [exitClick, setExitClick] = useState(false);
@@ -111,6 +113,8 @@ const AnnotationPage = () => {
   const [patient_age, setPatient_age] = useState('');
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [isChatPopupOpen, setIsChatPopupOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [pendingLabelChange, setPendingLabelChange] = useState(null);
   const fetchNotesContent = async () => {
     try {
       const response = await axios.get(`${apiUrl}/notes-content?visitID=` + sessionStorage.getItem('visitId'),
@@ -493,7 +497,6 @@ const AnnotationPage = () => {
       tmpX,
       tmpY
     ];
-    console.log(clickPoint)
     // const context = mainCanvasRef.current.getContext('2d');
     // context.beginPath();
     // context.arc(tmpX, tmpY, 5, 0, Math.PI * 2);
@@ -730,31 +733,462 @@ const AnnotationPage = () => {
       setSelectedAnnotation(null);
     }
   };
-  const handleLabelChange = (newValue) => {
-    if (selectedAnnotation && !isNaN(parseInt(selectedAnnotation.label))) {
-      const updatedAnnotation = { 
-        ...selectedAnnotation, 
-        label: newValue,
-        created_by: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`,
-        created_on: new Date().toISOString()
-      };
+  // Modified handleLabelChange function with recursive updating
+
+const handleLabelChange = (newValue) => {
+  if (selectedAnnotation && !isNaN(Number.parseInt(selectedAnnotation.label))) {
+    // Store the new value for use after confirmation
+    setPendingLabelChange(newValue);
+    
+    // Open the confirmation modal instead of using window.confirm
+    setModalOpen(true);
+  }
+}
+
+// Function to handle modal cancellation
+const toggleModal = () => {
+  setModalOpen(!modalOpen);
+  if (modalOpen) {
+    // If we're closing the modal without confirming, clear the pending change
+    setPendingLabelChange(null);
+  }
+}
+
+// Calculate average tooth area from annotations
+const calculateAverageToothArea = (annotations) => {
+  const teethAnnotations = annotations.filter((anno) => !isNaN(Number.parseInt(anno.label)));
+  
+  if (teethAnnotations.length === 0) return 0;
+  
+  const areas = teethAnnotations.map(tooth => {
+    // Calculate area based on bounding box or polygon
+    if (tooth.type === 'rectangle') {
+      return tooth.width * tooth.height;
+    } else if (tooth.segmentation && tooth.segmentation.length > 0) {
+      // For polygon, estimate area using bounding box
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
       
-      const newAnnotations = annotations.map(anno =>
-        anno === selectedAnnotation ? updatedAnnotation : anno
-      );
+      for (const point of tooth.segmentation) {
+        minX = Math.min(minX, point.x);
+        maxX = Math.max(maxX, point.x);
+        minY = Math.min(minY, point.y);
+        maxY = Math.max(maxY, point.y);
+      }
       
-      // Update the selected annotation
-      setSelectedAnnotation(updatedAnnotation);
-      
-      setAnnotations(newAnnotations)
-      saveAnnotations(newAnnotations);
-      
-      // Update annotations in the component
-      let updatedSmallCanvasData = smallCanvasData;
-      updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations = newAnnotations;
-      setSmallCanvasData(updatedSmallCanvasData);
+      return (maxX - minX) * (maxY - minY);
     }
+    return 0;
+  });
+  
+  // Calculate average area
+  return areas.reduce((sum, area) => sum + area, 0) / areas.length;
+}
+
+// Calculate the distance between two tooth annotations
+const calculateDistance = (tooth1, tooth2) => {
+  // Get centers of the teeth
+  const center1 = getToothCenter(tooth1);
+  const center2 = getToothCenter(tooth2);
+  
+  // Calculate Euclidean distance
+  return Math.sqrt(Math.pow(center2.x - center1.x, 2) + Math.pow(center2.y - center1.y, 2));
+}
+
+// Get center point of a tooth annotation
+const getToothCenter = (tooth) => {
+  if (tooth.type === 'rectangle') {
+    return {
+      x: tooth.x + tooth.width / 2,
+      y: tooth.y + tooth.height / 2
+    };
+  } else if (tooth.segmentation && tooth.segmentation.length > 0) {
+    // For polygon, calculate centroid
+    let sumX = 0, sumY = 0;
+    for (const point of tooth.segmentation) {
+      sumX += point.x;
+      sumY += point.y;
+    }
+    return {
+      x: sumX / tooth.segmentation.length,
+      y: sumY / tooth.segmentation.length
+    };
+  }
+  return { x: 0, y: 0 };
+}
+
+// Helper function to determine tooth type based on tooth number
+const getToothType = (toothNumber) => {
+  // Convert tooth number to integer if it's a string
+  const num = typeof toothNumber === 'string' ? parseInt(toothNumber, 10) : toothNumber;
+  
+  // Upper Jaw (1-16)
+  if (num >= 1 && num <= 16) {
+    // Central and lateral incisors (teeth 8-9, 7-10)
+    if ([8, 9, 7, 10].includes(num)) return 'incisor';
+    // Canines (teeth 6, 11)
+    if ([6, 11].includes(num)) return 'canine';
+    // Premolars (teeth 4-5, 12-13)
+    if ([4, 5, 12, 13].includes(num)) return 'premolar';
+    // Molars (teeth 1-3, 14-16)
+    if ([1, 2, 3, 14, 15, 16].includes(num)) return 'molar';
+  }
+  
+  // Lower Jaw (17-32)
+  if (num >= 17 && num <= 32) {
+    // Central and lateral incisors (teeth 24-25, 23-26)
+    if ([24, 25, 23, 26].includes(num)) return 'incisor';
+    // Canines (teeth 22, 27)
+    if ([22, 27].includes(num)) return 'canine';
+    // Premolars (teeth 20-21, 28-29)
+    if ([20, 21, 28, 29].includes(num)) return 'premolar';
+    // Molars (teeth 17-19, 30-32)
+    if ([17, 18, 19, 30, 31, 32].includes(num)) return 'molar';
+  }
+  
+  // Default case
+  return 'unknown';
+};
+
+// Calculate tooth width for a single tooth
+const calculateToothWidth = (tooth) => {
+  if (tooth.type === 'rectangle') {
+    return tooth.width;
+  } else if (tooth.segmentation && tooth.segmentation.length > 0) {
+    // For polygon, calculate width based on bounding box
+    let minX = Infinity, maxX = -Infinity;
+    for (const point of tooth.segmentation) {
+      minX = Math.min(minX, point.x);
+      maxX = Math.max(maxX, point.x);
+    }
+    return maxX - minX;
+  }
+  return 0;
+};
+
+// Calculate average tooth width by tooth type
+const calculateAverageToothWidthByType = (annotations) => {
+  // Filter annotations to only include those with valid tooth numbers
+  const teethAnnotations = annotations.filter((anno) => !isNaN(Number.parseInt(anno.label)));
+  
+  if (teethAnnotations.length === 0) return { average: 0, byType: {} };
+  
+  // Group teeth by type
+  const teethByType = {
+    incisor: [],
+    canine: [],
+    premolar: [],
+    molar: [],
+    unknown: []
   };
+  
+  // Calculate width for each tooth and group by type
+  teethAnnotations.forEach(tooth => {
+    const toothNumber = Number.parseInt(tooth.label);
+    const toothType = getToothType(toothNumber);
+    const width = calculateToothWidth(tooth);
+    
+    // Add to appropriate type group
+    if (width > 0) {
+      teethByType[toothType].push(width);
+    }
+  });
+  
+  // Calculate average width for each type
+  const averagesByType = {};
+  let totalWidth = 0;
+  let totalCount = 0;
+  
+  for (const [type, widths] of Object.entries(teethByType)) {
+    if (widths.length > 0) {
+      const sum = widths.reduce((acc, width) => acc + width, 0);
+      averagesByType[type] = sum / widths.length;
+      totalWidth += sum;
+      totalCount += widths.length;
+    } else {
+      averagesByType[type] = 0;
+    }
+  }
+  
+  // Overall average (fallback)
+  const overallAverage = totalCount > 0 ? totalWidth / totalCount : 0;
+  
+  return {
+    average: overallAverage,
+    byType: averagesByType
+  };
+};
+
+// Modified recursive function to update adjacent teeth with improved gap detection
+const recursivelyUpdateTeethWithGapDetection = (
+  currentAnnotations, 
+  currentTooth, 
+  currentToothNumber, 
+  updatedTeethIds, 
+  toothWidthData
+) => {
+  // Get all tooth annotations with numeric labels
+  const teethAnnotations = currentAnnotations.filter((anno) => !isNaN(Number.parseInt(anno.label)));
+  
+  // Determine if we're in upper or lower jaw
+  const isUpperJaw = currentToothNumber >= 1 && currentToothNumber <= 16;
+  const isLowerJaw = currentToothNumber >= 17 && currentToothNumber <= 32;
+  
+  // Find adjacent teeth based on segmentation proximity
+  const adjacentTeeth = findAdjacentTeeth(currentTooth, teethAnnotations);
+  let updatedAnnotations = [...currentAnnotations];
+  
+  // Process the left adjacent tooth
+  if (adjacentTeeth.left) {
+    const leftToothIndex = currentAnnotations.findIndex((anno) => anno === adjacentTeeth.left);
+    const leftToothId = adjacentTeeth.left.id || leftToothIndex;
+    
+    // Only process if we haven't updated this tooth already
+    if (leftToothIndex !== -1 && !updatedTeethIds.has(leftToothId)) {
+      // Calculate distance between tooth centers
+      const distance = calculateDistance(currentTooth, adjacentTeeth.left);
+      
+      // Calculate current tooth width
+      const currentToothWidth = calculateToothWidth(currentTooth);
+      
+      // Calculate left tooth width
+      const leftToothWidth = calculateToothWidth(adjacentTeeth.left);
+      
+      // Determine what type of tooth would be in the gap
+      let gapToothType;
+      if (isUpperJaw) {
+        // For upper jaw, moving left means increasing tooth number
+        gapToothType = getToothType(currentToothNumber - 1);
+      } else {
+        // For lower jaw, moving left means decreasing tooth number
+        gapToothType = getToothType(currentToothNumber + 1);
+      }
+      
+      // Get the expected width based on tooth type
+      let expectedWidth;
+      if (toothWidthData.byType[gapToothType] && toothWidthData.byType[gapToothType] > 0) {
+        expectedWidth = toothWidthData.byType[gapToothType];
+      } else {
+        // Fallback to overall average if specific type data is not available
+        expectedWidth = toothWidthData.average;
+      }
+      
+      // Calculate the gap (distance between edges)
+      // Subtract half the width of current tooth and half the width of left tooth
+      const gap = distance - (currentToothWidth / 2) - (leftToothWidth / 2);
+      
+      // Calculate how many teeth would fit in this gap
+      const gapSize = Math.max(1, Math.round(gap / expectedWidth) + 1);
+      console.log(`Left gap: ${gapSize}, actual gap: ${gap}px, expected width for ${gapToothType}: ${expectedWidth}px`);
+      
+      // Determine the new label with gap consideration
+      let leftToothNewLabel = 0;
+      if (isUpperJaw) {
+        leftToothNewLabel = (currentToothNumber - gapSize).toString();
+      } else {
+        leftToothNewLabel = (currentToothNumber + gapSize).toString();
+      }
+      
+      // Only update if the new label is valid for the jaw
+      if (
+        (isUpperJaw && Number.parseInt(leftToothNewLabel) >= 1 && Number.parseInt(leftToothNewLabel) <= 16) ||
+        (isLowerJaw && Number.parseInt(leftToothNewLabel) >= 17 && Number.parseInt(leftToothNewLabel) <= 32)
+      ) {
+        const updatedLeftTooth = {
+          ...adjacentTeeth.left,
+          label: leftToothNewLabel,
+          created_by: `${sessionStorage.getItem("firstName")} ${sessionStorage.getItem("lastName")}`,
+          created_on: new Date().toISOString(),
+        };
+        
+        // Mark this tooth as updated
+        updatedTeethIds.add(leftToothId);
+        
+        // Update the annotations array
+        updatedAnnotations = updatedAnnotations.map((anno, index) => 
+          index === leftToothIndex ? updatedLeftTooth : anno
+        );
+        
+        // Recursively update teeth starting from this left tooth
+        updatedAnnotations = recursivelyUpdateTeethWithGapDetection(
+          updatedAnnotations,
+          updatedLeftTooth,
+          Number.parseInt(leftToothNewLabel),
+          updatedTeethIds,
+          toothWidthData
+        );
+      }
+    }
+  }
+  
+  // Process the right adjacent tooth
+  if (adjacentTeeth.right) {
+    const rightToothIndex = currentAnnotations.findIndex((anno) => anno === adjacentTeeth.right);
+    const rightToothId = adjacentTeeth.right.id || rightToothIndex;
+    
+    // Only process if we haven't updated this tooth already
+    if (rightToothIndex !== -1 && !updatedTeethIds.has(rightToothId)) {
+      // Calculate distance between tooth centers
+      const distance = calculateDistance(currentTooth, adjacentTeeth.right);
+      
+      // Calculate current tooth width
+      const currentToothWidth = calculateToothWidth(currentTooth);
+      
+      // Calculate right tooth width
+      const rightToothWidth = calculateToothWidth(adjacentTeeth.right);
+      
+      // Determine what type of tooth would be in the gap
+      let gapToothType;
+      if (isUpperJaw) {
+        // For upper jaw, moving right means decreasing tooth number
+        gapToothType = getToothType(currentToothNumber + 1);
+      } else {
+        // For lower jaw, moving right means increasing tooth number
+        gapToothType = getToothType(currentToothNumber - 1);
+      }
+      
+      // Get the expected width based on tooth type
+      let expectedWidth;
+      if (toothWidthData.byType[gapToothType] && toothWidthData.byType[gapToothType] > 0) {
+        expectedWidth = toothWidthData.byType[gapToothType];
+      } else {
+        // Fallback to overall average if specific type data is not available
+        expectedWidth = toothWidthData.average;
+      }
+      
+      // Calculate the gap (distance between edges)
+      // Subtract half the width of current tooth and half the width of right tooth
+      const gap = distance - (currentToothWidth / 2) - (rightToothWidth / 2);
+      
+      // Calculate how many teeth would fit in this gap
+      const gapSize = Math.max(1, Math.round(gap / expectedWidth) + 1);
+      console.log(`Right gap: ${gapSize}, actual gap: ${gap}px, expected width for ${gapToothType}: ${expectedWidth}px`);
+      
+      // Determine the new label with gap consideration
+      let rightToothNewLabel = 0;
+      if (isUpperJaw) {
+        rightToothNewLabel = (currentToothNumber + gapSize).toString();
+      } else {
+        rightToothNewLabel = (currentToothNumber - gapSize).toString();
+      }
+      
+      // Only update if the new label is valid for the jaw
+      if (
+        (isUpperJaw && Number.parseInt(rightToothNewLabel) >= 1 && Number.parseInt(rightToothNewLabel) <= 16) ||
+        (isLowerJaw && Number.parseInt(rightToothNewLabel) >= 17 && Number.parseInt(rightToothNewLabel) <= 32)
+      ) {
+        const updatedRightTooth = {
+          ...adjacentTeeth.right,
+          label: rightToothNewLabel,
+          created_by: `${sessionStorage.getItem("firstName")} ${sessionStorage.getItem("lastName")}`,
+          created_on: new Date().toISOString(),
+        };
+        
+        // Mark this tooth as updated
+        updatedTeethIds.add(rightToothId);
+        
+        // Update the annotations array
+        updatedAnnotations = updatedAnnotations.map((anno, index) => 
+          index === rightToothIndex ? updatedRightTooth : anno
+        );
+        
+        // Recursively update teeth starting from this right tooth
+        updatedAnnotations = recursivelyUpdateTeethWithGapDetection(
+          updatedAnnotations,
+          updatedRightTooth,
+          Number.parseInt(rightToothNewLabel),
+          updatedTeethIds,
+          toothWidthData
+        );
+      }
+    }
+  }
+  
+  return updatedAnnotations;
+};
+
+// Update handleConfirmUpdate to use the new width calculation
+const handleConfirmUpdate = (autoUpdate = false) => {
+  // Close the modal
+  setModalOpen(false);
+  
+  if (pendingLabelChange && selectedAnnotation) {
+    // First update the selected tooth
+    const updatedAnnotation = {
+      ...selectedAnnotation,
+      label: pendingLabelChange,
+      created_by: `${sessionStorage.getItem("firstName")} ${sessionStorage.getItem("lastName")}`,
+      created_on: new Date().toISOString(),
+    }
+
+    let newAnnotations = annotations.map(anno =>
+            anno === selectedAnnotation ? updatedAnnotation : anno
+          );
+
+    // If user confirmed auto-update, update adjacent teeth recursively
+    if (autoUpdate) {
+      // Set to keep track of teeth we've already updated to prevent infinite loops
+      const updatedTeethIds = new Set()
+      // Add initially selected tooth to updated set
+      updatedTeethIds.add(selectedAnnotation.id || annotations.findIndex((anno) => anno === selectedAnnotation))
+
+      // Get the selected tooth number
+      const selectedToothNumber = Number.parseInt(pendingLabelChange)
+      
+      // Calculate average tooth widths by type for gap detection
+      const toothWidthData = calculateAverageToothWidthByType(newAnnotations);
+      console.log("Tooth width data:", toothWidthData);
+      
+      // Call recursive function starting with the selected tooth
+      newAnnotations = recursivelyUpdateTeethWithGapDetection(
+        newAnnotations,
+        updatedAnnotation,
+        selectedToothNumber,
+        updatedTeethIds,
+        toothWidthData
+      )
+    }
+
+    // Update the selected annotation
+    setSelectedAnnotation(updatedAnnotation)
+
+    // Update annotations in the component
+    setAnnotations(newAnnotations)
+    saveAnnotations(newAnnotations)
+
+    // Update annotations in the small canvas data
+    const updatedSmallCanvasData = smallCanvasData
+    updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations = newAnnotations
+    setSmallCanvasData(updatedSmallCanvasData)
+    
+    // Clear the pending label change
+    setPendingLabelChange(null);
+  }
+}
+  // const handleLabelChange = (newValue) => {
+  //   if (selectedAnnotation && !isNaN(parseInt(selectedAnnotation.label))) {
+  //     const updatedAnnotation = { 
+  //       ...selectedAnnotation, 
+  //       label: newValue,
+  //       created_by: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`,
+  //       created_on: new Date().toISOString()
+  //     };
+      
+  //     const newAnnotations = annotations.map(anno =>
+  //       anno === selectedAnnotation ? updatedAnnotation : anno
+  //     );
+      
+  //     // Update the selected annotation
+  //     setSelectedAnnotation(updatedAnnotation);
+      
+  //     setAnnotations(newAnnotations)
+  //     saveAnnotations(newAnnotations);
+      
+  //     // Update annotations in the component
+  //     let updatedSmallCanvasData = smallCanvasData;
+  //     updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations = newAnnotations;
+  //     setSmallCanvasData(updatedSmallCanvasData);
+  //   }
+  // };
   const completeFreehandDrawing = () => {
     const lastPath = drawingPaths[drawingPaths.length - 1];
     if (lastPath && lastPath.length > 2) {
@@ -1380,7 +1814,6 @@ const AnnotationPage = () => {
   };
 
   const handleAddBox = (newBoxVertices) => {
-    console.log(newBoxLabel, newBoxVertices)
       const date=new Date().toISOString()
       let newAnnotation = {}
     if (model === "segmentation") {
@@ -2598,6 +3031,13 @@ const AnnotationPage = () => {
                   </Row>
                   </Col>
         </CardFooter>
+        <ConfirmationModal 
+          isOpen={modalOpen}
+          toggle={toggleModal}
+          onConfirm={() => handleConfirmUpdate(true)}
+          onClose={() => handleConfirmUpdate(false)}
+          message="Would you like to automatically update adjacent teeth labels?"
+        />
       </Card>
     </React.Fragment>
 
