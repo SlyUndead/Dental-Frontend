@@ -522,7 +522,7 @@ const AnnotationPage = () => {
     } else if (selectedAnnotation && !isEraserActive) {
       setEditingPath([clickPoint]); // Start a new editing path
       isDrawingRef.current = true;
-      setSubtractPath(e.button === 2);
+      setSubtractPath(e.shiftKey);
     } else if (isHybridDrawingActive) {
       if (!isDrawingStartedRef.current) {
         startPointRef.current = clickPoint;
@@ -535,6 +535,7 @@ const AnnotationPage = () => {
         );
 
         if (distance <= SNAP_THRESHOLD && hybridPath.length > 2) {
+          console.log(hybridPath)
           completeHybridDrawing();
         } else {
           setHybridPath([...hybridPath, ...livewirePath, clickPoint]);
@@ -1300,6 +1301,7 @@ const handleConfirmUpdate = (autoUpdate = false) => {
   };
   const completeHybridDrawing = () => {
     const vertices = hybridPath.map(point => ({ x: point[0], y: point[1] }));
+    console.log(hybridPath)
     setNewBoxVertices(unZoomVertices(vertices));
     // setShowDialog(true);
     setIsHybridDrawing(false);
@@ -1481,6 +1483,79 @@ const handleConfirmUpdate = (autoUpdate = false) => {
       );
     }
   }, [image, isLiveWireTracingActive]);
+  // Add this useEffect for keyboard shortcuts
+useEffect(() => {
+  const handleKeyDown = (e) => {
+    // Ctrl+Z for undo
+    if (e.ctrlKey && !e.shiftKey && e.key === 'z') {
+      e.preventDefault();
+      if (currentStep > 0) {
+        undo();
+      }
+    }
+    
+    // Ctrl+Shift+Z for redo
+    if (e.ctrlKey && e.shiftKey && e.key === 'Z') {
+      e.preventDefault();
+      if (currentStep < history.length - 1) {
+        redo();
+      }
+    }
+    
+    // Spacebar to complete drawing
+    if (e.key === ' ' && !e.ctrlKey && !e.shiftKey) {
+      e.preventDefault();
+      if (isHybridDrawingActive && isDrawingStartedRef.current) {
+        console.log("Completing hybrid drawing with spacebar");
+        completeHybridDrawing();
+      }
+      else if (isDrawingFreehand && isDrawingRef.current) {
+        completeFreehandDrawing();
+      } else if (isLiveWireTracingActive && isLiveWireTracing) {
+        completePolygon();
+      } else if (isLineDrawingActive && lineStart && lineEnd) {
+        const newLine = {
+          label: 'Line',
+          vertices: [
+            { x: lineStart[0], y: lineStart[1] },
+            { x: lineEnd[0], y: lineEnd[1] }
+          ]
+        };
+        updateAnnotationsWithHistory([...annotations, newLine]);
+        setLineStart(null);
+        setLineEnd(null);
+        setIsLineDrawingActive(false);
+      }
+    }
+  };
+
+  // Add event listener
+  document.addEventListener('keydown', handleKeyDown);
+  
+  // Clean up
+  return () => {
+    document.removeEventListener('keydown', handleKeyDown);
+  };
+}, [currentStep, history, isDrawingFreehand, isDrawingRef, isHybridDrawingActive, 
+    isDrawingStartedRef, isLiveWireTracingActive, isLiveWireTracing, isLineDrawingActive, 
+    lineStart, lineEnd, annotations, hybridPath]);
+
+// Add this useEffect to prevent the default context menu
+useEffect(() => {
+  const preventContextMenu = (e) => {
+    if (e.target === mainCanvasRef.current) {
+      e.preventDefault();
+    }
+  };
+  
+  // Add event listener
+  document.addEventListener('contextmenu', preventContextMenu);
+  
+  // Clean up
+  return () => {
+    document.removeEventListener('contextmenu', preventContextMenu);
+  };
+}, [mainCanvasRef]);
   const loadImages = async () => {
     try{
       const imagesData = await fetchVisitDateImages();
