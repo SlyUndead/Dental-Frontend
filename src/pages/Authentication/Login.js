@@ -47,8 +47,8 @@ const Login = props => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = async () => {
-    //e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setError('');
       try {
         //console.log("calling api");
@@ -114,7 +114,7 @@ const Login = props => {
                 Don't have an account? <Link to="/signup" style={{color:'#1b69b2'}}>Sign up</Link>
               </p>
 
-              <Form className="mt-3" onSubmit={handleSubmit}>
+              <Form className="mt-3" onSubmit={(e)=>handleSubmit(e)}>
                 <div className="mb-3">
                   <Input
                     name="email"
@@ -147,7 +147,7 @@ const Login = props => {
                   <Link to="/forgot-password" className="text-muted" style={{color:'#1b69b2'}}>Forgot password?</Link>
                 </div>
 
-                <Button color="primary" block onClick={handleSubmit} style={{backgroundColor:'#1b69b2'}}>Log in</Button>
+                <Button color="primary" block type='submit' style={{backgroundColor:'#1b69b2'}}>Log in</Button>
               </Form>
 
               <div className="text-center mt-4">

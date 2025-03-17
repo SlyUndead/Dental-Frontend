@@ -914,7 +914,7 @@ const AnnotationList = ({
                                 ) : (
                                   <span style={{ flexGrow: 1 }}>
                                     {anno.label}
-                                    {anno.created_by ? (anno.created_by.startsWith("Model v") ? "" : " (M)") : ""}
+                                    {anno.created_by ? (anno.created_by.startsWith("Model v") ? "" : (anno.created_by.startsWith("Auto Update Labelling")? "(A)":" (M)")) : ""}
                                   </span>
                                 )}
 

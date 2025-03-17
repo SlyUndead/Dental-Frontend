@@ -238,7 +238,88 @@ const AnnotationPage = () => {
   };
   const drawAnnotations = (ctx, image, x, y, scale, selectedAnnotation, areaScale) => {
     const fontSize = Math.ceil(12/(1000/image.width));
-    // console.log(mainCanvasRef.current.width,image.width)
+    // Scale the spacing values based on image size
+    const labelPadding = Math.ceil(5/(1000/image.width));
+    const verticalOffset = Math.ceil(28/(1000/image.width));
+    
+    // First find the lower jaw annotation for overlap checking
+    let lowerJawVertices = null;
+    annotations.forEach((anno) => {
+      if (anno.label === "lower jaw") {
+        if (model === "segmentation") {
+          lowerJawVertices = anno.segmentation ? anno.segmentation : anno.bounding_box;
+        } else {
+          lowerJawVertices = anno.vertices;
+        }
+      }
+    });
+    
+    // Function to check if points are inside a polygon
+    const isPointInPolygon = (point, polygon) => {
+      // Ray casting algorithm
+      let inside = false;
+      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].x * scale;
+        const yi = polygon[i].y * scale;
+        const xj = polygon[j].x * scale;
+        const yj = polygon[j].y * scale;
+        
+        const intersect = ((yi > point.y) !== (yj > point.y)) &&
+          (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    };
+    
+    // Function to check if an annotation is mostly inside the lower jaw
+    const isAnnotationMostlyInLowerJaw = (vertices) => {
+      if (!lowerJawVertices) return false;
+      
+      // Generate a grid of points within the annotation's bounding box
+      const { left, top, width, height } = getBoxDimensions(vertices.map(v => ({ x: v.x * scale, y: v.y * scale })));
+      
+      const pointsToCheck = 100; // Number of points to check
+      let pointsInside = 0;
+      let pointsInsideLowerJaw = 0;
+      
+      // Generate grid of points
+      const stepX = width / Math.sqrt(pointsToCheck);
+      const stepY = height / Math.sqrt(pointsToCheck);
+      
+      for (let x = left; x <= left + width; x += stepX) {
+        for (let y = top; y <= top + height; y += stepY) {
+          const point = { x, y };
+          
+          // Check if point is inside the annotation
+          if (isPointInPolygon(point, vertices.map(v => ({ x: v.x * scale, y: v.y * scale })))) {
+            pointsInside++;
+            
+            // Check if point is also inside the lower jaw
+            if (isPointInPolygon(point, lowerJawVertices.map(v => ({ x: v.x * scale, y: v.y * scale })))) {
+              pointsInsideLowerJaw++;
+            }
+          }
+        }
+      }
+      
+      // Calculate percentage of the annotation that's inside the lower jaw
+      const percentageInside = pointsInside > 0 ? (pointsInsideLowerJaw / pointsInside) * 100 : 0;
+      
+      return percentageInside >= 80; // 80% or more is inside
+    };
+    
+    // Function to determine if label should be positioned below
+    const shouldPositionLabelBelow = (anno, vertices) => {
+      // For teeth numbers 17-32
+      const labelValue = parseInt(anno.label);
+      const isLowerTeeth = !isNaN(labelValue) && labelValue >= 17 && labelValue <= 32;
+      
+      // For annotations that are mostly inside the lower jaw (but are not the lower jaw itself)
+      const isMostlyInLowerJaw = anno.label !== "lower jaw" && isAnnotationMostlyInLowerJaw(vertices);
+      
+      return isLowerTeeth || isMostlyInLowerJaw;
+    };
+    
     if (model === "segmentation") {
       annotations.forEach((anno, index) => {
         if (!hiddenAnnotations.includes(index)) {
@@ -312,44 +393,53 @@ const AnnotationPage = () => {
                   labelText = `${anno.label}`;
                 }
                 if (labelText!==''){
-                // Set font and measure text
-                ctx.font = `${fontSize}px Arial`;
-                const textMetrics = ctx.measureText(labelText);
-                const textWidth = textMetrics.width;
-                const textHeight = parseInt(ctx.font, 10);
-                
-                // Calculate center position
-                const centerX = left + (width / 2) - (textWidth / 2);
-                
-                // Parse label value for comparison
-                const labelValue = parseInt(anno.label);
-                const isNumeric = !isNaN(labelValue);
-                
-                // Determine position based on label value (if numeric)
-                let labelY, rectY;
+                  // Set font and measure text
+                  ctx.font = `${fontSize}px Arial`;
+                  const textMetrics = ctx.measureText(labelText);
+                  const textWidth = textMetrics.width;
+                  const textHeight = parseInt(ctx.font, 10);
+                  
+                  // Calculate center position
+                  const centerX = left + (width / 2) - (textWidth / 2);
+                  
+                  // Check if the label would go out of bounds
+                  const canvasHeight = ctx.canvas.height;
+                  const labelAboveOutOfBounds = (top - verticalOffset - textHeight - labelPadding*2) < 0;
+                  const labelBelowOutOfBounds = (top + height + labelPadding + textHeight + 10) > canvasHeight;
 
-                if ((isNumeric && labelValue >= 17 && labelValue <= 32)) {
-                  // Position below the annotation
-                  rectY = top + height + 5;
-                  labelY = rectY + textHeight + 5;
-                } else if (labelText === "lower jaw") {
-                  // Special positioning for lower jaw - place it above the lowest point but still inside the annotation
-                  // Calculate a position that's slightly above the bottom edge
-                  rectY = top + height - (textHeight + 15); // Position above bottom edge
-                  labelY = rectY + textHeight + 5;
-                } else {
-                  // Position above the annotation
-                  rectY = top - 28 - textHeight;
-                  labelY = rectY + textHeight + 5;
-                }
+                  // Determine if this label should go below based on our criteria
+                  const shouldShowBelow = shouldPositionLabelBelow(anno, vertices);
+                  
+                  // Determine position based on label value (if numeric)
+                  let labelY, rectY;
+
+                  if (shouldShowBelow || labelAboveOutOfBounds) {
+                    // Position below the annotation
+                    rectY = top + height + labelPadding;
+                    labelY = rectY + textHeight + labelPadding;
+                    
+                    // If below is also out of bounds, position it inside the annotation
+                    if (labelBelowOutOfBounds) {
+                      rectY = top + height - (textHeight + labelPadding*3);
+                      labelY = rectY + textHeight + labelPadding;
+                    }
+                  } else if (labelText === "lower jaw") {
+                    // Special positioning for lower jaw - place it above the lowest point but still inside the annotation
+                    rectY = top + height - (textHeight + labelPadding*3);
+                    labelY = rectY + textHeight + labelPadding;
+                  } else {
+                    // Position above the annotation
+                    rectY = top - verticalOffset - textHeight;
+                    labelY = rectY + textHeight + labelPadding;
+                  }
                               
-                // Draw background and text
-                ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
-                ctx.fillRect(centerX - 5, rectY, textWidth + 10, textHeight + 10);
-                
-                ctx.fillStyle = 'black';
-                ctx.fillText(labelText, centerX, labelY);
-              }
+                  // Draw background and text
+                  ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
+                  ctx.fillRect(centerX - labelPadding, rectY, textWidth + labelPadding*2, textHeight + labelPadding*2);
+                  
+                  ctx.fillStyle = 'black';
+                  ctx.fillText(labelText, centerX, labelY);
+                }
               }
             }
           }
@@ -410,45 +500,55 @@ const AnnotationPage = () => {
                 labelText = `${anno.label}`;
               }
               if (labelText!==''){
-              // Set font and measure text
-              ctx.font = `${fontSize}px Arial`;
-              const textMetrics = ctx.measureText(labelText);
-              const textWidth = textMetrics.width;
-              const textHeight = parseInt(ctx.font, 10);
-              
-              // Calculate center position
-              const centerX = left + (width / 2) - (textWidth / 2);
-              
-              // Parse label value for comparison
-              const labelValue = parseInt(anno.label);
-              const isNumeric = !isNaN(labelValue);
-              
-              // Determine position based on label value (if numeric)
-              let labelY, rectY;
+                // Set font and measure text
+                ctx.font = `${fontSize}px Arial`;
+                const textMetrics = ctx.measureText(labelText);
+                const textWidth = textMetrics.width;
+                const textHeight = parseInt(ctx.font, 10);
+                
+                // Calculate center position
+                const centerX = left + (width / 2) - (textWidth / 2);
+                
+                // Parse label value for comparison
+                const labelValue = parseInt(anno.label);
+                const isNumeric = !isNaN(labelValue);
+                
+                // Check if the label would go out of bounds
+                const canvasHeight = ctx.canvas.height;
+                const labelAboveOutOfBounds = (top - verticalOffset - textHeight - labelPadding*2) < 0;
+                const labelBelowOutOfBounds = (top + height + labelPadding + textHeight + 10) > canvasHeight;
+                
+                // Determine position based on label value (if numeric)
+                let labelY, rectY;
 
-              if ((isNumeric && labelValue >= 17 && labelValue <= 32)) {
-                // Position below the annotation
-                rectY = top + height + 5;
-                labelY = rectY + textHeight + 5;
-              } else if (labelText === "lower jaw") {
-                // Special positioning for lower jaw - place it above the lowest point but still inside the annotation
-                // Calculate a position that's slightly above the bottom edge
-                rectY = top + height - (textHeight + 15); // Position above bottom edge
-                labelY = rectY + textHeight + 5;
-              } else {
-                // Position above the annotation
-                rectY = top - 28 - textHeight;
-                labelY = rectY + textHeight + 5;
+                if ((isNumeric && labelValue >= 17 && labelValue <= 32) || labelAboveOutOfBounds) {
+                  // Position below the annotation
+                  rectY = top + height + labelPadding;
+                  labelY = rectY + textHeight + labelPadding;
+                  
+                  // If below is also out of bounds, position it inside the annotation
+                  if (labelBelowOutOfBounds) {
+                    rectY = top + height - (textHeight + labelPadding*3);
+                    labelY = rectY + textHeight + labelPadding;
+                  }
+                } else if (labelText === "lower jaw") {
+                  // Special positioning for lower jaw - place it above the lowest point but still inside the annotation
+                  rectY = top + height - (textHeight + labelPadding*3);
+                  labelY = rectY + textHeight + labelPadding;
+                } else {
+                  // Position above the annotation
+                  rectY = top - verticalOffset - textHeight;
+                  labelY = rectY + textHeight + labelPadding;
+                }
+                
+                // Draw background and text
+                ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
+                ctx.fillRect(centerX - labelPadding, rectY, textWidth + labelPadding*2, textHeight + labelPadding*2);
+                
+                ctx.fillStyle = 'black';
+                ctx.fillText(labelText, centerX, labelY);
               }
-              
-              // Draw background and text
-              ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
-              ctx.fillRect(centerX - 5, rectY, textWidth + 10, textHeight + 10);
-              
-              ctx.fillStyle = 'black';
-              ctx.fillText(labelText, centerX, labelY);
             }
-          }
           }
         }
       })
@@ -535,7 +635,6 @@ const AnnotationPage = () => {
         );
 
         if (distance <= SNAP_THRESHOLD && hybridPath.length > 2) {
-          console.log(hybridPath)
           completeHybridDrawing();
         } else {
           setHybridPath([...hybridPath, ...livewirePath, clickPoint]);
@@ -752,7 +851,6 @@ const AnnotationPage = () => {
     
       // Call the function and handle the promise
       updateState().then(() => {
-        console.log(classCategories, labelColors);
         handleCategorySelect(newClassName);
       });
       
@@ -1078,7 +1176,6 @@ const recursivelyUpdateTeethWithGapDetection = (
       
       // Calculate how many teeth would fit in this gap
       const gapSize = Math.max(1, Math.round(gap / expectedWidth) + 1);
-      console.log(`Left gap: ${gapSize}, actual gap: ${gap}px, expected width for ${gapToothType}: ${expectedWidth}px`);
       
       // Determine the new label with gap consideration
       let leftToothNewLabel = 0;
@@ -1096,7 +1193,7 @@ const recursivelyUpdateTeethWithGapDetection = (
         const updatedLeftTooth = {
           ...adjacentTeeth.left,
           label: leftToothNewLabel,
-          created_by: `${sessionStorage.getItem("firstName")} ${sessionStorage.getItem("lastName")}`,
+          created_by: `Auto Update Labelling`,
           created_on: new Date().toISOString(),
         };
         
@@ -1161,7 +1258,6 @@ const recursivelyUpdateTeethWithGapDetection = (
       
       // Calculate how many teeth would fit in this gap
       const gapSize = Math.max(1, Math.round(gap / expectedWidth) + 1);
-      console.log(`Right gap: ${gapSize}, actual gap: ${gap}px, expected width for ${gapToothType}: ${expectedWidth}px`);
       
       // Determine the new label with gap consideration
       let rightToothNewLabel = 0;
@@ -1179,7 +1275,7 @@ const recursivelyUpdateTeethWithGapDetection = (
         const updatedRightTooth = {
           ...adjacentTeeth.right,
           label: rightToothNewLabel,
-          created_by: `${sessionStorage.getItem("firstName")} ${sessionStorage.getItem("lastName")}`,
+          created_by: `Auto Update Labelling`,
           created_on: new Date().toISOString(),
         };
         
@@ -1236,7 +1332,6 @@ const handleConfirmUpdate = (autoUpdate = false) => {
       
       // Calculate average tooth widths by type for gap detection
       const toothWidthData = calculateAverageToothWidthByType(newAnnotations);
-      console.log("Tooth width data:", toothWidthData);
       
       // Call recursive function starting with the selected tooth
       newAnnotations = recursivelyUpdateTeethWithGapDetection(
@@ -1249,7 +1344,7 @@ const handleConfirmUpdate = (autoUpdate = false) => {
     }
 
     // Update the selected annotation
-    setSelectedAnnotation(updatedAnnotation)
+    setSelectedAnnotation(null)
 
     // Update annotations in the component
     setAnnotations(newAnnotations)
@@ -1301,7 +1396,6 @@ const handleConfirmUpdate = (autoUpdate = false) => {
   };
   const completeHybridDrawing = () => {
     const vertices = hybridPath.map(point => ({ x: point[0], y: point[1] }));
-    console.log(hybridPath)
     setNewBoxVertices(unZoomVertices(vertices));
     // setShowDialog(true);
     setIsHybridDrawing(false);
@@ -3066,7 +3160,7 @@ useEffect(() => {
                       height: '100%',
                       alignItems: 'end'
                     }}>
-                      <h4 className="card-title mb-6">Model : {model !== "" ? model ? model : "Object Det." : "Older Model"}</h4>
+                      {/* <h4 className="card-title mb-6">Model : {model !== "" ? model ? model : "Object Det." : "Older Model"}</h4> */}
                     </Col>
                     </Row>
                   </Row>
