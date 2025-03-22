@@ -21,7 +21,7 @@ import "bootstrap/dist/css/bootstrap.min.css"
 import "../../assets/scss/custom/components/_popover.scss"
 import { logErrorToServer } from "utils/logError"
 import { desiredOrder } from "./constants"
-
+import { calculateOverlap } from "./path-utils"
 const AnnotationList = ({
   annotations,
   hiddenAnnotations,
@@ -245,39 +245,15 @@ const AnnotationList = ({
   }
 
   // Calculate overlap between two segmentations
-  const calculateOverlap = (segA, segB) => {
-    const [ax1, ay1, ax2, ay2] = [segA[0].x, segA[0].y, segA[2].x, segA[2].y]
-    const [bx1, by1, bx2, by2] = [segB[0].x, segB[0].y, segB[2].x, segB[2].y]
+  // const calculateOverlap = (segA, segB) => {
+  //   const [ax1, ay1, ax2, ay2] = [segA[0].x, segA[0].y, segA[2].x, segA[2].y]
+  //   const [bx1, by1, bx2, by2] = [segB[0].x, segB[0].y, segB[2].x, segB[2].y]
 
-    const x_overlap = Math.max(0, Math.min(ax2, bx2) - Math.max(ax1, bx1))
-    const y_overlap = Math.max(0, Math.min(ay2, by2) - Math.max(ay1, by1))
+  //   const x_overlap = Math.max(0, Math.min(ax2, bx2) - Math.max(ax1, bx1))
+  //   const y_overlap = Math.max(0, Math.min(ay2, by2) - Math.max(ay1, by1))
 
-    return x_overlap * y_overlap
-  }
-  // Find which tooth each anomaly is associated with
-  const findToothForAnomaly = (annotationsList, anomalyCacheData = anomalyCache) => {
-    const toothAnnotations = annotationsList.filter((a) => !isNaN(Number.parseInt(a.label)))
-    const anomalyAnnotations = annotationsList.filter((a) => anomalyCacheData[a.label])
-    // console.log(toothAnnotations, anomalyAnnotations, annotationsList)
-    const anomalyToToothMap = {}
-
-    anomalyAnnotations.forEach((anomaly) => {
-      const teethWithOverlap = []
-
-      toothAnnotations.forEach((tooth) => {
-        const overlapArea = calculateOverlap(anomaly.segmentation, tooth.segmentation)
-        if (overlapArea > 0) {
-          teethWithOverlap.push({ tooth: tooth.label, overlap: overlapArea })
-        }
-      })
-
-      if (teethWithOverlap.length > 0) {
-        teethWithOverlap.sort((a, b) => b.overlap - a.overlap)
-        anomalyToToothMap[anomaly.label] = teethWithOverlap.map((t) => t.tooth)
-      }
-    })
-    return anomalyToToothMap
-  }
+  //   return x_overlap * y_overlap
+  // }
 
   // Get which quadrant a tooth belongs to
   const getQuadrantForTooth = (toothNumber) => {
@@ -525,25 +501,9 @@ const AnnotationList = ({
       const checkedAnomalyAnnotations = Object.values(globalCheckedAnnotations).filter((anno) =>
         isNaN(Number.parseInt(anno.label)),
       ) // Exclude tooth annotations
-
-      // Prepare tooth annotations to pass along with anomalies
-      const toothAnnotations = checkedAnomalyAnnotations
-        .map((anno) => ({
-          label: anno.associatedTooth,
-          segmentation: null, // We don't need segmentation for tooth annotations
-        }))
-        .filter((tooth) => tooth.label !== null)
-
       // Combine them for processing
       const selectedAnnos = [...checkedAnomalyAnnotations]
-      console.log(selectedAnnos)
       const updatedTreatments = await autofillTreatments(selectedAnnos, convertedCodes)
-
-      // Lock the newly added anomalies
-      const newLockedAnnotationKeys = Object.keys(globalCheckedAnnotations).filter((key) => {
-        const anno = globalCheckedAnnotations[key]
-        return isNaN(Number.parseInt(anno.label)) && anomalyCache[anno.label]
-      })
 
       // Save the treatment plan
       await saveTreatmentPlan(updatedTreatments)
@@ -572,10 +532,8 @@ const AnnotationList = ({
 
     // Get tooth annotations from current image
     const toothAnnotations = annotations.filter((a) => !isNaN(Number.parseInt(a.label)))
-
     // Find the associated tooth for this anomaly
     const associatedTooth = findToothForStoredAnomaly(anno, toothAnnotations)
-
     // Create a copy of the global checked annotations
     const updatedGlobalChecked = { ...globalCheckedAnnotations }
     const uniqueKey = getAnnotationUniqueKey(anno)
@@ -632,7 +590,6 @@ const AnnotationList = ({
         associatedTooth = tooth.label
       }
     })
-
     return associatedTooth
   }
   const dispatch = useDispatch()

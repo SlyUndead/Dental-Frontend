@@ -1,5 +1,6 @@
 // path-utils.js
 import polygonClipping from 'polygon-clipping'
+import * as polyclip from 'polygon-clipping';
 import { logErrorToServer } from 'utils/logError';
 const isValidPath = (path) => {
   return Array.isArray(path) && path.length > 0 && path.every(point => point && typeof point.x === 'number' && typeof point.y === 'number');
@@ -43,3 +44,29 @@ export const modifyPath = (existingPath, newPath, isSubtract = false) => {
     return existingPath; // Return the original path as a fallback
   }
 };
+
+export const calculateOverlap = (segA, segB) => {
+    // Convert segmentation arrays to proper format
+    const polygonA = segA.map(point => [point.x, point.y]);
+    const polygonB = segB.map(point => [point.x, point.y]);
+
+    // Calculate intersection area
+    const intersection = polyclip.intersection([polygonA], [polygonB]);
+
+    if (intersection.length === 0) return 0; // No overlap
+
+    // Calculate the overlapping area using Shoelace formula
+    return intersection.reduce((area, poly) => area + polygonArea(poly[0]), 0);
+}
+
+// Shoelace formula to calculate the area of a polygon
+const polygonArea = (points) => {
+    let area = 0;
+    const n = points.length;
+    for (let i = 0; i < n; i++) {
+        const [x1, y1] = points[i];
+        const [x2, y2] = points[(i + 1) % n]; // Wrap around for last point
+        area += x1 * y2 - x2 * y1;
+    }
+    return Math.abs(area / 2);
+}

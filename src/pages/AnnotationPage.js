@@ -24,6 +24,7 @@ import ConfirmationModal from "./AnnotationTools/ConfirmationModal";
 const AnnotationPage = () => {
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   const [exitClick, setExitClick] = useState(false);
+  const [navigateToTreatmentPlan, setNavigateToTreatmentPlan] = useState(false);
   const [annotations, setAnnotations] = useState([]);
   const [hiddenAnnotations, setHiddenAnnotations] = useState([]);
   const [drawingBox, setDrawingBox] = useState(null);
@@ -236,6 +237,23 @@ const AnnotationPage = () => {
 
     return Math.abs(area / 2) / areaScale;
   };
+  const hexToRGBA=(hex, alpha)=> {
+    let r, g, b;
+    if (hex.startsWith('#')) {
+        // Convert hex to RGB
+        if (hex.length === 4) {  // Short hex format #RGB
+            r = parseInt(hex[1] + hex[1], 16);
+            g = parseInt(hex[2] + hex[2], 16);
+            b = parseInt(hex[3] + hex[3], 16);
+        } else if (hex.length === 7) {  // Full hex format #RRGGBB
+            r = parseInt(hex.substring(1, 3), 16);
+            g = parseInt(hex.substring(3, 5), 16);
+            b = parseInt(hex.substring(5, 7), 16);
+        }
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    return hex; // If not hex, return original color (handles named colors)
+}
   const drawAnnotations = (ctx, image, x, y, scale, selectedAnnotation, areaScale) => {
     const fontSize = Math.ceil(12/(1000/image.width));
     // Scale the spacing values based on image size
@@ -341,7 +359,7 @@ const AnnotationPage = () => {
               // Display length
               const midX = ((anno.vertices[0].x + anno.vertices[1].x) / 2) * scale;
               const midY = ((anno.vertices[0].y + anno.vertices[1].y) / 2) * scale;
-              ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
+              ctx.fillStyle = hexToRGBA(labelColors[anno.label.toLowerCase()] || '#ffffff',0.5);
               ctx.font = `${fontSize}px Arial`;
               if(isArea){
                 ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
@@ -434,7 +452,7 @@ const AnnotationPage = () => {
                   }
                               
                   // Draw background and text
-                  ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
+                  ctx.fillStyle = hexToRGBA(labelColors[anno.label.toLowerCase()] || '#ffffff',0.5);
                   ctx.fillRect(centerX - labelPadding, rectY, textWidth + labelPadding*2, textHeight + labelPadding*2);
                   
                   ctx.fillStyle = 'black';
@@ -466,7 +484,7 @@ const AnnotationPage = () => {
             // Display length
             const midX = ((anno.vertices[0].x + anno.vertices[1].x) / 2) * scale;
             const midY = ((anno.vertices[0].y + anno.vertices[1].y) / 2) * scale;
-            ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
+            ctx.fillStyle = hexToRGBA(labelColors[anno.label.toLowerCase()] || '#ffffff',0.5);
             ctx.font = `${fontSize}px Arial`;
             if(isArea){
               ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
@@ -542,7 +560,7 @@ const AnnotationPage = () => {
                 }
                 
                 // Draw background and text
-                ctx.fillStyle = labelColors[anno.label.toLowerCase()] || 'white';
+                ctx.fillStyle = hexToRGBA(labelColors[anno.label.toLowerCase()] || '#ffffff',0.5);
                 ctx.fillRect(centerX - labelPadding, rectY, textWidth + labelPadding*2, textHeight + labelPadding*2);
                 
                 ctx.fillStyle = 'black';
@@ -952,36 +970,6 @@ const toggleModal = () => {
   }
 }
 
-// Calculate average tooth area from annotations
-const calculateAverageToothArea = (annotations) => {
-  const teethAnnotations = annotations.filter((anno) => !isNaN(Number.parseInt(anno.label)));
-  
-  if (teethAnnotations.length === 0) return 0;
-  
-  const areas = teethAnnotations.map(tooth => {
-    // Calculate area based on bounding box or polygon
-    if (tooth.type === 'rectangle') {
-      return tooth.width * tooth.height;
-    } else if (tooth.segmentation && tooth.segmentation.length > 0) {
-      // For polygon, estimate area using bounding box
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-      
-      for (const point of tooth.segmentation) {
-        minX = Math.min(minX, point.x);
-        maxX = Math.max(maxX, point.x);
-        minY = Math.min(minY, point.y);
-        maxY = Math.max(maxY, point.y);
-      }
-      
-      return (maxX - minX) * (maxY - minY);
-    }
-    return 0;
-  });
-  
-  // Calculate average area
-  return areas.reduce((sum, area) => sum + area, 0) / areas.length;
-}
-
 // Calculate the distance between two tooth annotations
 const calculateDistance = (tooth1, tooth2) => {
   // Get centers of the teeth
@@ -1354,7 +1342,7 @@ const handleConfirmUpdate = (autoUpdate = false) => {
     const updatedSmallCanvasData = smallCanvasData
     updatedSmallCanvasData[mainImageIndex].annotations.annotations.annotations = newAnnotations
     setSmallCanvasData(updatedSmallCanvasData)
-    
+    updateAnnotationsWithHistory(newAnnotations);
     // Clear the pending label change
     setPendingLabelChange(null);
   }
@@ -1925,11 +1913,6 @@ useEffect(() => {
   // useEffect(()=>{
   //   saveAnnotations();
   // },[annotations])
-  const eraserSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${eraserSize}" height="${eraserSize}" fill="white" class="bi bi-eraser-fill" viewBox="0 0 ${eraserSize} ${eraserSize}">
-    <path transform="scale(${eraserSize / 16})" d="M8.086 2.207a2 2 0 0 1 2.828 0l3.879 3.879a2 2 0 0 1 0 2.828l-5.5 5.5A2 2 0 0 1 7.879 15H5.12a2 2 0 0 1-1.414-.586l-2.5-2.5a2 2 0 0 1 0-2.828zm.66 11.34L3.453 8.254 1.914 9.793a1 1 0 0 0 0 1.414l2.5 2.5a1 1 0 0 0 .707.293H7.88a1 1 0 0 0 .707-.293z"/>
-    </svg>`;
-
-  const eraserCursor = `url("data:image/svg+xml,${encodeURIComponent(eraserSvg)}") ${eraserSize / 2} ${eraserSize / 2}, auto`;
   const handleEraserClick = () => {
     setIsEraserActive(!isEraserActive);
   };
@@ -2294,6 +2277,12 @@ useEffect(() => {
       // setSmallCanvasData(updatedThumbnails); // Update thumbnail data
     }
   };
+  if (navigateToTreatmentPlan) {
+    localStorage.removeItem('globalCheckedAnnotations')
+    dispatch(changeMode(preLayoutMode));
+    sessionStorage.removeItem('preLayoutMode');
+    return <Navigate to="/treatmentPlan" />
+}
   if (exitClick) {
       localStorage.removeItem('globalCheckedAnnotations')
       dispatch(changeMode(preLayoutMode));
@@ -3161,6 +3150,14 @@ useEffect(() => {
                       alignItems: 'end'
                     }}>
                       {/* <h4 className="card-title mb-6">Model : {model !== "" ? model ? model : "Object Det." : "Older Model"}</h4> */}
+                      <Button 
+                        id="navigateToTreatmentPlan"
+                        color="primary"
+                        onClick={()=>setNavigateToTreatmentPlan(true)}
+                        >
+                          Treatment Plan
+                        </Button>
+                        <UncontrolledTooltip target={"navigateToTreatmentPlan"}>Go To Treatment Plan</UncontrolledTooltip>
                     </Col>
                     </Row>
                   </Row>

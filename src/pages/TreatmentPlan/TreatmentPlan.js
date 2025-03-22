@@ -22,6 +22,9 @@ import {
 } from 'reactstrap';
 import { setBreadcrumbItems } from 'store/actions';
 import { connect } from "react-redux";
+import { calculateOverlap } from 'pages/AnnotationTools/path-utils';
+import { Navigate } from 'react-router-dom';
+import { logErrorToServer } from 'utils/logError';
 
 const DentalTreatmentPlan = (props) => {
   const [selectedTeeth, setSelectedTeeth] = useState([]);
@@ -33,6 +36,9 @@ const DentalTreatmentPlan = (props) => {
   const [filteredCodes, setFilteredCodes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [openGroups, setOpenGroups] = useState({});
+  const [redirectToLogin, setRedirectToLogin] = useState(false);
+  const [redirectToAnnotationPage, setRedirectToAnnotationPage] = useState(false);
+  const [treatmentCodes, setTreatmentCodes] = useState([])
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   document.title = "Treatment Plan | AGP Dental Tool";
   const breadcrumbItems = [
@@ -69,8 +75,14 @@ const saveTreatmentPlan = async () => {
       // Show success message or notification here
     }
   } catch (error) {
-    console.error("Error saving treatment plan:", error);
-    // Show error message or notification here
+    if(error.status===403||error.status===401){
+      sessionStorage.removeItem('token');
+      setRedirectToLogin(true);
+    }
+    else{
+      logErrorToServer(error, "getPatientList");
+      console.log(error)
+    }
   } finally {
     setSavingPlan(false);
   }
@@ -86,7 +98,6 @@ const fetchExistingTreatmentPlan = async () => {
     });
 
     const data = await response.json();
-    console.log(data)
     if (data.success && data.treatmentPlan) {
       setTreatments(data.treatmentPlan.treatments || []);
       
@@ -103,7 +114,14 @@ const fetchExistingTreatmentPlan = async () => {
         return []
     }
   } catch (error) {
-    console.error("Error fetching treatment plan:", error);
+    if(error.status===403||error.status===401){
+      sessionStorage.removeItem('token');
+      setRedirectToLogin(true);
+    }
+    else{
+    logErrorToServer(error, "getPatientList");
+    console.log(error)
+    }
   }
 };
 
@@ -151,7 +169,14 @@ const generateTreatmentPlan = async () => {
       }
     }
   } catch (error) {
-    console.error("Error generating treatment plan:", error);
+    if(error.status===403||error.status===401){
+      sessionStorage.removeItem('token');
+      setRedirectToLogin(true);
+    }
+    else{
+    logErrorToServer(error, "getPatientList");
+    console.log(error)
+    }
   } finally {
     setGeneratingPlan(false);
     setIsLoading(false);
@@ -171,7 +196,11 @@ const generateTreatmentPlan = async () => {
   useEffect(() => {
     const filtered = dctCodes.filter(code => 
       code.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      code.description.toLowerCase().includes(searchTerm.toLowerCase())
+      code.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      treatmentCodes.some(treatment => 
+        treatment.anomaly.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        treatment.treatment_codes.includes(code.code) // Ensure it matches a relevant treatment code
+    )
     );
     setFilteredCodes(filtered);
   }, [searchTerm, dctCodes]);
@@ -225,16 +254,6 @@ const generateTreatmentPlan = async () => {
     return anomalyToToothMap;
   };
   
-  const calculateOverlap = (boxA, boxB) => {
-    const [ax1, ay1, ax2, ay2] = [boxA[0].x, boxA[0].y, boxA[2].x, boxA[2].y];
-    const [bx1, by1, bx2, by2] = [boxB[0].x, boxB[0].y, boxB[2].x, boxB[2].y];
-  
-    const x_overlap = Math.max(0, Math.min(ax2, bx2) - Math.max(ax1, bx1));
-    const y_overlap = Math.max(0, Math.min(ay2, by2) - Math.max(ay1, by1));
-  
-    return x_overlap * y_overlap;
-  };
-  
   const fetchCdtCodesFromRAG = async (anomaly, convertedCdtCode) => {
     try {
       const response = await fetch(`${apiUrl}/chat-with-rag`, {
@@ -250,10 +269,16 @@ const generateTreatmentPlan = async () => {
       });
   
       const ragText = await response.json();
-      console.log(ragText.answer)
       return parseCdtCodes(ragText.answer, convertedCdtCode, anomaly);
     } catch (error) {
-      console.error("Error fetching CDT codes:", error);
+      if(error.status===403||error.status===401){
+        sessionStorage.removeItem('token');
+        setRedirectToLogin(true);
+      }
+      else{
+      logErrorToServer(error, "getPatientList");
+      console.log(error)
+      }
       return [];
     }
   };
@@ -272,7 +297,6 @@ const generateTreatmentPlan = async () => {
         for (const code of codeMatches) {
           // Find the complete details from the dctCodes array and add only if it does not already exist
           const codeDetails = convertedCdtCode.find(c => c.code === code);
-          console.log(codeList.find(c=>c.code===code))
           if (codeDetails && !codeList.find(c=>c.code===code)) {
             cdtCodes.push({
               code: code,
@@ -309,7 +333,6 @@ const generateTreatmentPlan = async () => {
   };
   
   const handleAutoFillTreatments = (toothNumberArray, cdtData, anomalyType) => {
-    console.log(toothNumberArray);
     // Create treatments for each tooth in the array
     const newTreatments = [];
     
@@ -401,10 +424,23 @@ const generateTreatmentPlan = async () => {
         const convertedCodes = convertCdtCode(data.cdtCodes);
         setDctCodes(convertedCodes);
         setFilteredCodes(convertedCodes);
-        
+        const response1 = await fetch(`${apiUrl}/get-treatment-codes`, {
+          headers: {
+            Authorization: sessionStorage.getItem('token')
+          }
+        });
+        const data1 = await response1.json()
+        setTreatmentCodes(data1.user1)
         // Only fetch JSON files if we don't already have a treatment plan
         setIsLoading(false);
       } catch (error) {
+        if(error.status===403||error.status===401){
+          sessionStorage.removeItem('token');
+          setRedirectToLogin(true);
+        }
+        else{
+        logErrorToServer(error, "getPatientList");
+        console.log(error)
         console.error('Error fetching DCT codes:', error);
         // Sample data as fallback
         const sampleData = [
@@ -422,6 +458,7 @@ const generateTreatmentPlan = async () => {
           setIsLoading(false);
         }
       }
+    }
     };
     
     const fetchJsonFiles = async (convertedCdtCode) => {
@@ -440,9 +477,16 @@ const generateTreatmentPlan = async () => {
           setIsLoading(false);
         }
       } catch (error) {
-        console.error("Error fetching JSON files:", error);
+        if(error.status===403||error.status===401){
+          sessionStorage.removeItem('token');
+          setRedirectToLogin(true);
+        }
+        else{
+        logErrorToServer(error, "getPatientList");
+        console.log(error)
         setIsLoading(false);
       }
+    }
     };
     
     // Start the sequence
@@ -475,7 +519,14 @@ const generateTreatmentPlan = async () => {
         
         Object.assign(anomalyCache, data);
       } catch (error) {
-        console.error("Error checking anomalies:", error);
+        if(error.status===403||error.status===401){
+          sessionStorage.removeItem('token');
+          setRedirectToLogin(true);
+        }
+        else{
+        logErrorToServer(error, "getPatientList");
+        console.log(error)
+        }
       }
     }
 
@@ -488,7 +539,7 @@ const generateTreatmentPlan = async () => {
       const newTreatment = {
         id: Date.now(),
         toothNumber: "fullmouth",
-        anomalyType: "Manual Selection",
+        anomalyType: "Manually Selected Procedures",
         ...code
       };
       setTreatments([...treatments, newTreatment]);
@@ -497,7 +548,7 @@ const generateTreatmentPlan = async () => {
       const newTreatment = {
         id: Date.now(),
         toothNumber: "visit",
-        anomalyType: "Manual Selection",
+        anomalyType: "Manually Selected Procedures",
         ...code
       };
       setTreatments([...treatments, newTreatment]);
@@ -508,7 +559,7 @@ const generateTreatmentPlan = async () => {
         id: Date.now(),
         toothNumber: quadrant,
         affectedTeeth: [selectedTooth], // Initially only includes the selected tooth
-        anomalyType: "Manual Selection",
+        anomalyType: "Manually Selected Procedures",
         ...code
       };
       setTreatments([...treatments, newTreatment]);
@@ -517,7 +568,7 @@ const generateTreatmentPlan = async () => {
       const newTreatment = {
         id: Date.now(),
         toothNumber: selectedTooth.toString(),
-        anomalyType: "Manual Selection",
+        anomalyType: "Manually Selected Procedures",
         ...code
       };
       setTreatments([...treatments, newTreatment]);
@@ -647,7 +698,12 @@ const generateTreatmentPlan = async () => {
       </Row>
     );
   }
-
+  if(redirectToLogin){
+    return <Navigate to="/login"/>
+  }
+  if(redirectToAnnotationPage){
+    return <Navigate to="/annotationPage"/>
+  }
   const organizedTreatments = getOrganizedTreatments();
   const totalPrice = treatments.reduce((sum, t) => sum + t.price, 0).toFixed(2);
 
@@ -826,6 +882,13 @@ const generateTreatmentPlan = async () => {
                 "Generate Treatment Plan"
                 )}
             </Button>
+            <Button
+              color='primary'
+              onClick={()=>setRedirectToAnnotationPage(true)}
+              disabled={savingPlan||generatingPlan}
+              >
+                Annotation Page
+              </Button>
             <Button 
                 color="success" 
                 onClick={saveTreatmentPlan} 
@@ -836,7 +899,7 @@ const generateTreatmentPlan = async () => {
                     <Spinner size="sm" className="me-2" /> Saving...
                 </>
                 ) : (
-                treatmentPlanSaved ? "Update Treatment Plan" : "Save Treatment Plan"
+                "Save Treatment Plan"
                 )}
             </Button>
             </CardFooter>
