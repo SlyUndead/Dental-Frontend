@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import {
   Table, Card, CardBody, Button, Col, Row, FormGroup, Label, Input, Container, InputGroup, InputGroupText, Dropdown,
   DropdownMenu, DropdownToggle, DropdownItem, Popover, PopoverBody, Modal, ModalBody, ModalFooter, ModalHeader, Spinner,
@@ -122,6 +122,8 @@ const AnnotationPage = () => {
   const [newClassCategory, setNewClassCategory] = useState('');
   const [newClassColor, setNewClassColor] = useState('#ffffff');
   const [classSearchModalOpen, setClassSearchModalOpen] = useState(false);
+  const [confidenceLevels, setConfidenceLevels] = useState([])
+  const [redirectToConfidencePlan, setRedirectToConfidencePlan] = useState(false)
   const fetchNotesContent = async () => {
     try {
       const response = await axios.get(`${apiUrl}/notes-content?visitID=` + sessionStorage.getItem('visitId'),
@@ -192,6 +194,7 @@ const AnnotationPage = () => {
       sessionStorage.setItem('token', response.headers['new-token'])
       let updatedClassCategories = {}
       let updatedLabelColors = {}
+      let updatedConfidenceLevels = {}
       data.forEach(element => {
         if (updatedClassCategories[element.className.toLowerCase()] === undefined) {
           updatedClassCategories[element.className.toLowerCase()] = element.category
@@ -199,9 +202,13 @@ const AnnotationPage = () => {
         if (updatedLabelColors[element.className.toLowerCase()] === undefined) {
           updatedLabelColors[element.className.toLowerCase()] = element.color
         }
+        if (updatedConfidenceLevels[element.className.toLowerCase()] === undefined) {
+          element.confidence?updatedConfidenceLevels[element.className.toLowerCase()] = element.confidence:updatedConfidenceLevels[element.className.toLowerCase()] = (0.01)
+        }
       });
       setLabelColors(updatedLabelColors)
       setClassCategories(updatedClassCategories)
+      setConfidenceLevels(updatedConfidenceLevels)
     } catch (error) {
         if(error.status===403||error.status===401){
           if(sessionStorage.getItem('preLayoutMode')){
@@ -255,7 +262,7 @@ const AnnotationPage = () => {
     return hex; // If not hex, return original color (handles named colors)
 }
   const drawAnnotations = (ctx, image, x, y, scale, selectedAnnotation, areaScale) => {
-    const fontSize = Math.ceil(12/(1000/image.width));
+    const fontSize = Math.max(9,Math.ceil(12/(1000/image.width)));
     // Scale the spacing values based on image size
     const labelPadding = Math.ceil(5/(1000/image.width));
     const verticalOffset = Math.ceil(28/(1000/image.width));
@@ -328,19 +335,16 @@ const AnnotationPage = () => {
     
     // Function to determine if label should be positioned below
     const shouldPositionLabelBelow = (anno, vertices) => {
-      // For teeth numbers 17-32
-      const labelValue = parseInt(anno.label);
-      const isLowerTeeth = !isNaN(labelValue) && labelValue >= 17 && labelValue <= 32;
       
       // For annotations that are mostly inside the lower jaw (but are not the lower jaw itself)
       const isMostlyInLowerJaw = anno.label !== "lower jaw" && isAnnotationMostlyInLowerJaw(vertices);
       
-      return isLowerTeeth || isMostlyInLowerJaw;
+      return isMostlyInLowerJaw;
     };
     
     if (model === "segmentation") {
       annotations.forEach((anno, index) => {
-        if (!hiddenAnnotations.includes(index)) {
+        if (!hiddenAnnotations.includes(index) && anno.confidence>=(confidenceLevels[anno.label.toLowerCase()]||0.001)) {
           if (selectedAnnotation === null || selectedAnnotation === anno) {
             if (anno.label === 'Line') {
               // Draw line
@@ -359,7 +363,7 @@ const AnnotationPage = () => {
               // Display length
               const midX = ((anno.vertices[0].x + anno.vertices[1].x) / 2) * scale;
               const midY = ((anno.vertices[0].y + anno.vertices[1].y) / 2) * scale;
-              ctx.fillStyle = hexToRGBA(labelColors[anno.label.toLowerCase()] || '#ffffff',0.5);
+              ctx.fillStyle = labelColors[anno.label.toLowerCase()] || '#ffffff';
               ctx.font = `${fontSize}px Arial`;
               if(isArea){
                 ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
@@ -452,7 +456,7 @@ const AnnotationPage = () => {
                   }
                               
                   // Draw background and text
-                  ctx.fillStyle = hexToRGBA(labelColors[anno.label.toLowerCase()] || '#ffffff',0.5);
+                  ctx.fillStyle = labelColors[anno.label.toLowerCase()] || '#ffffff';
                   ctx.fillRect(centerX - labelPadding, rectY, textWidth + labelPadding*2, textHeight + labelPadding*2);
                   
                   ctx.fillStyle = 'black';
@@ -484,7 +488,7 @@ const AnnotationPage = () => {
             // Display length
             const midX = ((anno.vertices[0].x + anno.vertices[1].x) / 2) * scale;
             const midY = ((anno.vertices[0].y + anno.vertices[1].y) / 2) * scale;
-            ctx.fillStyle = hexToRGBA(labelColors[anno.label.toLowerCase()] || '#ffffff',0.5);
+            ctx.fillStyle = labelColors[anno.label.toLowerCase()] || '#ffffff';
             ctx.font = `${fontSize}px Arial`;
             if(isArea){
               ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
@@ -560,7 +564,7 @@ const AnnotationPage = () => {
                 }
                 
                 // Draw background and text
-                ctx.fillStyle = hexToRGBA(labelColors[anno.label.toLowerCase()] || '#ffffff',0.5);
+                ctx.fillStyle = labelColors[anno.label.toLowerCase()] || '#ffffff'
                 ctx.fillRect(centerX - labelPadding, rectY, textWidth + labelPadding*2, textHeight + labelPadding*2);
                 
                 ctx.fillStyle = 'black';
@@ -1504,51 +1508,66 @@ const handleConfirmUpdate = (autoUpdate = false) => {
       const originalHeight = img.height;
       canvas.width = originalWidth;
       canvas.height = originalHeight;
-
+      
+      // Store aspect ratio
+      const aspectRatio = originalWidth / originalHeight;
+  
       // Clear the canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Apply filters
       if (isNegative) {
         ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) invert(100%)`;
+      } else {
+        ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
       }
-      else {
-        ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`
-      }
+      
       // Draw the image at its original size
       ctx.drawImage(img, 0, 0, originalWidth, originalHeight);
-      // Now scale the canvas to fit the container or apply zoom
+      
+      // Now scale the canvas to fit the container while maintaining aspect ratio
       const containerWidth = canvas.parentElement.clientWidth;
       const containerHeight = canvas.parentElement.clientHeight;
       let canvasWidth, canvasHeight;
+      
       if (type === "main") {
         drawAnnotations(ctx, img, 0, 0, 1, selectedAnnotation, areaScale);
-        // if (containerWidth / containerHeight > aspectRatio) {
-        //     // Container is wider than the image
-        //     canvasWidth = containerHeight * aspectRatio;
-        //     canvasHeight = containerHeight;
-        // } else {
-        //     // Container is taller than the image
-        //     canvasWidth = containerWidth;
-        //     canvasHeight = containerWidth / aspectRatio;
-        // }
         setImage(img);
-        canvasWidth = containerWidth;
-        canvasHeight = containerHeight;
+        
+        // Calculate dimensions that maintain aspect ratio
+        if (containerWidth / containerHeight > aspectRatio) {
+          // Container is wider than the image
+          canvasHeight = containerHeight;
+          canvasWidth = containerHeight * aspectRatio;
+        } else {
+          // Container is taller than the image
+          canvasWidth = containerWidth;
+          canvasHeight = containerWidth / aspectRatio;
+        }
+        
         // Apply zoom to the calculated size
         canvasWidth *= (zoom / 100);
         canvasHeight *= (zoom / 100);
+        
         CANVAS_HEIGHT = canvasHeight;
         CANVAS_WIDTH = canvasWidth;
+        
+        // Center the image
         setX((CANVAS_WIDTH / 2) - (img.width / 2));
         setY((CANVAS_HEIGHT / 2) - (img.height / 2));
-        // console.log(x, y, (canvasWidth / 2) - (img.width / 2), (canvasHeight / 2) - (img.height / 2))
-        // Use CSS or context scaling to resize the entire canvas
+        
+        // Use CSS to resize the entire canvas
         canvas.style.width = `${canvasWidth}px`;
         canvas.style.height = `${canvasHeight}px`;
-
       } else {
-        // For other types, just scale the canvas to fit the container
-        canvas.style.width = `${containerWidth}px`;
-        canvas.style.height = `${containerHeight}px`;
+        // For other types, scale while maintaining aspect ratio
+        if (containerWidth / containerHeight > aspectRatio) {
+          canvas.style.height = `${containerHeight}px`;
+          canvas.style.width = `${containerHeight * aspectRatio}px`;
+        } else {
+          canvas.style.width = `${containerWidth}px`;
+          canvas.style.height = `${containerWidth / aspectRatio}px`;
+        }
       }
     };
   };
@@ -1588,7 +1607,6 @@ useEffect(() => {
     if (e.key === ' ' && !e.ctrlKey && !e.shiftKey) {
       e.preventDefault();
       if (isHybridDrawingActive && isDrawingStartedRef.current) {
-        console.log("Completing hybrid drawing with spacebar");
         completeHybridDrawing();
       }
       else if (isDrawingFreehand && isDrawingRef.current) {
@@ -2305,6 +2323,9 @@ useEffect(() => {
         </Col>
       </Row>
     )
+  }
+  if(redirectToConfidencePlan){
+    return <Navigate to="/confidenceLevelPage"/>
   }
   return (
     <React.Fragment>
@@ -3089,6 +3110,7 @@ useEffect(() => {
                           setIsEraserActive={setIsEraserActive}
                           handleLabelChange={handleLabelChange}
                           mainImageIndex={mainImageIndex}
+                          confidenceLevels={confidenceLevels}
                         />
                       </div>
 
@@ -3158,6 +3180,18 @@ useEffect(() => {
                           Treatment Plan
                         </Button>
                         <UncontrolledTooltip target={"navigateToTreatmentPlan"}>Go To Treatment Plan</UncontrolledTooltip>
+                        {sessionStorage.getItem('clientId')==="67161fcbadd1249d59085f9a"&&(
+                            <div style={{margin:'4px'}}>
+                            <Button 
+                          id="navigateToConfidenceLevelPage"
+                          color="primary"
+                          onClick={()=>setRedirectToConfidencePlan(true)}
+                          >
+                            Confidence
+                          </Button>
+                          <UncontrolledTooltip target={"navigateToConfidenceLevelPage"}>Go To Confidence Level Page</UncontrolledTooltip>
+                          </div>
+                          )}
                     </Col>
                     </Row>
                   </Row>

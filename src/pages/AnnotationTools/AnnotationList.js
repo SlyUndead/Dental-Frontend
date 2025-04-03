@@ -12,6 +12,7 @@ import {
   UncontrolledTooltip,
   Input,
   InputGroup,
+  Collapse
 } from "reactstrap"
 import axios from "axios"
 import { changeMode } from "../../store/actions"
@@ -38,6 +39,7 @@ const AnnotationList = ({
   smallCanvasData,
   setSmallCanvasData,
   mainImageIndex,
+  confidenceLevels
 }) => {
   // Check if setHoveredAnnotation is a function, if not, use a no-op function
   const apiUrl = process.env.REACT_APP_NODEAPIURL
@@ -63,6 +65,14 @@ const AnnotationList = ({
   const [anomalyCache, setAnomalyCache] = useState({})
   const [newLabel, setNewLabel] = useState("")
   const [lockedAnnotations, setLockedAnnotations] = useState([])
+  const [expandedGroups, setExpandedGroups] = useState(() => {
+    // Initially collapse 'Dental Chart' and 'Landmark' groups
+    const initialState = {}
+    desiredOrder.forEach(category => {
+      initialState[category] = category !== 'Dental Chart' && category !== 'Landmark'
+    })
+    return initialState
+  })
   const [globalCheckedAnnotations, setGlobalCheckedAnnotations] = useState(() => {
     // Initialize from localStorage or an empty object
     const saved = localStorage.getItem("globalCheckedAnnotations")
@@ -232,6 +242,13 @@ const AnnotationList = ({
     } else {
       setPopoverOpen(null)
     }
+  }
+  
+  const toggleGroupExpansion = (category) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }))
   }
 
   // Function to convert CDT code response
@@ -660,7 +677,7 @@ const AnnotationList = ({
 
     annotations.forEach((anno, index) => {
       const category = classCategories[anno.label.toLowerCase()]
-      if (category) {
+      if (category && anno.confidence>=(confidenceLevels[anno.label.toLowerCase()]||0.001)) {
         if (updatedGroupedAnnotations[category] === undefined) {
           updatedGroupedAnnotations[category] = []
 
@@ -770,9 +787,23 @@ const AnnotationList = ({
                 if (groupedAnnotations[category]) {
                   return (
                     <div key={category}>
-                      {/* Display the category name */}
+                      {/* Display the category name with toggle button */}
                       <h5>
                         {category}
+                        {/* Group Expansion Toggle */}
+                        <button
+                          id={`btnToggleGroup${category}`}
+                          type="button"
+                          className="btn noti-icon mr-2"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleGroupExpansion(category)
+                          }}
+                        >
+                          <i className={`ion ${expandedGroups[category] ? "ion-md-arrow-dropdown" : "ion-md-arrow-dropright"}`}></i>
+                        </button>
+                        
+                        {/* Existing Hide/Show Button */}
                         <button
                           id={`btnHide${category}`}
                           type="button"
@@ -792,10 +823,12 @@ const AnnotationList = ({
                         </button>
                       </h5>
 
-                      <ListGroup flush>
-                        {/* Loop over each annotation in the current category */}
-                        {groupedAnnotations[category].map((anno, index) => {
-                          const globalIndex = annotations.findIndex((a) => a === anno)
+                      {/* Collapsible Group Content */}
+                      <Collapse isOpen={expandedGroups[category]}>
+                        <ListGroup flush>
+                          {/* Existing annotation rendering logic */}
+                          {groupedAnnotations[category].map((anno, index) => {
+                            const globalIndex = annotations.findIndex((a) => a === anno)
                           if (globalIndex !== -1) {
                             return (
                               <ListGroupItem
@@ -932,11 +965,12 @@ const AnnotationList = ({
                                     ></i>
                                   </button>
                                 </div>
-                              </ListGroupItem>
-                            )
-                          }
-                        })}
-                      </ListGroup>
+                                </ListGroupItem>
+                              )
+                            }
+                          })}
+                        </ListGroup>
+                      </Collapse>
                     </div>
                   )
                 }
