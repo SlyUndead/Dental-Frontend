@@ -65,6 +65,14 @@ const AnnotationList = ({
   const [anomalyCache, setAnomalyCache] = useState({})
   const [newLabel, setNewLabel] = useState("")
   const [lockedAnnotations, setLockedAnnotations] = useState([])
+  const [persistentHiddenCategories, setPersistentHiddenCategories] = useState(() => {
+    // Initialize from localStorage or default to hide 'Dental Chart' and 'Landmark'
+    const saved = localStorage.getItem("persistentHiddenCategories");
+    return saved ? JSON.parse(saved) : {
+      "Dental Chart": true,
+      "Landmark": true
+    };
+  });
   const [expandedGroups, setExpandedGroups] = useState(() => {
     // Initially collapse 'Dental Chart' and 'Landmark' groups
     const initialState = {}
@@ -78,6 +86,9 @@ const AnnotationList = ({
     const saved = localStorage.getItem("globalCheckedAnnotations")
     return saved ? JSON.parse(saved) : {}
   })
+  useEffect(() => {
+    localStorage.setItem("persistentHiddenCategories", JSON.stringify(persistentHiddenCategories));
+  }, [persistentHiddenCategories]);
   useEffect(() => {
     localStorage.setItem("globalCheckedAnnotations", JSON.stringify(globalCheckedAnnotations))
   }, [globalCheckedAnnotations])
@@ -631,22 +642,48 @@ const AnnotationList = ({
   }
 
   const hideCategory = (category) => {
-    const annotationsToHide = groupedAnnotations[category].map((anno) => annotations.findIndex((a) => a === anno))
-    setHiddenAnnotations((prev) => [...prev, ...annotationsToHide])
+    const annotationsToHide = groupedAnnotations[category].map((anno) => annotations.findIndex((a) => a === anno));
+    setHiddenAnnotations((prev) => [...prev, ...annotationsToHide]);
+    setPersistentHiddenCategories((prev) => ({ ...prev, [category]: true }));
   }
-
+  
   const unhideCategory = (category) => {
-    const annotationsToUnhide = groupedAnnotations[category].map((anno) => annotations.findIndex((a) => a === anno))
-    setHiddenAnnotations((prev) => prev.filter((index) => !annotationsToUnhide.includes(index)))
-  }
-
-  const unhideAllBoxes = () => {
-    setHiddenAnnotations([])
+    const annotationsToUnhide = groupedAnnotations[category].map((anno) => annotations.findIndex((a) => a === anno));
+    setHiddenAnnotations((prev) => prev.filter((index) => !annotationsToUnhide.includes(index)));
+    setPersistentHiddenCategories((prev) => ({ ...prev, [category]: false }));
   }
 
   const hideAllBoxes = () => {
-    const allIndices = annotations.map((_, index) => index)
-    setHiddenAnnotations(allIndices)
+    const allIndices = annotations.map((_, index) => index);
+    setHiddenAnnotations(allIndices);
+    
+    // Update persistent state for all categories
+    const allCategoriesHidden = {};
+    Object.keys(groupedAnnotations).forEach(category => {
+      allCategoriesHidden[category] = true;
+    });
+    setPersistentHiddenCategories(allCategoriesHidden);
+  }
+  
+  const unhideAllBoxes = () => {
+    setHiddenAnnotations([]);
+    
+    // Update persistent state for all categories
+    const allCategoriesVisible = {};
+    Object.keys(groupedAnnotations).forEach(category => {
+      allCategoriesVisible[category] = false;
+    });
+    setPersistentHiddenCategories(allCategoriesVisible);
+  }
+  
+  const handleCategoryVisibilityToggle = (category) => {
+    if (hideGroup[category]) {
+      unhideCategory(category);
+      setHideGroup((prev) => ({ ...prev, [category]: false }));
+    } else {
+      hideCategory(category);
+      setHideGroup((prev) => ({ ...prev, [category]: true }));
+    }
   }
 
   useEffect(() => {
@@ -674,39 +711,49 @@ const AnnotationList = ({
     const updatedGroupedAnnotations = {}
     const updatedHideGroups = {}
     const hiddenAnnotationsList = [...hiddenAnnotations]
-
+  
     annotations.forEach((anno, index) => {
       const category = classCategories[anno.label.toLowerCase()]
       if (category && anno.confidence>=(confidenceLevels[anno.label.toLowerCase()]||0.001)) {
         if (updatedGroupedAnnotations[category] === undefined) {
           updatedGroupedAnnotations[category] = []
-
-          // Hide Dental Chart by default and add its annotations to hiddenAnnotations
-          if (category === "Dental Chart" || category === "Landmark") {
-            updatedHideGroups[category] = true
-            hiddenAnnotationsList.push(index)
-          } else {
-            updatedHideGroups[category] = false
+          
+          // Use the persistent state for category visibility
+          updatedHideGroups[category] = persistentHiddenCategories[category] || false;
+          
+          // If category is hidden according to persistent state, hide its annotations
+          if (persistentHiddenCategories[category]) {
+            hiddenAnnotationsList.push(index);
           }
         }
+        
         updatedGroupedAnnotations[category].push(anno)
-        if (category === "Dental Chart" || category === "Landmark") {
-          hiddenAnnotationsList.push(index)
+        
+        // If category is hidden according to persistent state, hide this annotation
+        if (persistentHiddenCategories[category]) {
+          hiddenAnnotationsList.push(index);
         }
       } else {
         if (updatedGroupedAnnotations["Others"] === undefined) {
           updatedGroupedAnnotations["Others"] = []
-          updatedHideGroups["Others"] = false
+          updatedHideGroups["Others"] = persistentHiddenCategories["Others"] || false;
         }
         updatedGroupedAnnotations["Others"].push(anno)
+        
+        // If "Others" category is hidden, hide this annotation
+        if (persistentHiddenCategories["Others"]) {
+          hiddenAnnotationsList.push(index);
+        }
       }
     })
+    
+    // Sort annotations within each category
     Object.keys(updatedGroupedAnnotations).forEach((category) => {
       updatedGroupedAnnotations[category].sort((a, b) => {
         // Try to sort numerically if both are numbers
         const numA = Number.parseInt(a.label, 10)
         const numB = Number.parseInt(b.label, 10)
-
+  
         // If both can be parsed as numbers, sort numerically
         if (!isNaN(numA) && !isNaN(numB)) {
           return numA - numB
@@ -715,10 +762,11 @@ const AnnotationList = ({
         return a.label.localeCompare(b.label)
       })
     })
+    
     setGroupedAnnotations(updatedGroupedAnnotations)
     setHideGroup(updatedHideGroups)
     setHiddenAnnotations([...new Set(hiddenAnnotationsList)])
-  }, [classCategories, annotations])
+  }, [classCategories, annotations, persistentHiddenCategories, confidenceLevels]);
 
   useEffect(() => {
     hiddenAnnotations.length !== annotations.length ? setHideAllAnnotations(false) : setHideAllAnnotations(true)
@@ -810,13 +858,7 @@ const AnnotationList = ({
                           className="btn noti-icon"
                           onClick={(e) => {
                             e.stopPropagation()
-                            if (hideGroup[category]) {
-                              unhideCategory(category)
-                              setHideGroup((prev) => ({ ...prev, [category]: false }))
-                            } else {
-                              hideCategory(category)
-                              setHideGroup((prev) => ({ ...prev, [category]: true }))
-                            }
+                            handleCategoryVisibilityToggle(category)
                           }}
                         >
                           <i className={`ion ${hideGroup[category] ? "ion-md-eye-off" : "ion-md-eye"}`}></i>
