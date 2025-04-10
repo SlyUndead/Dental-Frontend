@@ -60,7 +60,7 @@ export const calculateOverlap = (segA, segB) => {
 }
 
 // Shoelace formula to calculate the area of a polygon
-const polygonArea = (points) => {
+export const polygonArea = (points) => {
     let area = 0;
     const n = points.length;
     for (let i = 0; i < n; i++) {

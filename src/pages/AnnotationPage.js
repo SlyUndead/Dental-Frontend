@@ -124,6 +124,7 @@ const AnnotationPage = () => {
   const [classSearchModalOpen, setClassSearchModalOpen] = useState(false);
   const [confidenceLevels, setConfidenceLevels] = useState([])
   const [redirectToConfidencePlan, setRedirectToConfidencePlan] = useState(false)
+  const [imageGroup, setImageGroup] = useState("")
   const fetchNotesContent = async () => {
     try {
       const response = await axios.get(`${apiUrl}/notes-content?visitID=` + sessionStorage.getItem('visitId'),
@@ -261,168 +262,201 @@ const AnnotationPage = () => {
     }
     return hex; // If not hex, return original color (handles named colors)
 }
-  const drawAnnotations = (ctx, image, x, y, scale, selectedAnnotation, areaScale) => {
-    const fontSize = Math.max(9,Math.ceil(12/(1000/image.width)));
-    // Scale the spacing values based on image size
-    const labelPadding = Math.ceil(5/(1000/image.width));
-    const verticalOffset = Math.ceil(28/(1000/image.width));
-    
-    // First find the lower jaw annotation for overlap checking
-    let lowerJawVertices = null;
-    annotations.forEach((anno) => {
-      if (anno.label === "lower jaw") {
-        if (model === "segmentation") {
-          lowerJawVertices = anno.segmentation ? anno.segmentation : anno.bounding_box;
-        } else {
-          lowerJawVertices = anno.vertices;
-        }
+const drawAnnotations = (ctx, image, x, y, scale, selectedAnnotation, areaScale) => {
+  const fontSize = Math.max(9,Math.ceil(12/(1000/image.width)));
+  // Scale the spacing values based on image size
+  let labelPadding = Math.ceil(5/(1000/image.width));
+  let verticalOffset = Math.ceil(28/(1000/image.width));
+  console.log(imageGroup)
+  imageGroup === 'bitewing'?verticalOffset += Math.ceil(28/(1000/image.width)):verticalOffset+=0
+  
+  // First find the lower jaw annotation for overlap checking
+  let lowerJawVertices = null;
+  annotations.forEach((anno) => {
+    if (anno.label === "lower jaw") {
+      if (model === "segmentation") {
+        lowerJawVertices = anno.segmentation ? anno.segmentation : anno.bounding_box;
+      } else {
+        lowerJawVertices = anno.vertices;
       }
-    });
+    }
+  });
+  
+  // Function to check if points are inside a polygon
+  const isPointInPolygon = (point, polygon) => {
+    // Ray casting algorithm
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].x * scale;
+      const yi = polygon[i].y * scale;
+      const xj = polygon[j].x * scale;
+      const yj = polygon[j].y * scale;
+      
+      const intersect = ((yi > point.y) !== (yj > point.y)) &&
+        (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  };
+  
+  // Function to check if an annotation is mostly inside the lower jaw
+  const isAnnotationMostlyInLowerJaw = (vertices) => {
+    if (!lowerJawVertices) return false;
     
-    // Function to check if points are inside a polygon
-    const isPointInPolygon = (point, polygon) => {
-      // Ray casting algorithm
-      let inside = false;
-      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        const xi = polygon[i].x * scale;
-        const yi = polygon[i].y * scale;
-        const xj = polygon[j].x * scale;
-        const yj = polygon[j].y * scale;
+    // Generate a grid of points within the annotation's bounding box
+    const { left, top, width, height } = getBoxDimensions(vertices.map(v => ({ x: v.x * scale, y: v.y * scale })));
+    
+    const pointsToCheck = 100; // Number of points to check
+    let pointsInside = 0;
+    let pointsInsideLowerJaw = 0;
+    
+    // Generate grid of points
+    const stepX = width / Math.sqrt(pointsToCheck);
+    const stepY = height / Math.sqrt(pointsToCheck);
+    
+    for (let x = left; x <= left + width; x += stepX) {
+      for (let y = top; y <= top + height; y += stepY) {
+        const point = { x, y };
         
-        const intersect = ((yi > point.y) !== (yj > point.y)) &&
-          (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
-        if (intersect) inside = !inside;
-      }
-      return inside;
-    };
-    
-    // Function to check if an annotation is mostly inside the lower jaw
-    const isAnnotationMostlyInLowerJaw = (vertices) => {
-      if (!lowerJawVertices) return false;
-      
-      // Generate a grid of points within the annotation's bounding box
-      const { left, top, width, height } = getBoxDimensions(vertices.map(v => ({ x: v.x * scale, y: v.y * scale })));
-      
-      const pointsToCheck = 100; // Number of points to check
-      let pointsInside = 0;
-      let pointsInsideLowerJaw = 0;
-      
-      // Generate grid of points
-      const stepX = width / Math.sqrt(pointsToCheck);
-      const stepY = height / Math.sqrt(pointsToCheck);
-      
-      for (let x = left; x <= left + width; x += stepX) {
-        for (let y = top; y <= top + height; y += stepY) {
-          const point = { x, y };
+        // Check if point is inside the annotation
+        if (isPointInPolygon(point, vertices.map(v => ({ x: v.x * scale, y: v.y * scale })))) {
+          pointsInside++;
           
-          // Check if point is inside the annotation
-          if (isPointInPolygon(point, vertices.map(v => ({ x: v.x * scale, y: v.y * scale })))) {
-            pointsInside++;
-            
-            // Check if point is also inside the lower jaw
-            if (isPointInPolygon(point, lowerJawVertices.map(v => ({ x: v.x * scale, y: v.y * scale })))) {
-              pointsInsideLowerJaw++;
-            }
+          // Check if point is also inside the lower jaw
+          if (isPointInPolygon(point, lowerJawVertices.map(v => ({ x: v.x * scale, y: v.y * scale })))) {
+            pointsInsideLowerJaw++;
           }
         }
       }
-      
-      // Calculate percentage of the annotation that's inside the lower jaw
-      const percentageInside = pointsInside > 0 ? (pointsInsideLowerJaw / pointsInside) * 100 : 0;
-      
-      return percentageInside >= 80; // 80% or more is inside
-    };
+    }
     
-    // Function to determine if label should be positioned below
-    const shouldPositionLabelBelow = (anno, vertices) => {
-      
-      // For annotations that are mostly inside the lower jaw (but are not the lower jaw itself)
-      const isMostlyInLowerJaw = anno.label !== "lower jaw" && isAnnotationMostlyInLowerJaw(vertices);
-      
-      return isMostlyInLowerJaw;
-    };
+    // Calculate percentage of the annotation that's inside the lower jaw
+    const percentageInside = pointsInside > 0 ? (pointsInsideLowerJaw / pointsInside) * 100 : 0;
     
-    if (model === "segmentation") {
-      annotations.forEach((anno, index) => {
-        if (!hiddenAnnotations.includes(index) && anno.confidence>=(confidenceLevels[anno.label.toLowerCase()]||0.001)) {
-          if (selectedAnnotation === null || selectedAnnotation === anno) {
-            if (anno.label === 'Line') {
-              // Draw line
+    return percentageInside >= 70; // 80% or more is inside
+  };
+  
+  // Function to determine if label should be positioned below
+  const shouldPositionLabelBelow = (anno, vertices) => {
+    
+    // For annotations that are mostly inside the lower jaw (but are not the lower jaw itself)
+    const isMostlyInLowerJaw = (anno.label !== "lower jaw" && isAnnotationMostlyInLowerJaw(vertices));
+    
+    return isMostlyInLowerJaw;
+  };
+
+  // Function to get the centroid of a polygon
+  const getPolygonCentroid = (vertices) => {
+    let sumX = 0;
+    let sumY = 0;
+    
+    for (let i = 0; i < vertices.length; i++) {
+      sumX += vertices[i].x * scale;
+      sumY += vertices[i].y * scale;
+    }
+    
+    return {
+      x: sumX / vertices.length,
+      y: sumY / vertices.length
+    };
+  };
+  
+  if (model === "segmentation") {
+    annotations.forEach((anno, index) => {
+      if (!hiddenAnnotations.includes(index) && anno.confidence>=(confidenceLevels[anno.label.toLowerCase()]||0.001)) {
+        if (selectedAnnotation === null || selectedAnnotation === anno) {
+          if (anno.label === 'Line') {
+            // Draw line
+            ctx.beginPath();
+            ctx.moveTo(anno.vertices[0].x * scale, anno.vertices[0].y * scale);
+            ctx.lineTo(anno.vertices[1].x * scale, anno.vertices[1].y * scale);
+            ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
+            ctx.lineWidth =  Math.ceil(2/(1000/image.width));
+            ctx.stroke();
+
+            // Calculate length
+            const dx = (anno.vertices[1].x - anno.vertices[0].x) * scale;
+            const dy = (anno.vertices[1].y - anno.vertices[0].y) * scale;
+            const length = Math.sqrt(dx * dx + dy * dy) / areaScale;
+
+            // Display length
+            const midX = ((anno.vertices[0].x + anno.vertices[1].x) / 2) * scale;
+            const midY = ((anno.vertices[0].y + anno.vertices[1].y) / 2) * scale;
+            ctx.fillStyle = labelColors[anno.label.toLowerCase()] || '#ffffff';
+            ctx.font = `${fontSize}px Arial`;
+            if(isArea){
+              ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
+            }
+          } else {
+            if (anno.segmentation) {
               ctx.beginPath();
-              ctx.moveTo(anno.vertices[0].x * scale, anno.vertices[0].y * scale);
-              ctx.lineTo(anno.vertices[1].x * scale, anno.vertices[1].y * scale);
+              ctx.moveTo(anno.segmentation[0].x * scale, anno.segmentation[0].y * scale);
+
+              for (let i = 1; i < anno.segmentation.length; i++) {
+                ctx.lineTo(anno.segmentation[i].x * scale, anno.segmentation[i].y * scale);
+              }
+              ctx.closePath();
+              if (index === hoveredAnnotation) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fill();
+              }
               ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
               ctx.lineWidth =  Math.ceil(2/(1000/image.width));
               ctx.stroke();
-
-              // Calculate length
-              const dx = (anno.vertices[1].x - anno.vertices[0].x) * scale;
-              const dy = (anno.vertices[1].y - anno.vertices[0].y) * scale;
-              const length = Math.sqrt(dx * dx + dy * dy) / areaScale;
-
-              // Display length
-              const midX = ((anno.vertices[0].x + anno.vertices[1].x) / 2) * scale;
-              const midY = ((anno.vertices[0].y + anno.vertices[1].y) / 2) * scale;
-              ctx.fillStyle = labelColors[anno.label.toLowerCase()] || '#ffffff';
-              ctx.font = `${fontSize}px Arial`;
-              if(isArea){
-                ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
+            }
+            else if (anno.bounding_box) {
+              ctx.beginPath();
+              ctx.moveTo(anno.bounding_box[0].x * scale, anno.bounding_box[0].y * scale);
+              for (let i = 1; i < anno.bounding_box.length; i++) {
+                ctx.lineTo(anno.bounding_box[i].x * scale, anno.bounding_box[i].y * scale);
               }
-            } else {
-              if (anno.segmentation) {
-                ctx.beginPath();
-                ctx.moveTo(anno.segmentation[0].x * scale, anno.segmentation[0].y * scale);
-
-                for (let i = 1; i < anno.segmentation.length; i++) {
-                  ctx.lineTo(anno.segmentation[i].x * scale, anno.segmentation[i].y * scale);
-                }
-                ctx.closePath();
-                if (index === hoveredAnnotation) {
-                  ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-                  ctx.fill();
-                }
-                ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
-                ctx.lineWidth =  Math.ceil(2/(1000/image.width));
-                ctx.stroke();
+              ctx.closePath();
+              if (index === hoveredAnnotation) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fill();
               }
-              else if (anno.bounding_box) {
-                ctx.beginPath();
-                ctx.moveTo(anno.bounding_box[0].x * scale, anno.bounding_box[0].y * scale);
-                for (let i = 1; i < anno.bounding_box.length; i++) {
-                  ctx.lineTo(anno.bounding_box[i].x * scale, anno.bounding_box[i].y * scale);
-                }
-                ctx.closePath();
-                if (index === hoveredAnnotation) {
-                  ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-                  ctx.fill();
-                }
-                ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
-                ctx.lineWidth = Math.ceil(2/(1000/image.width));
-                ctx.stroke();
+              ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
+              ctx.lineWidth = Math.ceil(2/(1000/image.width));
+              ctx.stroke();
+            }
+            if (selectedAnnotation !== anno) {
+              // Get vertices to use
+              const vertices = anno.segmentation ? anno.segmentation : anno.bounding_box;
+              const { left, top, width, height } = getBoxDimensions(vertices.map(v => ({ x: v.x * scale, y: v.y * scale })));
+              const area = calculatePolygonArea(vertices.map(v => ({ x: v.x * scale, y: v.y * scale })), areaScale).toFixed(2);
+              
+              // Prepare label text
+              let labelText = '';
+              if((isArea && showLabel) || (isArea && index === hoveredAnnotation)){
+                labelText = `${anno.label} (${area} mm²)`;
               }
-              if (selectedAnnotation !== anno) {
-                // Get vertices to use
-                const vertices = anno.segmentation ? anno.segmentation : anno.bounding_box;
-                const { left, top, width, height } = getBoxDimensions(vertices.map(v => ({ x: v.x * scale, y: v.y * scale })));
-                const area = calculatePolygonArea(vertices.map(v => ({ x: v.x * scale, y: v.y * scale })), areaScale).toFixed(2);
+              else if(showLabel || index === hoveredAnnotation){
+                labelText = `${anno.label}`;
+              }
+              if (labelText!==''){
+                // Parse label value for comparison - to check if it's a tooth number
+                const labelValue = parseInt(anno.label);
+                const isToothNumber = !isNaN(labelValue) && labelValue >= 1 && labelValue <= 32;
                 
-                // Prepare label text
-                let labelText = '';
-                if((isArea && showLabel) || (isArea && index === hoveredAnnotation)){
-                  labelText = `${anno.label} (${area} mm²)`;
-                }
-                else if(showLabel || index === hoveredAnnotation){
-                  labelText = `${anno.label}`;
-                }
-                if (labelText!==''){
-                  // Set font and measure text
-                  ctx.font = `${fontSize}px Arial`;
-                  const textMetrics = ctx.measureText(labelText);
-                  const textWidth = textMetrics.width;
-                  const textHeight = parseInt(ctx.font, 10);
-                  
-                  // Calculate center position
-                  const centerX = left + (width / 2) - (textWidth / 2);
+                // Set font and measure text
+                ctx.font = `${fontSize}px Arial`;
+                const textMetrics = ctx.measureText(labelText);
+                const textWidth = textMetrics.width;
+                const textHeight = parseInt(ctx.font, 10);
+                
+                // Position calculation
+                let centerX, rectY, labelY;
+                
+                // Special handling for bitewing image tooth numbers
+                if (imageGroup === 'bitewing' && isToothNumber) {
+                  // For bitewing images, place tooth numbers inside the tooth
+                  const centroid = getPolygonCentroid(vertices);
+                  centerX = centroid.x - (textWidth / 2);
+                  rectY = centroid.y - (textHeight / 2) - labelPadding;
+                  labelY = rectY + textHeight + labelPadding;
+                } else {
+                  // Standard positioning logic for non-bitewing or non-tooth numbers
+                  centerX = left + (width / 2) - (textWidth / 2);
                   
                   // Check if the label would go out of bounds
                   const canvasHeight = ctx.canvas.height;
@@ -432,9 +466,6 @@ const AnnotationPage = () => {
                   // Determine if this label should go below based on our criteria
                   const shouldShowBelow = shouldPositionLabelBelow(anno, vertices);
                   
-                  // Determine position based on label value (if numeric)
-                  let labelY, rectY;
-
                   if (shouldShowBelow || labelAboveOutOfBounds) {
                     // Position below the annotation
                     rectY = top + height + labelPadding;
@@ -454,96 +485,106 @@ const AnnotationPage = () => {
                     rectY = top - verticalOffset - textHeight;
                     labelY = rectY + textHeight + labelPadding;
                   }
-                              
-                  // Draw background and text
-                  ctx.fillStyle = labelColors[anno.label.toLowerCase()] || '#ffffff';
-                  ctx.fillRect(centerX - labelPadding, rectY, textWidth + labelPadding*2, textHeight + labelPadding*2);
-                  
-                  ctx.fillStyle = 'black';
-                  ctx.fillText(labelText, centerX, labelY);
                 }
+                            
+                // Draw background and text
+                ctx.fillStyle = labelColors[anno.label.toLowerCase()] || '#ffffff';
+                ctx.fillRect(centerX - labelPadding, rectY, textWidth + labelPadding*2, textHeight + labelPadding*2);
+                
+                ctx.fillStyle = 'black';
+                ctx.fillText(labelText, centerX, labelY);
               }
             }
           }
         }
-      })
-    }
-    else {
-      annotations.forEach((anno, index) => {
-        if (!hiddenAnnotations.includes(index)) {
-          if (anno.label === 'Line') {
-            // Draw line
-            ctx.beginPath();
-            ctx.moveTo(anno.vertices[0].x * scale, anno.vertices[0].y * scale);
-            ctx.lineTo(anno.vertices[1].x * scale, anno.vertices[1].y * scale);
-            ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
-            ctx.lineWidth = Math.ceil(2/(1000/image.width));
-            ctx.stroke();
+      }
+    })
+  }
+  else {
+    annotations.forEach((anno, index) => {
+      if (!hiddenAnnotations.includes(index)) {
+        if (anno.label === 'Line') {
+          // Draw line
+          ctx.beginPath();
+          ctx.moveTo(anno.vertices[0].x * scale, anno.vertices[0].y * scale);
+          ctx.lineTo(anno.vertices[1].x * scale, anno.vertices[1].y * scale);
+          ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
+          ctx.lineWidth = Math.ceil(2/(1000/image.width));
+          ctx.stroke();
 
-            // Calculate length
-            const dx = (anno.vertices[1].x - anno.vertices[0].x) * scale;
-            const dy = (anno.vertices[1].y - anno.vertices[0].y) * scale;
-            const length = Math.sqrt(dx * dx + dy * dy) / areaScale;
+          // Calculate length
+          const dx = (anno.vertices[1].x - anno.vertices[0].x) * scale;
+          const dy = (anno.vertices[1].y - anno.vertices[0].y) * scale;
+          const length = Math.sqrt(dx * dx + dy * dy) / areaScale;
 
-            // Display length
-            const midX = ((anno.vertices[0].x + anno.vertices[1].x) / 2) * scale;
-            const midY = ((anno.vertices[0].y + anno.vertices[1].y) / 2) * scale;
-            ctx.fillStyle = labelColors[anno.label.toLowerCase()] || '#ffffff';
-            ctx.font = `${fontSize}px Arial`;
-            if(isArea){
-              ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
+          // Display length
+          const midX = ((anno.vertices[0].x + anno.vertices[1].x) / 2) * scale;
+          const midY = ((anno.vertices[0].y + anno.vertices[1].y) / 2) * scale;
+          ctx.fillStyle = labelColors[anno.label.toLowerCase()] || '#ffffff';
+          ctx.font = `${fontSize}px Arial`;
+          if(isArea){
+            ctx.fillText(`${length.toFixed(2)} mm`, midX, midY);
+          }
+        } else {
+          const { left, top, width, height } = getBoxDimensions(anno.vertices.map(v => ({ x: v.x * scale, y: v.y * scale })));
+
+          ctx.beginPath();
+          ctx.moveTo(anno.vertices[0].x * scale, anno.vertices[0].y * scale);
+
+          for (let i = 1; i < anno.vertices.length; i++) {
+            ctx.lineTo(anno.vertices[i].x * scale, anno.vertices[i].y * scale);
+          }
+          ctx.closePath();
+          if (index === hoveredAnnotation) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.fill();
+          }
+          ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
+          ctx.lineWidth = Math.ceil(2/(1000/image.width));
+          ctx.stroke();
+          if (selectedAnnotation !== anno) {
+            const area = calculatePolygonArea(anno.vertices.map(v => ({ x: v.x * scale, y: v.y * scale })), areaScale).toFixed(2);
+            
+            // Prepare label text
+            let labelText = '';
+            if((isArea && showLabel) || (isArea && index === hoveredAnnotation)){
+              labelText = `${anno.label} (${area} mm²)`;
             }
-          } else {
-            const { left, top, width, height } = getBoxDimensions(anno.vertices.map(v => ({ x: v.x * scale, y: v.y * scale })));
-
-            ctx.beginPath();
-            ctx.moveTo(anno.vertices[0].x * scale, anno.vertices[0].y * scale);
-
-            for (let i = 1; i < anno.vertices.length; i++) {
-              ctx.lineTo(anno.vertices[i].x * scale, anno.vertices[i].y * scale);
+            else if(showLabel || index === hoveredAnnotation){
+              labelText = `${anno.label}`;
             }
-            ctx.closePath();
-            if (index === hoveredAnnotation) {
-              ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-              ctx.fill();
-            }
-            ctx.strokeStyle = labelColors[anno.label.toLowerCase()] || 'white';
-            ctx.lineWidth = Math.ceil(2/(1000/image.width));
-            ctx.stroke();
-            if (selectedAnnotation !== anno) {
-              const area = calculatePolygonArea(anno.vertices.map(v => ({ x: v.x * scale, y: v.y * scale })), areaScale).toFixed(2);
+            if (labelText!==''){
+              // Parse label value for comparison
+              const labelValue = parseInt(anno.label);
+              const isToothNumber = !isNaN(labelValue) && labelValue >= 1 && labelValue <= 32;
               
-              // Prepare label text
-              let labelText = '';
-              if((isArea && showLabel) || (isArea && index === hoveredAnnotation)){
-                labelText = `${anno.label} (${area} mm²)`;
-              }
-              else if(showLabel || index === hoveredAnnotation){
-                labelText = `${anno.label}`;
-              }
-              if (labelText!==''){
-                // Set font and measure text
-                ctx.font = `${fontSize}px Arial`;
-                const textMetrics = ctx.measureText(labelText);
-                const textWidth = textMetrics.width;
-                const textHeight = parseInt(ctx.font, 10);
-                
-                // Calculate center position
-                const centerX = left + (width / 2) - (textWidth / 2);
-                
-                // Parse label value for comparison
-                const labelValue = parseInt(anno.label);
-                const isNumeric = !isNaN(labelValue);
+              // Set font and measure text
+              ctx.font = `${fontSize}px Arial`;
+              const textMetrics = ctx.measureText(labelText);
+              const textWidth = textMetrics.width;
+              const textHeight = parseInt(ctx.font, 10);
+              
+              // Position calculation
+              let centerX, rectY, labelY;
+              
+              // Special handling for bitewing image tooth numbers
+              if (imageGroup === 'bitewing' && isToothNumber) {
+                // For bitewing images, place tooth numbers inside the tooth
+                const centroid = getPolygonCentroid(anno.vertices);
+                centerX = centroid.x - (textWidth / 2);
+                rectY = centroid.y - (textHeight / 2) - labelPadding;
+                labelY = rectY + textHeight + labelPadding;
+              } else {
+                // Standard positioning logic for non-bitewing or non-tooth numbers
+                centerX = left + (width / 2) - (textWidth / 2);
                 
                 // Check if the label would go out of bounds
                 const canvasHeight = ctx.canvas.height;
                 const labelAboveOutOfBounds = (top - verticalOffset - textHeight - labelPadding*2) < 0;
                 const labelBelowOutOfBounds = (top + height + labelPadding + textHeight + 10) > canvasHeight;
                 
-                // Determine position based on label value (if numeric)
-                let labelY, rectY;
-
-                if ((isNumeric && labelValue >= 17 && labelValue <= 32) || labelAboveOutOfBounds) {
+                // Standard positioning for non-bitewing images or non-tooth numbers
+                if ((isToothNumber && labelValue >= 17 && labelValue <= 32) || labelAboveOutOfBounds) {
                   // Position below the annotation
                   rectY = top + height + labelPadding;
                   labelY = rectY + textHeight + labelPadding;
@@ -562,20 +603,21 @@ const AnnotationPage = () => {
                   rectY = top - verticalOffset - textHeight;
                   labelY = rectY + textHeight + labelPadding;
                 }
-                
-                // Draw background and text
-                ctx.fillStyle = labelColors[anno.label.toLowerCase()] || '#ffffff'
-                ctx.fillRect(centerX - labelPadding, rectY, textWidth + labelPadding*2, textHeight + labelPadding*2);
-                
-                ctx.fillStyle = 'black';
-                ctx.fillText(labelText, centerX, labelY);
               }
+              
+              // Draw background and text
+              ctx.fillStyle = labelColors[anno.label.toLowerCase()] || '#ffffff'
+              ctx.fillRect(centerX - labelPadding, rectY, textWidth + labelPadding*2, textHeight + labelPadding*2);
+              
+              ctx.fillStyle = 'black';
+              ctx.fillText(labelText, centerX, labelY);
             }
           }
         }
-      })
-    }
-  };
+      }
+    })
+  }
+};
   //   const isPointInImage = (point) => {
   //     return point[0] >= 0 && point[0] < image.width  && 
   //            point[1] >= 0 && point[1] < image.height;
@@ -1668,6 +1710,7 @@ useEffect(() => {
         mainImageData = imagesData[0];
         // recentImagesData = imagesData.slice(1);
         setAnnotations(mainImageData.annotations.annotations.annotations);
+        setImageGroup(mainImageData.annotations.annotations.group)
       // Initialize smallCanvasRefs with dynamic refs based on the number of images
       const refsArray = imagesData.map(() => React.createRef());
       setSmallCanvasRefs(refsArray);
@@ -2282,6 +2325,7 @@ useEffect(() => {
       drawImageOnCanvas(mainCanvasRef.current, selectedImageData.image, "main");
       setMainCanvasData(selectedImageData);
       setAnnotations(selectedImageData.annotations.annotations.annotations);
+      setImageGroup(selectedImageData.annotations.annotations.group)
       setHiddenAnnotations([]);
       setHistory([selectedImageData.annotations.annotations.annotations])
       // // Re-draw the updated thumbnails

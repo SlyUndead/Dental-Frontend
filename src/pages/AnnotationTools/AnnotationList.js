@@ -23,6 +23,7 @@ import "../../assets/scss/custom/components/_popover.scss"
 import { logErrorToServer } from "utils/logError"
 import { desiredOrder } from "./constants"
 import { calculateOverlap } from "./path-utils"
+import DentalChart from "./DentalChart"
 const AnnotationList = ({
   annotations,
   hiddenAnnotations,
@@ -791,6 +792,9 @@ const AnnotationList = ({
         flexDirection: "column",
       }}
     >
+    <CardBody style={{ paddingTop: "0", paddingBottom: "0" }}>
+        <DentalChart annotations={annotations} classCategories={classCategories} confidenceLevels={confidenceLevels} />
+      </CardBody>
       {/* Header section with title and hide/show all button */}
       <CardBody style={{ paddingBottom: "0" }}>
         <Row>
