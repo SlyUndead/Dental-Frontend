@@ -39,37 +39,37 @@ const PatientList = (props) => {
     const filteredPatients = patients.filter((patient) => {
         const query = searchQuery.toLowerCase();
         return (
-        patient.first_name.toLowerCase().includes(query) ||
-        patient.telephone.toLowerCase().includes(query) ||
-        patient.last_name.toLowerCase().includes(query) ||
-        patient.gender.toLowerCase().includes(query) ||
-        patient.email.toLowerCase().includes(query) ||
-        (patient.first_name.toLowerCase()+ " " + patient.last_name).toLowerCase().includes(query)
+            patient.first_name.toLowerCase().includes(query) ||
+            patient.telephone.toLowerCase().includes(query) ||
+            patient.last_name.toLowerCase().includes(query) ||
+            patient.gender.toLowerCase().includes(query) ||
+            patient.email.toLowerCase().includes(query) ||
+            (patient.first_name.toLowerCase() + " " + patient.last_name).toLowerCase().includes(query)
         );
     });
     useEffect(() => {
         const practiceId = sessionStorage.getItem('practiceId');
         const getPatientList = async () => {
-            try{
+            try {
                 const response = await axios.get(`${apiUrl}/getPatient?practiceId=` + practiceId,
-                {
-                  headers:{
-                    Authorization:sessionStorage.getItem('token')
-                  }
-                }); // Adjust the API endpoint as needed
-            //const getPatientList= async()=>{const response = await axios.get('http://localhost:3001/getPatient?practiceId=' + practiceId); 
-            const data = response.data;
-            sessionStorage.setItem('token', response.headers['new-token'])
-            setPatients(data.patientList);
+                    {
+                        headers: {
+                            Authorization: sessionStorage.getItem('token')
+                        }
+                    }); // Adjust the API endpoint as needed
+                //const getPatientList= async()=>{const response = await axios.get('http://localhost:3001/getPatient?practiceId=' + practiceId); 
+                const data = response.data;
+                sessionStorage.setItem('token', response.headers['new-token'])
+                setPatients(data.patientList);
             }
-            catch(error){
-                if(error.status===403||error.status===401){
+            catch (error) {
+                if (error.status === 403 || error.status === 401) {
                     sessionStorage.removeItem('token');
                     setRedirectToLogin(true);
                 }
-                else{
-                logErrorToServer(error, "getPatientList");
-                console.log(error)
+                else {
+                    logErrorToServer(error, "getPatientList");
+                    console.log(error)
                 }
             }
         }
@@ -80,8 +80,8 @@ const PatientList = (props) => {
     const handleClickNewPatient = () => {
         setRedirect(true);
     };
-    if(redirectToLogin){
-        return <Navigate to="/login"/>
+    if (redirectToLogin) {
+        return <Navigate to="/login" />
     }
     if (redirect) {
         return <Navigate to="/newPatient" />;
@@ -94,7 +94,7 @@ const PatientList = (props) => {
         sessionStorage.setItem('patientName', fullName);
         setRedirectToImages(true);
     };
-    const handleEditClick = (e,patient) => {
+    const handleEditClick = (e, patient) => {
         // return <Navigate to="/login" />
         e.stopPropagation();
         console.log(patient);
@@ -109,28 +109,28 @@ const PatientList = (props) => {
         sessionStorage.setItem('patientGLName', patient.guardian_last_name);
         sessionStorage.setItem('patientGRelationship', patient.guardian_relationship);
         sessionStorage.setItem('patientActive', patient.patient_active);
-        if(patient.date_of_birth){
+        if (patient.date_of_birth) {
             sessionStorage.setItem('patientDOB', patient.date_of_birth);
         }
-        else{
+        else {
             sessionStorage.setItem('patientAge', patient.reference_dob_for_age);
         }
         setRedirectToNewPatient(true);
     }
     const handlePrint = () => {
-        const practiceName = sessionStorage.getItem('practiceName') 
+        const practiceName = sessionStorage.getItem('practiceName')
         const printWindow = window.open('', '_blank');
 
         const styles = Array.from(document.styleSheets).map((styleSheet) => {
             try {
-               const rules = Array.from(styleSheet.cssRules)
-          .filter(rule => {
-            // Ignore table hover styles
-            return !rule.selectorText || !rule.selectorText.includes(':hover');
-          })
-          .map(rule => rule.cssText)
-          .join('\n');
-        return `<style>${rules}</style>`;
+                const rules = Array.from(styleSheet.cssRules)
+                    .filter(rule => {
+                        // Ignore table hover styles
+                        return !rule.selectorText || !rule.selectorText.includes(':hover');
+                    })
+                    .map(rule => rule.cssText)
+                    .join('\n');
+                return `<style>${rules}</style>`;
             } catch (e) {
                 // Handle CORS issues if styleSheet is from another domain
                 return '';
@@ -185,8 +185,8 @@ const PatientList = (props) => {
         return <Navigate to="/patientImagesList" />;
     }
 
-    if(redirectToNewPatient){
-        return <Navigate to="/newPatient"/>;
+    if (redirectToNewPatient) {
+        return <Navigate to="/newPatient" />;
     }
     return (
         <React.Fragment>
@@ -198,16 +198,16 @@ const PatientList = (props) => {
                             <Button type="button" color="primary" className="waves-effect waves-light" onClick={handlePrint}>Print</Button>
                         </Col>
                     </Row>
-                    <Row style={{marginTop:'1%'}}>
-                    <FormGroup>
-                        <Input
-                        type="text"
-                        className="form-control"
-                        placeholder="Search patients..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </FormGroup>
+                    <Row style={{ marginTop: '1%' }}>
+                        <FormGroup>
+                            <Input
+                                type="text"
+                                className="form-control"
+                                placeholder="Search patients..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </FormGroup>
                     </Row>
                     <div className="table-responsive" ref={printRef}>
                         <Table className="align-middle table-centered table-vertical table-nowrap  table-hover">
@@ -237,17 +237,17 @@ const PatientList = (props) => {
                                                 {patient.gender}
                                             </td>
                                             <td><button
-                                                        id="btnEdit"
-                                                        type="button"
-                                                        style={{ cssText: 'padding: 2px !important', fontSize: '25px' }}
-                                                        className="btn"
-                                                        onClick={(e) =>{e.stopPropagation(); handleEditClick(e, patient)}}
-                                                    >
-                                                        <i className='mdi mdi-pencil-box-outline'></i>
-                                                    </button>
-                                                        <UncontrolledTooltip placement="bottom" target="btnEdit">Edit Practice
-                                                        </UncontrolledTooltip>
-                                                    </td>
+                                                id="btnEdit"
+                                                type="button"
+                                                style={{ cssText: 'padding: 2px !important', fontSize: '25px' }}
+                                                className="btn"
+                                                onClick={(e) => { e.stopPropagation(); handleEditClick(e, patient) }}
+                                            >
+                                                <i className='mdi mdi-pencil-box-outline'></i>
+                                            </button>
+                                                <UncontrolledTooltip placement="bottom" target="btnEdit">Edit Practice
+                                                </UncontrolledTooltip>
+                                            </td>
                                         </tr>
                                     )
                                 }

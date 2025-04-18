@@ -9,17 +9,17 @@ const DentalChatPopup = ({ isOpen, toggle, target }) => {
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
-  
+
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
   };
-  
+
   useEffect(() => {
     setPromptTemplate(`${localStorage.getItem('promptTemplate') || "You are an expert in dentistry"}`);
   }, []);
-  
+
   useEffect(() => {
     if (isOpen) {
       // Use setTimeout to ensure DOM is updated before scrolling
@@ -45,20 +45,20 @@ const DentalChatPopup = ({ isOpen, toggle, target }) => {
           'Content-Type': 'application/json',
           Authorization: sessionStorage.getItem('token')
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           query: input,
           promptTemplate: promptTemplate
         }),
       });
 
       const data = await response.json();
-      
+
       // Add bot message
       setMessages(prev => [...prev, { text: data.answer, sender: 'bot' }]);
     } catch (error) {
       console.error('Error:', error);
-      setMessages(prev => [...prev, { 
-        text: 'Sorry, I encountered an error. Please try again.', 
+      setMessages(prev => [...prev, {
+        text: 'Sorry, I encountered an error. Please try again.',
         sender: 'bot',
         isError: true
       }]);
@@ -77,7 +77,7 @@ const DentalChatPopup = ({ isOpen, toggle, target }) => {
       className="dental-chat-popover"
       style={{ width: '100%' }}
     >
-      <div 
+      <div
         className="bg-white rounded-lg shadow-xl"
         style={{
           display: 'flex',
@@ -87,15 +87,15 @@ const DentalChatPopup = ({ isOpen, toggle, target }) => {
         }}
       >
         {/* Header */}
-        <div 
+        <div
           className="flex justify-between items-center border-b"
-          style={{ 
-            padding: '12px', 
-            flexShrink: 0 
+          style={{
+            padding: '12px',
+            flexShrink: 0
           }}
         >
           <h5 className="m-0 font-semibold">Dental Assistant</h5>
-          <button 
+          <button
             onClick={toggle}
             className="text-black hover:text-black bg-primary border-0"
             aria-label="Close"
@@ -103,9 +103,9 @@ const DentalChatPopup = ({ isOpen, toggle, target }) => {
             X
           </button>
         </div>
-        
+
         {/* Messages Container - This is the scrollable area */}
-        <div 
+        <div
           ref={messagesContainerRef}
           style={{
             flex: '1 1 auto',
@@ -122,24 +122,23 @@ const DentalChatPopup = ({ isOpen, toggle, target }) => {
           ) : (
             <>
               {messages.map((msg, index) => (
-                <div 
-                  key={index} 
+                <div
+                  key={index}
                   className={`mb-3 ${msg.sender === 'user' ? 'text-right' : 'text-left'}`}
                 >
-                  <div 
-                    className={`inline-block px-3 py-2 rounded-lg ${
-                      msg.sender === 'user' 
-                        ? 'bg-blue-600 text-black' 
-                        : msg.isError 
-                          ? 'bg-red-100 text-red-800' 
-                          : 'bg-gray-100 text-black'
-                    }`}
-                    style={{ 
+                  <div
+                    className={`inline-block px-3 py-2 rounded-lg ${msg.sender === 'user'
+                      ? 'bg-blue-600 text-black'
+                      : msg.isError
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-black'
+                      }`}
+                    style={{
                       maxWidth: '85%',
                       wordBreak: 'break-word'
                     }}
                   >
-                    { msg.sender === 'user' ?"You:    " + msg.text: "Dental AI:    " + msg.text}
+                    {msg.sender === 'user' ? "You:    " + msg.text : "Dental AI:    " + msg.text}
                   </div>
                 </div>
               ))}
@@ -148,8 +147,8 @@ const DentalChatPopup = ({ isOpen, toggle, target }) => {
                   <div className="inline-block px-3 py-2 rounded-lg bg-gray-100">
                     <div className="flex items-center space-x-2">
                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
                     </div>
                   </div>
                 </div>
@@ -158,12 +157,12 @@ const DentalChatPopup = ({ isOpen, toggle, target }) => {
             </>
           )}
         </div>
-        
+
         {/* Input Form */}
-        <form 
-          onSubmit={handleSubmit} 
+        <form
+          onSubmit={handleSubmit}
           className="border-t"
-          style={{ 
+          style={{
             padding: '12px',
             flexShrink: 0
           }}

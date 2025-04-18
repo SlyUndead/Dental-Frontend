@@ -30,15 +30,15 @@ const NewPractice = (props) => {
     ]
     useEffect(() => {
         props.setBreadcrumbItems('New Practice', breadcrumbItems)
-        if(sessionStorage.getItem('practiceAddress')){
+        if (sessionStorage.getItem('practiceAddress')) {
             setAddress(sessionStorage.getItem('practiceAddress'));
             setTelephone(sessionStorage.getItem('practiceTelephone'));
             setPracticeName(sessionStorage.getItem('practiceName'));
             setEdit(true);
         }
     }, [])
-    const handleCancelSubmit = ()=>{
-        if(edit){
+    const handleCancelSubmit = () => {
+        if (edit) {
             sessionStorage.removeItem('practiceAddress');
             sessionStorage.removeItem('practiceTelephone');
             sessionStorage.removeItem('practiceName');
@@ -49,34 +49,35 @@ const NewPractice = (props) => {
         if (practiceName !== "" && telephone !== "" && address !== "") {
             try {
                 let response;
-                    if(edit){
-                        response = await axios.post(`${apiUrl}/edit-practice`, {
-                            name: practiceName, contactNo: telephone, address: address, clientId: sessionStorage.getItem('clientId'), practiceId: sessionStorage.getItem('practiceId')
-                        },
+                if (edit) {
+                    response = await axios.post(`${apiUrl}/edit-practice`, {
+                        name: practiceName, contactNo: telephone, address: address, clientId: sessionStorage.getItem('clientId'), practiceId: sessionStorage.getItem('practiceId')
+                    },
                         {
-                          headers:{
-                            Authorization:sessionStorage.getItem('token')
-                          }
+                            headers: {
+                                Authorization: sessionStorage.getItem('token')
+                            }
                         })
-                    }
-                    else{
+                }
+                else {
                     response = await axios.post(`${apiUrl}/add-practice`, {
                         name: practiceName, contactNo: telephone, address: address, clientId: sessionStorage.getItem('clientId')
                     },
-                    {
-                      headers:{
-                        Authorization:sessionStorage.getItem('token')
-                      }
-                    })}
+                        {
+                            headers: {
+                                Authorization: sessionStorage.getItem('token')
+                            }
+                        })
+                }
                 if (response.status === 200) {
-                    if(edit){
+                    if (edit) {
                         sessionStorage.removeItem('practiceAddress');
                         sessionStorage.removeItem('practiceTelephone');
                         sessionStorage.setItem('practiceId', response.data.user2._id);
                         sessionStorage.setItem('practiceName', response.data.user2.name);
                         sessionStorage.setItem('token', response.headers['new-token']);
                     }
-                    else{
+                    else {
                         sessionStorage.setItem('practiceId', response.data.user1._id);
                         sessionStorage.setItem('practiceName', response.data.user1.name);
                         sessionStorage.setItem('token', response.headers['new-token']);
@@ -85,27 +86,27 @@ const NewPractice = (props) => {
                 }
             }
             catch (err) {
-                if(err.status===403||err.status===401){
+                if (err.status === 403 || err.status === 401) {
                     sessionStorage.removeItem('token');
                     setRedirectToLogin(true);
                 }
-                else{
-                  logErrorToServer(err, "handleNewPatientSubmit");
-                  setError("Unable to add. Please try again or contact admin")
-                console.error(err)
+                else {
+                    logErrorToServer(err, "handleNewPatientSubmit");
+                    setError("Unable to add. Please try again or contact admin")
+                    console.error(err)
                 }
             }
         }
-        else{
-            setError(`Please enter ${practiceName===""?"Practice Name":""} ${address===""?"Address":""} ${telephone===""?"Telephone":""}`)  
+        else {
+            setError(`Please enter ${practiceName === "" ? "Practice Name" : ""} ${address === "" ? "Address" : ""} ${telephone === "" ? "Telephone" : ""}`)
         }
     }
     const [redirect, setRedirect] = useState(false);
-    if(redirectToPracticeList){
-        return <Navigate to="/practiceList"/>
+    if (redirectToPracticeList) {
+        return <Navigate to="/practiceList" />
     }
-    if(redirectToLogin){
-        return <Navigate to="/login"/>
+    if (redirectToLogin) {
+        return <Navigate to="/login" />
     }
     if (redirect) {
         return <Navigate to="/patientList" />;
@@ -117,7 +118,7 @@ const NewPractice = (props) => {
 
                     <Card>
                         <CardBody>
-                        {error && <p style={{ color: errorClr }}>{error}</p>}
+                            {error && <p style={{ color: errorClr }}>{error}</p>}
                             <Row className="mb-3">
                                 <label
                                     htmlFor="example-text-input"
@@ -177,7 +178,7 @@ const NewPractice = (props) => {
                                     <button onClick={() => { handleCancelSubmit() }}
                                         type="button"
                                         className="btn btn-primary waves-effect waves-light"
-                                        style={{marginLeft:'1%'}}
+                                        style={{ marginLeft: '1%' }}
                                     >
                                         Cancel
                                     </button>

@@ -45,143 +45,143 @@ const DentalTreatmentPlan = (props) => {
     { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
     { title: sessionStorage.getItem('practiceName'), link: "/patientList" },
     { title: `${sessionStorage.getItem('patientName')}`, link: "/patientImagesList" },
-    { title: "Treatment Plan", link:"/treatmentPlan"}
+    { title: "Treatment Plan", link: "/treatmentPlan" }
   ];
   // Add these to your existing useState declarations at the top
-const [treatmentPlanSaved, setTreatmentPlanSaved] = useState(false);
-const [savingPlan, setSavingPlan] = useState(false);
-const [generatingPlan, setGeneratingPlan] = useState(false);
+  const [treatmentPlanSaved, setTreatmentPlanSaved] = useState(false);
+  const [savingPlan, setSavingPlan] = useState(false);
+  const [generatingPlan, setGeneratingPlan] = useState(false);
 
-// Add these functions to handle saving and fetching treatment plans
-const saveTreatmentPlan = async () => {
-  setSavingPlan(true);
-  try {
-    const response = await fetch(`${apiUrl}/save-treatment-plan`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: sessionStorage.getItem("token"),
-      },
-      body: JSON.stringify({
-        patientId: sessionStorage.getItem('patientId'),
-        treatments: treatments,
-        created_by:"test"
-      }),
-    });
-
-    const data = await response.json();
-    if (data.success) {
-      setTreatmentPlanSaved(true);
-      // Show success message or notification here
-    }
-  } catch (error) {
-    if(error.status===403||error.status===401){
-      sessionStorage.removeItem('token');
-      setRedirectToLogin(true);
-    }
-    else{
-      logErrorToServer(error, "getPatientList");
-      console.log(error)
-    }
-  } finally {
-    setSavingPlan(false);
-  }
-};
-
-const fetchExistingTreatmentPlan = async () => {
-  try {
-    const response = await fetch(`${apiUrl}/get-treatment-plan?patientId=${sessionStorage.getItem('patientId')}`, {
-      method: "GET",
-      headers: {
-        Authorization: sessionStorage.getItem("token"),
-      },
-    });
-
-    const data = await response.json();
-    if (data.success && data.treatmentPlan) {
-      setTreatments(data.treatmentPlan.treatments || []);
-      
-      // Update selectedTeeth based on treatments
-      const teethFromTreatments = data.treatmentPlan.treatments
-        .filter(t => !isNaN(parseInt(t.toothNumber)))
-        .map(t => parseInt(t.toothNumber));
-      
-      setSelectedTeeth([...new Set(teethFromTreatments)]);
-      setTreatmentPlanSaved(true);
-      return teethFromTreatments
-    }
-    else {
-        return []
-    }
-  } catch (error) {
-    if(error.status===403||error.status===401){
-      sessionStorage.removeItem('token');
-      setRedirectToLogin(true);
-    }
-    else{
-    logErrorToServer(error, "getPatientList");
-    console.log(error)
-    }
-  }
-};
-
-const generateTreatmentPlan = async () => {
-  setIsLoading(true);
-  setGeneratingPlan(true);
-  
-  try {
-    // First fetch the DCT codes if they're not already loaded
-    if (dctCodes.length === 0) {
-      const response = await fetch(`${apiUrl}/getCDTCodes`, {
+  // Add these functions to handle saving and fetching treatment plans
+  const saveTreatmentPlan = async () => {
+    setSavingPlan(true);
+    try {
+      const response = await fetch(`${apiUrl}/save-treatment-plan`, {
+        method: "POST",
         headers: {
-          Authorization: sessionStorage.getItem('token')
-        }
+          "Content-Type": "application/json",
+          Authorization: sessionStorage.getItem("token"),
+        },
+        body: JSON.stringify({
+          patientId: sessionStorage.getItem('patientId'),
+          treatments: treatments,
+          created_by: "test"
+        }),
       });
+
       const data = await response.json();
-      const convertedCodes = convertCdtCode(data.cdtCodes);
-      setDctCodes(convertedCodes);
-      setFilteredCodes(convertedCodes);
-      
-      // Now fetch JSON files and process them
-      const jsonResponse = await fetch(`${apiUrl}/get-annotations-for-treatment-plan?patientId=` + sessionStorage.getItem('patientId'), {
+      if (data.success) {
+        setTreatmentPlanSaved(true);
+        // Show success message or notification here
+      }
+    } catch (error) {
+      if (error.status === 403 || error.status === 401) {
+        sessionStorage.removeItem('token');
+        setRedirectToLogin(true);
+      }
+      else {
+        logErrorToServer(error, "getPatientList");
+        console.log(error)
+      }
+    } finally {
+      setSavingPlan(false);
+    }
+  };
+
+  const fetchExistingTreatmentPlan = async () => {
+    try {
+      const response = await fetch(`${apiUrl}/get-treatment-plan?patientId=${sessionStorage.getItem('patientId')}`, {
         method: "GET",
         headers: {
           Authorization: sessionStorage.getItem("token"),
         },
       });
-      
-      const jsonFiles = await jsonResponse.json();
-      if (jsonFiles.images && jsonFiles.images.length > 0) {
-        await processJsonFiles(jsonFiles.images, convertedCodes);
+
+      const data = await response.json();
+      if (data.success && data.treatmentPlan) {
+        setTreatments(data.treatmentPlan.treatments || []);
+
+        // Update selectedTeeth based on treatments
+        const teethFromTreatments = data.treatmentPlan.treatments
+          .filter(t => !isNaN(parseInt(t.toothNumber)))
+          .map(t => parseInt(t.toothNumber));
+
+        setSelectedTeeth([...new Set(teethFromTreatments)]);
+        setTreatmentPlanSaved(true);
+        return teethFromTreatments
       }
-    } else {
-      // DCT codes already loaded, just fetch and process JSON files
-      const response = await fetch(`${apiUrl}/get-annotations-for-treatment-plan?patientId=` + sessionStorage.getItem('patientId'), {
-        method: "GET",
-        headers: {
-          Authorization: sessionStorage.getItem("token"),
-        },
-      });
-      
-      const jsonFiles = await response.json();
-      if (jsonFiles.images && jsonFiles.images.length > 0) {
-        await processJsonFiles(jsonFiles.images, dctCodes);
+      else {
+        return []
+      }
+    } catch (error) {
+      if (error.status === 403 || error.status === 401) {
+        sessionStorage.removeItem('token');
+        setRedirectToLogin(true);
+      }
+      else {
+        logErrorToServer(error, "getPatientList");
+        console.log(error)
       }
     }
-  } catch (error) {
-    if(error.status===403||error.status===401){
-      sessionStorage.removeItem('token');
-      setRedirectToLogin(true);
+  };
+
+  const generateTreatmentPlan = async () => {
+    setIsLoading(true);
+    setGeneratingPlan(true);
+
+    try {
+      // First fetch the DCT codes if they're not already loaded
+      if (dctCodes.length === 0) {
+        const response = await fetch(`${apiUrl}/getCDTCodes`, {
+          headers: {
+            Authorization: sessionStorage.getItem('token')
+          }
+        });
+        const data = await response.json();
+        const convertedCodes = convertCdtCode(data.cdtCodes);
+        setDctCodes(convertedCodes);
+        setFilteredCodes(convertedCodes);
+
+        // Now fetch JSON files and process them
+        const jsonResponse = await fetch(`${apiUrl}/get-annotations-for-treatment-plan?patientId=` + sessionStorage.getItem('patientId'), {
+          method: "GET",
+          headers: {
+            Authorization: sessionStorage.getItem("token"),
+          },
+        });
+
+        const jsonFiles = await jsonResponse.json();
+        if (jsonFiles.images && jsonFiles.images.length > 0) {
+          await processJsonFiles(jsonFiles.images, convertedCodes);
+        }
+      } else {
+        // DCT codes already loaded, just fetch and process JSON files
+        const response = await fetch(`${apiUrl}/get-annotations-for-treatment-plan?patientId=` + sessionStorage.getItem('patientId'), {
+          method: "GET",
+          headers: {
+            Authorization: sessionStorage.getItem("token"),
+          },
+        });
+
+        const jsonFiles = await response.json();
+        if (jsonFiles.images && jsonFiles.images.length > 0) {
+          await processJsonFiles(jsonFiles.images, dctCodes);
+        }
+      }
+    } catch (error) {
+      if (error.status === 403 || error.status === 401) {
+        sessionStorage.removeItem('token');
+        setRedirectToLogin(true);
+      }
+      else {
+        logErrorToServer(error, "getPatientList");
+        console.log(error)
+      }
+    } finally {
+      setGeneratingPlan(false);
+      setIsLoading(false);
     }
-    else{
-    logErrorToServer(error, "getPatientList");
-    console.log(error)
-    }
-  } finally {
-    setGeneratingPlan(false);
-    setIsLoading(false);
-  }
-};
+  };
   // Fetch DCT codes from your server
   const convertCdtCode = (cdtData) => {
     return cdtData.map(cdt => ({
@@ -194,13 +194,13 @@ const generateTreatmentPlan = async () => {
 
   // Handle search filter
   useEffect(() => {
-    const filtered = dctCodes.filter(code => 
+    const filtered = dctCodes.filter(code =>
       code.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
       code.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      treatmentCodes.some(treatment => 
+      treatmentCodes.some(treatment =>
         treatment.anomaly.toLowerCase().includes(searchTerm.toLowerCase()) &&
         treatment.treatment_codes.includes(code.code) // Ensure it matches a relevant treatment code
-    )
+      )
     );
     setFilteredCodes(filtered);
   }, [searchTerm, dctCodes]);
@@ -239,7 +239,7 @@ const generateTreatmentPlan = async () => {
 
       toothAnnotations.forEach(tooth => {
         const overlapArea = calculateOverlap(anomaly.bounding_box, tooth.bounding_box);
-        
+
         if (overlapArea > 0) {
           teethWithOverlap.push({ tooth: tooth.label, overlap: overlapArea });
         }
@@ -253,7 +253,7 @@ const generateTreatmentPlan = async () => {
 
     return anomalyToToothMap;
   };
-  
+
   const fetchCdtCodesFromRAG = async (anomaly, convertedCdtCode) => {
     try {
       const response = await fetch(`${apiUrl}/chat-with-rag`, {
@@ -262,42 +262,42 @@ const generateTreatmentPlan = async () => {
           "Content-Type": "application/json",
           Authorization: sessionStorage.getItem("token"),
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           query: `Give me the CDT codes for treating moderate risk ${anomaly} only. it should in the form D____.`,
           promptTemplate: "You are an expert in dentistry"
         }),
       });
-  
+
       const ragText = await response.json();
       return parseCdtCodes(ragText.answer, convertedCdtCode, anomaly);
     } catch (error) {
-      if(error.status===403||error.status===401){
+      if (error.status === 403 || error.status === 401) {
         sessionStorage.removeItem('token');
         setRedirectToLogin(true);
       }
-      else{
-      logErrorToServer(error, "getPatientList");
-      console.log(error)
+      else {
+        logErrorToServer(error, "getPatientList");
+        console.log(error)
       }
       return [];
     }
   };
-  
+
   const parseCdtCodes = (ragResponse, convertedCdtCode, anomalyType) => {
     const cdtCodes = [];
     const lines = ragResponse.split("\n");
-      const codeList =[]
-      for (let i = 0; i < lines.length; i++) {
+    const codeList = []
+    for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
-      
+
       // Match D followed by 4 or 5 digits, with optional colon
       const codeMatches = line.match(/D\d{4,5}/g);
       if (codeMatches) {
         for (const code of codeMatches) {
           // Find the complete details from the dctCodes array and add only if it does not already exist
           const codeDetails = convertedCdtCode.find(c => c.code === code);
-          if (codeDetails && !codeList.find(c=>c.code===code)) {
+          if (codeDetails && !codeList.find(c => c.code === code)) {
             cdtCodes.push({
               code: code,
               description: codeDetails.description,
@@ -306,23 +306,23 @@ const generateTreatmentPlan = async () => {
               anomalyType: anomalyType // Store the anomaly type with the treatment
             });
             codeList.push({
-                code: code,
-                description: codeDetails.description,
-                price: codeDetails.price,
-                unit: codeDetails.unit || "tooth",
-                anomalyType: anomalyType
-              });
+              code: code,
+              description: codeDetails.description,
+              price: codeDetails.price,
+              unit: codeDetails.unit || "tooth",
+              anomalyType: anomalyType
+            });
           }
         }
       }
     }
-    
+
     return cdtCodes;
   };
-  
+
   const autofillTreatments = async (annotations, convertedCdtCode) => {
     await checkAnomaliesWithServer(annotations.annotations);
-  
+
     const anomalyToToothMap = findToothForAnomaly(annotations.annotations);
     for (const [anomaly, toothNumbers] of Object.entries(anomalyToToothMap)) {
       const cdtCodes = await fetchCdtCodesFromRAG(anomaly, convertedCdtCode);
@@ -331,11 +331,11 @@ const generateTreatmentPlan = async () => {
       }
     }
   };
-  
+
   const handleAutoFillTreatments = (toothNumberArray, cdtData, anomalyType) => {
     // Create treatments for each tooth in the array
     const newTreatments = [];
-    
+
     cdtData.forEach(code => {
       // Handle different unit types
       if (code.unit && code.unit.toLowerCase() === "full mouth") {
@@ -357,7 +357,7 @@ const generateTreatmentPlan = async () => {
       } else if (code.unit && code.unit.toLowerCase() === "quadrant") {
         // For quadrant, group teeth by quadrant
         const quadrants = {};
-        
+
         toothNumberArray.forEach(tooth => {
           const quadrant = getQuadrantForTooth(tooth);
           if (!quadrants[quadrant]) {
@@ -365,7 +365,7 @@ const generateTreatmentPlan = async () => {
           }
           quadrants[quadrant].push(tooth);
         });
-        
+
         // Create one treatment per quadrant
         Object.keys(quadrants).forEach(quadrant => {
           newTreatments.push({
@@ -388,16 +388,16 @@ const generateTreatmentPlan = async () => {
         });
       }
     });
-    
+
     if (newTreatments.length > 0) {
       setTreatments(prev => [...prev, ...newTreatments]);
-  
+
       // Ensure all new tooth numbers are added to selectedTeeth (avoid duplicates)
       const toothNumsToAdd = toothNumberArray.filter(t => !isNaN(parseInt(t)));
       setSelectedTeeth(prev => [...new Set([...prev, ...toothNumsToAdd])]);
     }
   };
-  
+
   const processJsonFiles = async (jsonFiles, convertedCdtCode) => {
     for (const jsonFile of jsonFiles) {
       if (jsonFile.annotations && jsonFile.annotations.annotations) {
@@ -406,13 +406,13 @@ const generateTreatmentPlan = async () => {
     }
     setIsLoading(false);
   };
-  
+
   useEffect(() => {
     props.setBreadcrumbItems('Treatment Plan', breadcrumbItems);
     const fetchData = async () => {
       // First check if there's an existing treatment plan
       const treatmentPlanExists = await fetchExistingTreatmentPlan();
-      
+
       // Then fetch the DCT codes
       try {
         const response = await fetch(`${apiUrl}/getCDTCodes`, {
@@ -434,33 +434,33 @@ const generateTreatmentPlan = async () => {
         // Only fetch JSON files if we don't already have a treatment plan
         setIsLoading(false);
       } catch (error) {
-        if(error.status===403||error.status===401){
+        if (error.status === 403 || error.status === 401) {
           sessionStorage.removeItem('token');
           setRedirectToLogin(true);
         }
-        else{
-        logErrorToServer(error, "getPatientList");
-        console.log(error)
-        console.error('Error fetching DCT codes:', error);
-        // Sample data as fallback
-        const sampleData = [
-          { code: 'D2140', description: 'Amalgam filling - one surface', price: 150.00, unit: "tooth" },
-          { code: 'D2150', description: 'Amalgam filling - two surfaces', price: 200.00, unit: "tooth" },
-          { code: 'D2160', description: 'Amalgam filling - three surfaces', price: 250.00, unit: "tooth" },
-        ];
-        setDctCodes(sampleData);
-        setFilteredCodes(sampleData);
-        
-        // Still fetch JSON files even after using fallback data
-        if (treatments.length === 0) {
-          await fetchJsonFiles(sampleData);
-        } else {
-          setIsLoading(false);
+        else {
+          logErrorToServer(error, "getPatientList");
+          console.log(error)
+          console.error('Error fetching DCT codes:', error);
+          // Sample data as fallback
+          const sampleData = [
+            { code: 'D2140', description: 'Amalgam filling - one surface', price: 150.00, unit: "tooth" },
+            { code: 'D2150', description: 'Amalgam filling - two surfaces', price: 200.00, unit: "tooth" },
+            { code: 'D2160', description: 'Amalgam filling - three surfaces', price: 250.00, unit: "tooth" },
+          ];
+          setDctCodes(sampleData);
+          setFilteredCodes(sampleData);
+
+          // Still fetch JSON files even after using fallback data
+          if (treatments.length === 0) {
+            await fetchJsonFiles(sampleData);
+          } else {
+            setIsLoading(false);
+          }
         }
       }
-    }
     };
-    
+
     const fetchJsonFiles = async (convertedCdtCode) => {
       try {
         const response = await fetch(`${apiUrl}/get-annotations-for-treatment-plan?patientId=` + sessionStorage.getItem('patientId'), {
@@ -469,7 +469,7 @@ const generateTreatmentPlan = async () => {
             Authorization: sessionStorage.getItem("token"),
           },
         });
-  
+
         const jsonFiles = await response.json();
         if (jsonFiles.images && jsonFiles.images.length > 0) {
           processJsonFiles(jsonFiles.images, convertedCdtCode);
@@ -477,18 +477,18 @@ const generateTreatmentPlan = async () => {
           setIsLoading(false);
         }
       } catch (error) {
-        if(error.status===403||error.status===401){
+        if (error.status === 403 || error.status === 401) {
           sessionStorage.removeItem('token');
           setRedirectToLogin(true);
         }
-        else{
-        logErrorToServer(error, "getPatientList");
-        console.log(error)
-        setIsLoading(false);
+        else {
+          logErrorToServer(error, "getPatientList");
+          console.log(error)
+          setIsLoading(false);
+        }
       }
-    }
     };
-    
+
     // Start the sequence
     setIsLoading(true);
     fetchData();
@@ -501,7 +501,7 @@ const generateTreatmentPlan = async () => {
       .filter(a => isNaN(parseInt(a.label))) // Non-numeric labels
       .map(a => a.label)
     )];
-    
+
     const uncheckedLabels = uniqueLabels.filter(label => !(label in anomalyCache));
 
     if (uncheckedLabels.length > 0) {
@@ -516,23 +516,23 @@ const generateTreatmentPlan = async () => {
         });
 
         const data = await response.json();
-        
+
         Object.assign(anomalyCache, data);
       } catch (error) {
-        if(error.status===403||error.status===401){
+        if (error.status === 403 || error.status === 401) {
           sessionStorage.removeItem('token');
           setRedirectToLogin(true);
         }
-        else{
-        logErrorToServer(error, "getPatientList");
-        console.log(error)
+        else {
+          logErrorToServer(error, "getPatientList");
+          console.log(error)
         }
       }
     }
 
     return anomalyCache;
   };
-  
+
   const handleDctCodeSelect = (code) => {
     if (code.unit && code.unit.toLowerCase() === "full mouth") {
       // For full mouth treatment
@@ -573,7 +573,7 @@ const generateTreatmentPlan = async () => {
       };
       setTreatments([...treatments, newTreatment]);
     }
-    
+
     setSearchTerm('');
     setModalOpen(false); // Close modal after selection
   };
@@ -581,7 +581,7 @@ const generateTreatmentPlan = async () => {
   const removeTreatment = (id) => {
     const updatedTreatments = treatments.filter(t => t.id !== id);
     setTreatments(updatedTreatments);
-    
+
     // Remove tooth from selected teeth if it has no more treatments
     const treatmentToRemove = treatments.find(t => t.id === id);
     if (treatmentToRemove && !isNaN(parseInt(treatmentToRemove.toothNumber))) {
@@ -599,7 +599,7 @@ const generateTreatmentPlan = async () => {
     return (
       <div key={number} className="d-inline-block text-center m-1">
         <Button
-          color={toothTreatments.length>0 ? "primary" : "secondary"}
+          color={toothTreatments.length > 0 ? "primary" : "secondary"}
           onClick={() => handleToothClick(number)}
           className="mb-1"
           size="sm"
@@ -638,12 +638,12 @@ const generateTreatmentPlan = async () => {
         if (!organized.quadrants[treatment.toothNumber]) {
           organized.quadrants[treatment.toothNumber] = {};
         }
-        
+
         const anomalyKey = treatment.anomalyType || "Unknown";
         if (!organized.quadrants[treatment.toothNumber][anomalyKey]) {
           organized.quadrants[treatment.toothNumber][anomalyKey] = [];
         }
-        
+
         organized.quadrants[treatment.toothNumber][anomalyKey].push(treatment);
       } else {
         // Individual tooth treatments
@@ -651,12 +651,12 @@ const generateTreatmentPlan = async () => {
         if (!organized.teeth[toothKey]) {
           organized.teeth[toothKey] = {};
         }
-        
+
         const anomalyKey = treatment.anomalyType || "Unknown";
         if (!organized.teeth[toothKey][anomalyKey]) {
           organized.teeth[toothKey][anomalyKey] = [];
         }
-        
+
         organized.teeth[toothKey][anomalyKey].push(treatment);
       }
     });
@@ -698,11 +698,11 @@ const generateTreatmentPlan = async () => {
       </Row>
     );
   }
-  if(redirectToLogin){
-    return <Navigate to="/login"/>
+  if (redirectToLogin) {
+    return <Navigate to="/login" />
   }
-  if(redirectToAnnotationPage){
-    return <Navigate to="/annotationPage"/>
+  if (redirectToAnnotationPage) {
+    return <Navigate to="/annotationPage" />
   }
   const organizedTreatments = getOrganizedTreatments();
   const totalPrice = treatments.reduce((sum, t) => sum + t.price, 0).toFixed(2);
@@ -710,16 +710,16 @@ const generateTreatmentPlan = async () => {
   // Render function for each treatment group
   const renderTreatmentGroup = (treatmentList, groupTitle, anomalyKey) => {
     const groupKey = groupTitle.replace(/\s+/g, '-').toLowerCase();
-    
+
     return (
       <div key={`${groupKey}-${anomalyKey}`} className="border-bottom">
-        <Button 
-          color="link" 
+        <Button
+          color="link"
           className="d-flex justify-content-between align-items-center w-100 p-3 text-decoration-none"
           onClick={() => toggleGroup(groupKey, anomalyKey)}
         >
           <div>
-            <strong>{anomalyKey}</strong> 
+            <strong>{anomalyKey}</strong>
             <Badge color="primary" pill className="ms-2">
               {treatmentList.length}
             </Badge>
@@ -776,7 +776,7 @@ const generateTreatmentPlan = async () => {
           <div className="d-flex flex-wrap justify-content-center mb-4">
             {[...Array(16)].map((_, i) => renderToothButton(i + 1))}
           </div>
-          
+
           {/* Lower teeth */}
           <div className="d-flex flex-wrap justify-content-center mb-4">
             {[...Array(16)].map((_, i) => renderToothButton(32 - i))}
@@ -869,40 +869,40 @@ const generateTreatmentPlan = async () => {
           )}
         </CardBody>
         <CardFooter className="d-flex justify-content-between">
-            <Button 
-                color="primary" 
-                onClick={generateTreatmentPlan} 
-                disabled={generatingPlan}
-            >
-                {generatingPlan ? (
-                <>
-                    <Spinner size="sm" className="me-2" /> Generating Treatment Plan...
-                </>
-                ) : (
-                "Generate Treatment Plan"
-                )}
-            </Button>
-            <Button
-              color='primary'
-              onClick={()=>setRedirectToAnnotationPage(true)}
-              disabled={savingPlan||generatingPlan}
-              >
-                Annotation Page
-              </Button>
-            <Button 
-                color="success" 
-                onClick={saveTreatmentPlan} 
-                disabled={treatments.length === 0 || savingPlan}
-            >
-                {savingPlan ? (
-                <>
-                    <Spinner size="sm" className="me-2" /> Saving...
-                </>
-                ) : (
-                "Save Treatment Plan"
-                )}
-            </Button>
-            </CardFooter>
+          <Button
+            color="primary"
+            onClick={generateTreatmentPlan}
+            disabled={generatingPlan}
+          >
+            {generatingPlan ? (
+              <>
+                <Spinner size="sm" className="me-2" /> Generating Treatment Plan...
+              </>
+            ) : (
+              "Generate Treatment Plan"
+            )}
+          </Button>
+          <Button
+            color='primary'
+            onClick={() => setRedirectToAnnotationPage(true)}
+            disabled={savingPlan || generatingPlan}
+          >
+            Annotation Page
+          </Button>
+          <Button
+            color="success"
+            onClick={saveTreatmentPlan}
+            disabled={treatments.length === 0 || savingPlan}
+          >
+            {savingPlan ? (
+              <>
+                <Spinner size="sm" className="me-2" /> Saving...
+              </>
+            ) : (
+              "Save Treatment Plan"
+            )}
+          </Button>
+        </CardFooter>
       </Card>
 
       {/* DCT Code Selection Modal */}

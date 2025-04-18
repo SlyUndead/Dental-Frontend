@@ -87,11 +87,11 @@ const PatientImagesList = (props) => {
             //console.log(sessionStorage.getItem('patientId'));
             try {
                 const response = await axios.get(`${apiUrl}/getPatientByID?patientId=` + sessionStorage.getItem('patientId'),
-                {
-                  headers:{
-                    Authorization:sessionStorage.getItem('token')
-                  }
-                });
+                    {
+                        headers: {
+                            Authorization: sessionStorage.getItem('token')
+                        }
+                    });
                 // const response = await axios.get('http://localhost:3000/getPatientByID?patientId=' + sessionStorage.getItem('patientId'));
                 if (response.status === 200) {
                     const data = response.data;
@@ -109,15 +109,15 @@ const PatientImagesList = (props) => {
                 }
             }
             catch (error) {
-                if(error.status===403||error.status===401){
+                if (error.status === 403 || error.status === 401) {
                     sessionStorage.removeItem('token');
                     setRedirectToLogin(true);
                 }
-                else{
-                  logErrorToServer(error, "getPatientDetails");
-                console.log(error);
-                setError('Something went wrong. Please contact admin.');
-                setErrorClr('red');
+                else {
+                    logErrorToServer(error, "getPatientDetails");
+                    console.log(error);
+                    setError('Something went wrong. Please contact admin.');
+                    setErrorClr('red');
                 }
             }
         }
@@ -137,22 +137,22 @@ const PatientImagesList = (props) => {
             setVisitDetails([]);
             //console.log(sessionStorage.getItem('patientId'));
             const response = await axios.get(`${apiUrl}/getPatientVisitsByID?patientId=` + sessionStorage.getItem('patientId'),
-            {
-              headers:{
-                Authorization:sessionStorage.getItem('token')
-              }
-            });
+                {
+                    headers: {
+                        Authorization: sessionStorage.getItem('token')
+                    }
+                });
             //  const response = await axios.get('http://localhost:3001/getPatientVisitsByID?patientId=' + sessionStorage.getItem('patientId'));
             if (response.status === 200) {
                 const visitData = response.data;
                 sessionStorage.setItem('token', response.headers['new-token'])
                 // const responseImages = await axios.get('http://localhost:3000/getPatientImagesByID?patientId=' + sessionStorage.getItem('patientId'));
                 const responseImages = await axios.get(`${apiUrl}/getPatientImagesByID?patientId=` + sessionStorage.getItem('patientId'),
-                {
-                  headers:{
-                    Authorization:sessionStorage.getItem('token')
-                  }
-                });
+                    {
+                        headers: {
+                            Authorization: sessionStorage.getItem('token')
+                        }
+                    });
                 if (responseImages.status === 200) {
                     sessionStorage.setItem('token', response.headers['new-token'])
                     await visitData.patienVisits.map(visit => {
@@ -169,15 +169,15 @@ const PatientImagesList = (props) => {
             }
         }
         catch (error) {
-            if(error.status===403||error.status===401){
+            if (error.status === 403 || error.status === 401) {
                 sessionStorage.removeItem('token');
                 setRedirectToLogin(true);
             }
-            else{
-              logErrorToServer(error, "getPatientVisits");
-            console.log(error);
-            setError('Something went wrong. Please contact admin.');
-            setErrorClr('red');
+            else {
+                logErrorToServer(error, "getPatientVisits");
+                console.log(error);
+                setError('Something went wrong. Please contact admin.');
+                setErrorClr('red');
             }
         }
     }
@@ -194,8 +194,8 @@ const PatientImagesList = (props) => {
     if (redirect) {
         return <Navigate to="/newPatientVisit" />;
     }
-    if(redirectToLogin){
-        return <Navigate to="/login"/>
+    if (redirectToLogin) {
+        return <Navigate to="/login" />
     }
     const handleClickTreatmentPlan = () => {
         setError("");
@@ -207,8 +207,8 @@ const PatientImagesList = (props) => {
     if (redirectToTreatmentPlan) {
         return <Navigate to="/treatmentPlan" />;
     }
-    if(redirectToLogin){
-        return <Navigate to="/login"/>
+    if (redirectToLogin) {
+        return <Navigate to="/login" />
     }
     const handleEditClick = (e, visitId, key) => {
         // return <Navigate to="/login" />
@@ -280,11 +280,11 @@ const PatientImagesList = (props) => {
                 if (isConfirmed) {
                     checkedImages = checkedImages.slice(0, -1);
                     // console.log(checkedImages);
-                    let response = await axios.post(`${apiUrl}/delete-patient-image?ids=` + checkedImages,{},
+                    let response = await axios.post(`${apiUrl}/delete-patient-image?ids=` + checkedImages, {},
                         {
-                          headers:{
-                            Authorization:sessionStorage.getItem('token')
-                          }
+                            headers: {
+                                Authorization: sessionStorage.getItem('token')
+                            }
                         })
                     if (response.status === 200) {
                         getPatientVisits();
@@ -296,15 +296,15 @@ const PatientImagesList = (props) => {
             }
         }
         catch (error) {
-            if(error.status===403||error.status===401){
+            if (error.status === 403 || error.status === 401) {
                 sessionStorage.removeItem('token');
                 setRedirectToLogin(true);
             }
-            else{
-              logErrorToServer(error, "handleDeleteClick");
-            console.log(error);
-            setError('Something went wrong. Please contact admin.');
-            setErrorClr('red');
+            else {
+                logErrorToServer(error, "handleDeleteClick");
+                console.log(error);
+                setError('Something went wrong. Please contact admin.');
+                setErrorClr('red');
             }
         }
     };
@@ -336,9 +336,9 @@ const PatientImagesList = (props) => {
                         // Send a request to your Node.js backend to fetch and download the image
                         const response = await fetch(`${apiUrl}/download-image?imageName=${encodeURIComponent(imageName)}`,
                             {
-                              headers:{
-                                Authorization:sessionStorage.getItem('token')
-                              }
+                                headers: {
+                                    Authorization: sessionStorage.getItem('token')
+                                }
                             });
                         // Check if the response is successful
                         if (!response.ok) {
@@ -359,13 +359,13 @@ const PatientImagesList = (props) => {
                     };
                 }
             } catch (error) {
-                if(error.status===403||error.status===401){
+                if (error.status === 403 || error.status === 401) {
                     sessionStorage.removeItem('token');
                     setRedirectToLogin(true);
                 }
-                else{
-                  logErrorToServer(error, "handleDownloadClick");
-                console.error('Download failed', error);
+                else {
+                    logErrorToServer(error, "handleDownloadClick");
+                    console.error('Download failed', error);
                 }
             }
 
@@ -492,7 +492,7 @@ const PatientImagesList = (props) => {
                                                 type="button"
                                                 style={{ cssText: 'padding: 2px !important', fontSize: '25px' }}
                                                 className="btn"
-                                                onClick={(e) =>{e.stopPropagation(); handleEditClick(e, visit, key)}}
+                                                onClick={(e) => { e.stopPropagation(); handleEditClick(e, visit, key) }}
                                             >
                                                 <i className='mdi mdi-pencil-box-outline'></i>
                                             </button>
@@ -510,7 +510,7 @@ const PatientImagesList = (props) => {
                                                                             <div className="form-check">
                                                                                 {/* <input type="hidden" name="imageId" value={patient._id} /> */}
                                                                                 <input type="checkbox" data-id={patient._id} className="form-check-input"
-                                                                                    id="formrow-customCheck" data-src={`${apiUrl}/${patient.thumbnail_url}`}  style={{zIndex:10}} onClick={(e)=>{e.stopPropagation()}}/>
+                                                                                    id="formrow-customCheck" data-src={`${apiUrl}/${patient.thumbnail_url}`} style={{ zIndex: 10 }} onClick={(e) => { e.stopPropagation() }} />
                                                                             </div>
                                                                         </FormGroup>{" "}
                                                                     </td>

@@ -34,12 +34,12 @@ const PracticeList = (props) => {
                 setPractices(data.practiceList);
             }
             catch (error) {
-                if (error.status === 403||error.status===401) {
+                if (error.status === 403 || error.status === 401) {
                     sessionStorage.removeItem('token');
                     setRedirectToLogin(true);
                 }
-                else{
-                logErrorToServer(error, "getPracticeList");
+                else {
+                    logErrorToServer(error, "getPracticeList");
                 }
                 //console.log(err);
             }
@@ -64,10 +64,10 @@ const PracticeList = (props) => {
         setRedirect(true);
     };
 
-    const handleNewPracticeClick = ()=>{
+    const handleNewPracticeClick = () => {
         setRedirectToNewPractice(true);
     }
-    const handleEditClick = (e,practice) => {
+    const handleEditClick = (e, practice) => {
         // return <Navigate to="/login" />
         e.stopPropagation();
         sessionStorage.setItem('practiceName', practice.name);
@@ -83,8 +83,8 @@ const PracticeList = (props) => {
     if (redirectToLogin) {
         return <Navigate to="/login" />;
     }
-    if (redirectToNewPractice){
-        return <Navigate to="/newPractice"/>;
+    if (redirectToNewPractice) {
+        return <Navigate to="/newPractice" />;
     }
     return (
         <React.Fragment>
@@ -123,7 +123,7 @@ const PracticeList = (props) => {
                                                         type="button"
                                                         style={{ cssText: 'padding: 2px !important', fontSize: '25px' }}
                                                         className="btn"
-                                                        onClick={(e) =>{e.stopPropagation(); handleEditClick(e, practice)}}
+                                                        onClick={(e) => { e.stopPropagation(); handleEditClick(e, practice) }}
                                                     >
                                                         <i className='mdi mdi-pencil-box-outline'></i>
                                                     </button>

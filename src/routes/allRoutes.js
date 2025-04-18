@@ -110,9 +110,9 @@ const userRoutes = [
   { path: "/practiceList", component: <PracticeList /> },
   { path: "/preferences", component: <Preferences /> },
   { path: "/newPatientVisit", component: <NewPatientVisit /> },
-  { path: "/newPractice", component: <NewPractice/> },
-  { path: "/treatmentPlan", component: <DentalTreatmentPlan/> },
-  { path: "/confidenceLevelPage", component: <ConfidenceLevelPage/>},
+  { path: "/newPractice", component: <NewPractice /> },
+  { path: "/treatmentPlan", component: <DentalTreatmentPlan /> },
+  { path: "/confidenceLevelPage", component: <ConfidenceLevelPage /> },
   // { path: "/dashboard", component: <Dashboard /> },
 
   // // //calendar
@@ -143,7 +143,7 @@ const userRoutes = [
   // { path: "/icons-themify", component: <IconThemify /> },
   // { path: "/icons-dripicons", component: <IconDripicons /> },
   // { path: "/icons-typicons", component: <IconTypicons /> }, 
-  
+
   // // // Tables
   // { path: "/tables-basic", component: <BasicTables /> },
   // { path: "/tables-datatable", component: <DatatableTables /> },
@@ -213,8 +213,8 @@ const authRoutes = [
   { path: "/pages-login", component: <Login1 /> },
   { path: "/pages-register", component: <Register1 /> },
   { path: "/page-recoverpw", component: <Recoverpw /> },
-  { path: "/auth-lock-screen", component: <LockScreen /> },  
-  { path: "/annotationPage", component: <AnnotationPage /> },
+  { path: "/auth-lock-screen", component: <LockScreen /> },
+  { path: "/annotationPage", component: <AnnotationPage /> },
   //{ path: "/practiceList", component: <PracticeList /> },
 ]
 

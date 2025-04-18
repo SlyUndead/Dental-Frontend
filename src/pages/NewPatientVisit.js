@@ -46,7 +46,7 @@ const NewPatient = (props) => {
     const breadcrumbItems = [
         { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
         { title: sessionStorage.getItem('practiceName'), link: "/patientList" },
-        { title: sessionStorage.getItem('patientName'), link: "/patientImagesList"},
+        { title: sessionStorage.getItem('patientName'), link: "/patientImagesList" },
         { title: "New Visit", link: "/patientImagesList" },
     ]
     const [patientId, setPatientId] = useState('');
@@ -58,11 +58,11 @@ const NewPatient = (props) => {
         if (sessionStorage.getItem('visitId')) {
             const getVisitDetails = async () => {
                 const response = await axios.get(`${apiUrl}/getVisitDetailsById?visitID=` + sessionStorage.getItem('visitId'),
-            {
-                headers:{
-                    Authorization:sessionStorage.getItem('token')
-                }
-            }); // Adjust the API endpoint as needed
+                    {
+                        headers: {
+                            Authorization: sessionStorage.getItem('token')
+                        }
+                    }); // Adjust the API endpoint as needed
                 // console.log(response);
                 sessionStorage.setItem('token', response.headers['new-token'])
                 setDateOfVisit(response.data.visitDetails[0].date_of_visit);
@@ -106,12 +106,12 @@ const NewPatient = (props) => {
                         visitId: sessionStorage.getItem('visitId'), date_of_xray: dateOfXray, notes: notes,
                         date_of_visit: dateOfVisit, summary: summary
                     },
-                    {
-                      headers:{
-                        Authorization:sessionStorage.getItem('token')
-                      }
-                    });
-                    if (response.status === 200){
+                        {
+                            headers: {
+                                Authorization: sessionStorage.getItem('token')
+                            }
+                        });
+                    if (response.status === 200) {
                         sessionStorage.setItem('xrayDate', dateOfXray)
                         sessionStorage.setItem('token', response.headers['new-token'])
                         toggleCustom("2");
@@ -123,11 +123,11 @@ const NewPatient = (props) => {
                         patientId: patientId, date_of_xray: dateOfXray, notes: notes, date_of_visit: dateOfVisit, summary: summary,
                         created_by: "test"
                     },
-                    {
-                      headers:{
-                        Authorization:sessionStorage.getItem('token')
-                      }
-                    })
+                        {
+                            headers: {
+                                Authorization: sessionStorage.getItem('token')
+                            }
+                        })
                     //console.log(response)
                     if (response.status === 200) {
                         sessionStorage.setItem('visitId', response.data.visitDetail._id);

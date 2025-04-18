@@ -1,4 +1,4 @@
-import React, {  useState,useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom';
 import { Container, Row, Col, Card, CardBody, Form, Input, Button } from 'reactstrap';
 import logoDark from "../../assets/images/logo-dark.png";
@@ -6,8 +6,8 @@ import logoLight from "../../assets/images/logo-light.png";
 import logo3 from "../../assets/images/logo3.png"
 import logo4 from "../../assets/images/logo4.png"
 import logo5 from "../../assets/images/logo5.png"
-  import logo7 from "../../assets/images/logo7.png"
-  import logo8 from "../../assets/images/logo8.png"
+import logo7 from "../../assets/images/logo7.png"
+import logo8 from "../../assets/images/logo8.png"
 import dentalLaser from "../../assets/images/PX/Dental Laser.png"
 import surgicalMicroscope from "../../assets/images/PX/Surgical Microscope.png"
 import dentalServices from "../../assets/images/PX/Dental Services.png"
@@ -50,129 +50,129 @@ const Login = props => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-      try {
-        //console.log("calling api");
-        const response = await axios.post(`${apiUrl}/login`, {
-          username: username, password: password
-        });
-        // console.log(response);
-        if (response.status === 200) {
-          //console.log(response);
-          sessionStorage.setItem('token', response.data.token);
-          sessionStorage.setItem('clientId',response.data.clientId);
-          sessionStorage.setItem('firstName', response.data.firstName);
-          sessionStorage.setItem('lastName', response.data.lastName);
-          // localStorage.setItem('authUser',response.data.token);
-          setError('');          
-          setRedirect(true);
-        }
-        else
-          throw new Error(response.data || 'Login failed');
+    try {
+      //console.log("calling api");
+      const response = await axios.post(`${apiUrl}/login`, {
+        username: username, password: password
+      });
+      // console.log(response);
+      if (response.status === 200) {
+        //console.log(response);
+        sessionStorage.setItem('token', response.data.token);
+        sessionStorage.setItem('clientId', response.data.clientId);
+        sessionStorage.setItem('firstName', response.data.firstName);
+        sessionStorage.setItem('lastName', response.data.lastName);
+        // localStorage.setItem('authUser',response.data.token);
+        setError('');
+        setRedirect(true);
       }
-      catch (error) {
-        console.log(error);
-        if (error instanceof Error) {
-          setError(error?.response?.data || 'Login failed');
-        } else {
-          setError(process.env.REACT_APP_ERRORMSG);
-        }
-        await logErrorToServer(error,"handleSubmit");
+      else
+        throw new Error(response.data || 'Login failed');
+    }
+    catch (error) {
+      console.log(error);
+      if (error instanceof Error) {
+        setError(error?.response?.data || 'Login failed');
+      } else {
+        setError(process.env.REACT_APP_ERRORMSG);
       }
+      await logErrorToServer(error, "handleSubmit");
+    }
   }
 
   if (redirect) {
-      return <Navigate to="/practiceList" />;
+    return <Navigate to="/practiceList" />;
   }
 
   return (
     <React.Fragment>
       <div className="login-page d-flex align-items-center vh-100">
-      <Container fluid>
-        <Row className="justify-content-center">
-          {/* Left Section - Logo & AI Dental Care */}
-          <Col md={7} className="left-section d-flex flex-column justify-content-center text-blue">
-            <div className="text-start">
-              {/* Add Your Logo Here */}
-              <img src={logo8} alt="Logo" className="mb-3" height="40%" width="100%"/>
-              <h2 className="mt-3" style={{fontSize:'32px', marginLeft:'5%'}}>Smarter dental care, powered by AI wisdom.</h2><br/>
-              <p className="mt-2" style={{fontSize:'28px', marginLeft:'5%'}}>Enhancing diagnostics, optimizing workflows, and improving patient outcomes with AI-driven solutions.</p><br/>
-              <ul className="list-unstyled" style={{fontSize:'24px', marginLeft:'5%'}}>
-              <li><img src={dentalLaser} height="8%" width="8%"></img> <strong>Efficiency</strong> - Automating diagnostics, treatment planning, and workflows</li>
-              <li><img src={surgicalMicroscope} height="8%" width="8%"/> <strong>Accuracy</strong> - Reducing errors in dental assessments</li>
-              <li><img src={dentalServices} height="8%" width="8%"/> <strong>Seamless Integration</strong> - Embedding AI wisdom into dental workflows</li>
-              <li><img src={toothExtraction} height="8%" width="8%"/> <strong>Trust & Compliance</strong> - Ensuring transparency for dentists and insurers</li>
-            </ul>
-            </div>
-          </Col>
-
-          {/* Right Section - Login Form */}
-          <Col md={5} className="d-flex align-items-center justify-content-center">
-          <Card className="login-card shadow-lg p-4">
-            <CardBody>
-              <h3 className="text-center">Sign in</h3>
-              <p className="text-muted text-center">
-                Don't have an account? <Link to="/signup" style={{color:'#1b69b2'}}>Sign up</Link>
-              </p>
-
-              <Form className="mt-3" onSubmit={(e)=>handleSubmit(e)}>
-                <div className="mb-3">
-                  <Input
-                    name="email"
-                    type="email"
-                    value={username}
-                    className="form-control"
-                    placeholder="Enter email"
-                    required
-                    onChange={(e) => setUsername(e.target.value)}
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <Input
-                    name="password"
-                    type="password"
-                    value={password}
-                    className="form-control"
-                    placeholder="Enter Password"
-                    required
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                  <div className="form-check">
-                    <input type="checkbox" className="form-check-input" id="rememberMe" />
-                    <label className="form-check-label" htmlFor="rememberMe">Keep me logged in</label>
-                  </div>
-                  <Link to="/forgot-password" className="text-muted" style={{color:'#1b69b2'}}>Forgot password?</Link>
-                </div>
-
-                <Button color="primary" block type='submit' style={{backgroundColor:'#1b69b2'}}>Log in</Button>
-              </Form>
-
-              <div className="text-center mt-4">
-                <p className="text-muted">Or continue with</p>
-                <div className="d-flex justify-content-center">
-                  <Button color="light" className="social-btn me-2">
-                    <i className="mdi mdi-google"></i>
-                  </Button>
-                  <Button color="light" className="social-btn me-2">
-                    <i className="mdi mdi-facebook"></i>
-                  </Button>
-                  <Button color="light" className="social-btn">
-                    <i className="mdi mdi-apple"></i>
-                  </Button>
-                </div>
+        <Container fluid>
+          <Row className="justify-content-center">
+            {/* Left Section - Logo & AI Dental Care */}
+            <Col md={7} className="left-section d-flex flex-column justify-content-center text-blue">
+              <div className="text-start">
+                {/* Add Your Logo Here */}
+                <img src={logo8} alt="Logo" className="mb-3" height="40%" width="100%" />
+                <h2 className="mt-3" style={{ fontSize: '32px', marginLeft: '5%' }}>Smarter dental care, powered by AI wisdom.</h2><br />
+                <p className="mt-2" style={{ fontSize: '28px', marginLeft: '5%' }}>Enhancing diagnostics, optimizing workflows, and improving patient outcomes with AI-driven solutions.</p><br />
+                <ul className="list-unstyled" style={{ fontSize: '24px', marginLeft: '5%' }}>
+                  <li><img src={dentalLaser} height="8%" width="8%"></img> <strong>Efficiency</strong> - Automating diagnostics, treatment planning, and workflows</li>
+                  <li><img src={surgicalMicroscope} height="8%" width="8%" /> <strong>Accuracy</strong> - Reducing errors in dental assessments</li>
+                  <li><img src={dentalServices} height="8%" width="8%" /> <strong>Seamless Integration</strong> - Embedding AI wisdom into dental workflows</li>
+                  <li><img src={toothExtraction} height="8%" width="8%" /> <strong>Trust & Compliance</strong> - Ensuring transparency for dentists and insurers</li>
+                </ul>
               </div>
-            </CardBody>
-          </Card>
+            </Col>
 
-          </Col>
-        </Row>
-      </Container>
+            {/* Right Section - Login Form */}
+            <Col md={5} className="d-flex align-items-center justify-content-center">
+              <Card className="login-card shadow-lg p-4">
+                <CardBody>
+                  <h3 className="text-center">Sign in</h3>
+                  <p className="text-muted text-center">
+                    Don't have an account? <Link to="/signup" style={{ color: '#1b69b2' }}>Sign up</Link>
+                  </p>
 
-      {/* Custom Styles */}
-      <style>{`
+                  <Form className="mt-3" onSubmit={(e) => handleSubmit(e)}>
+                    <div className="mb-3">
+                      <Input
+                        name="email"
+                        type="email"
+                        value={username}
+                        className="form-control"
+                        placeholder="Enter email"
+                        required
+                        onChange={(e) => setUsername(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="mb-3">
+                      <Input
+                        name="password"
+                        type="password"
+                        value={password}
+                        className="form-control"
+                        placeholder="Enter Password"
+                        required
+                        onChange={(e) => setPassword(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                      <div className="form-check">
+                        <input type="checkbox" className="form-check-input" id="rememberMe" />
+                        <label className="form-check-label" htmlFor="rememberMe">Keep me logged in</label>
+                      </div>
+                      <Link to="/forgot-password" className="text-muted" style={{ color: '#1b69b2' }}>Forgot password?</Link>
+                    </div>
+
+                    <Button color="primary" block type='submit' style={{ backgroundColor: '#1b69b2' }}>Log in</Button>
+                  </Form>
+
+                  <div className="text-center mt-4">
+                    <p className="text-muted">Or continue with</p>
+                    <div className="d-flex justify-content-center">
+                      <Button color="light" className="social-btn me-2">
+                        <i className="mdi mdi-google"></i>
+                      </Button>
+                      <Button color="light" className="social-btn me-2">
+                        <i className="mdi mdi-facebook"></i>
+                      </Button>
+                      <Button color="light" className="social-btn">
+                        <i className="mdi mdi-apple"></i>
+                      </Button>
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
+
+            </Col>
+          </Row>
+        </Container>
+
+        {/* Custom Styles */}
+        <style>{`
         .login-page {
           background-color: white;
         }
@@ -207,7 +207,7 @@ const Login = props => {
           border-radius: 50%;
         }
       `}</style>
-    </div>
+      </div>
 
     </React.Fragment>
   )
