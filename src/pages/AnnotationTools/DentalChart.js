@@ -10,6 +10,7 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
 
   // Initialize teeth data (1-32)
   const teeth = useMemo(() => {
+    console.log(annotations)
     const teethData = Array.from({ length: 32 }, (_, i) => ({
       number: i + 1,
       hasAnomaly: false,
