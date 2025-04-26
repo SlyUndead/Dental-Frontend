@@ -375,6 +375,13 @@ const TemporalityPage = () => {
                                 {anomaly.confidence ? (
                                   <span>{anomaly.confidence.toFixed(2).toString().slice(1)}</span>
                                 ) : (
+                                  anomaly.category === 'Info' ? '-' : '0.80'
+                                )}
+                              </td>
+                              <td className="text-center">
+                                {anomaly.overlapPercentage ? (
+                                  <span className="badge bg-success">{anomaly.overlapPercentage}%</span>
+                                ) : (
                                   anomaly.category === 'Info' ? '-' : '≥80%'
                                 )}
                               </td>
@@ -384,7 +391,7 @@ const TemporalityPage = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="3" className="text-center">No tooth annotations found</td>
+                        <td colSpan="4" className="text-center">No tooth annotations found</td>
                       </tr>
                     )}
                   </tbody>
