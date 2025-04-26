@@ -26,7 +26,7 @@ const PatientList = (props) => {
     // ]
 
     useEffect(() => {
-        props.setBreadcrumbItems('PatientList', breadcrumbItems)
+        props.setBreadcrumbItems('Patient List', breadcrumbItems)
 
     }, [])
 

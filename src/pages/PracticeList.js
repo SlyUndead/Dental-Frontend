@@ -47,7 +47,7 @@ const PracticeList = (props) => {
         getPracticeList()
     }, [])
     useEffect(() => {
-        props.setBreadcrumbItems('PracticeList', breadcrumbItems)
+        props.setBreadcrumbItems('Practice List', breadcrumbItems)
     }, [])
 
     // const handleClick = () => {

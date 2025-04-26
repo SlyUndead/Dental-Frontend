@@ -9,7 +9,8 @@ import {
   Dropdown,
   DropdownToggle,
   DropdownMenu,
-  DropdownItem
+  DropdownItem,
+  Button
 } from "reactstrap";
 import { Navigate } from "react-router-dom";
 import { changeMode } from "../../store/actions";
@@ -19,8 +20,11 @@ import { logErrorToServer } from "utils/logError";
 import DentalChart from "../AnnotationTools/DentalChart";
 import ToothAnnotationTable from "./ToothAnnotationTable";
 import axios from "axios";
+import { setBreadcrumbItems } from "../../store/actions";
+import { connect } from "react-redux";
 
-const TemporalityPage = () => {
+const TemporalityPage = (props) => {
+  document.title = "Temporality View | AGP Dental Tool";
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   const [redirectToLogin, setRedirectToLogin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,8 +41,14 @@ const TemporalityPage = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedVisit, setSelectedVisit] = useState(null);
   const [isComparisonMode, setIsComparisonMode] = useState(false);
+  const [redirectToPatientVisitPage, setRedirectToPatientVisitPage] = useState(false);
   const dispatch = useDispatch();
-
+  const breadcrumbItems = [
+    { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
+    { title: sessionStorage.getItem('practiceName'), link: "/patientList" },
+    { title: `${sessionStorage.getItem('patientName')} Images List`, link: "/patientImagesList" },
+    { title: `Temporality View`, link: "/temporalityPage" },
+    ]
   // Toggle dropdown
   const toggleDropdown = () => setDropdownOpen(prevState => !prevState);
 
@@ -262,6 +272,7 @@ const TemporalityPage = () => {
 
   // Initialize on component mount
   useEffect(() => {
+    props.setBreadcrumbItems('Temporality View', breadcrumbItems)
     try {
       fetchClassCategories();
       fetchPatientVisits();
@@ -276,12 +287,23 @@ const TemporalityPage = () => {
   if (redirectToLogin) {
     return <Navigate to="/login" />;
   }
+  if (redirectToPatientVisitPage) {
+    return <Navigate to="/patientImagesList" />;
+  }
 
   return (
-    <Container fluid className="page-content">
+    <Card>
+    <CardBody>
       <Row>
         <Col md={12}>
-          <h3 className="page-title">Temporality View</h3>
+          <Button color='primary' onClick={() => setRedirectToPatientVisitPage(true)}>
+            Patient Visits
+          </Button>
+          <br/><br/>
+        </Col>
+      </Row>
+      <Row>
+        <Col md={12}>
           <div className="d-flex justify-content-between align-items-center">
             <p className="text-muted mb-0">
               {isComparisonMode
@@ -425,8 +447,9 @@ const TemporalityPage = () => {
           )}
         </div>
       )}
-    </Container>
+    </CardBody>
+    </Card>
   );
 };
 
-export default TemporalityPage;
+export default connect(null, { setBreadcrumbItems })(TemporalityPage);

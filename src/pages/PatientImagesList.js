@@ -15,6 +15,7 @@ const PatientImagesList = (props) => {
     ]
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
     const [redirectToLogin, setRedirectToLogin] = useState(false);
+    const [redirectToTemporality, setRedirectToTemporality] = useState(false);
     // const visitDetials = [
     //     {
     //         visitDate: "2024-09-01", DateOfXray: "2024-09-01", Notes: "Initial caries lesion tooth #30",
@@ -203,12 +204,21 @@ const PatientImagesList = (props) => {
         setRedirectToTreatmentPlan(true);
         sessionStorage.removeItem('visitId');
     };
+    const handleClickTemporality = () => {
+        setError("");
+        sessionStorage.setItem('patientId', patientId);
+        setRedirectToTemporality(true);
+        sessionStorage.removeItem('visitId');
+    };
 
     if (redirectToTreatmentPlan) {
         return <Navigate to="/treatmentPlan" />;
     }
     if (redirectToLogin) {
         return <Navigate to="/login" />
+    }
+    if (redirectToTemporality) {
+        return <Navigate to="/temporalityPage" />;
     }
     const handleEditClick = (e, visitId, key) => {
         // return <Navigate to="/login" />
@@ -394,7 +404,10 @@ const PatientImagesList = (props) => {
                         <Col sm={2}>
                             <Button type="button" onClick={() => { handleClickTreatmentPlan() }} color="primary" className="waves-effect waves-light">Treatment Plan</Button>{" "}
                         </Col>
-                        <Col sm={8} style={{ textAlign: 'right' }}>
+                        <Col sm={2}>
+                            <Button type="button" onClick={() => { handleClickTemporality() }} color="primary" className="waves-effect waves-light">Temporality</Button>{" "}
+                        </Col>
+                        <Col sm={6} style={{ textAlign: 'right' }}>
                             <Button type="button" color="primary" className="waves-effect waves-light" onClick={() => { handleDownloadClick() }}>Download</Button>&nbsp;&nbsp;&nbsp;&nbsp;
                             <Button type="button" color="primary" className="waves-effect waves-light" onClick={() => { handleDeleteClick() }}>Delete</Button>
                         </Col>
