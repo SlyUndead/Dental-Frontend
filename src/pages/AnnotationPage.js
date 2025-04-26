@@ -127,6 +127,7 @@ const AnnotationPage = () => {
   const [redirectToConfidencePlan, setRedirectToConfidencePlan] = useState(false)
   const [imageGroup, setImageGroup] = useState("")
   const [showOriginalLabels, setShowOriginalLabels] = useState(false)
+  const [showConfidence, setShowConfidence] = useState(false)
   const fetchNotesContent = async () => {
     try {
       const response = await axios.get(`${apiUrl}/notes-content?visitID=` + sessionStorage.getItem('visitId'),
@@ -2914,6 +2915,28 @@ const AnnotationPage = () => {
                           style={{ width: '2%', paddingRight: '0', height: '30px' }}
                         />
                         <UncontrolledTooltip placement="bottom" target="btnRedo">Redo</UncontrolledTooltip>
+                        <InputGroupText>Confidence Levels</InputGroupText>
+                          <Input
+                              type="checkbox"
+                              color="primary"
+                              id="original-labels-toggle"
+                              checked={showConfidence}
+                              onClick={() => { setShowConfidence(!showC) }}
+                              style={{ width: '2%', paddingRight: '0', height: '30px' }}/>
+                          <UncontrolledTooltip placement="bottom" target="original-labels-toggle">Show Confidence Levels</UncontrolledTooltip>
+                        {sessionStorage.getItem('clientId') === "67161fcbadd1249d59085f9a" && (
+                          <>
+                          <InputGroupText>Original Labels</InputGroupText>
+                          <Input
+                              type="checkbox"
+                              color="primary"
+                              id="original-labels-toggle"
+                              checked={showOriginalLabels}
+                              onClick={() => { setShowOriginalLabels(!showOriginalLabels) }}
+                              style={{ width: '2%', paddingRight: '0', height: '30px' }}/>
+                          <UncontrolledTooltip placement="bottom" target="original-labels-toggle">Show Original Labels</UncontrolledTooltip>
+                          </>
+                        )}
                         {selectedAnnotation && (
                           <Button onClick={handleEraserClick}>
                             <i class="fa fa-eraser" aria-hidden={isEraserActive}></i>
@@ -3018,6 +3041,11 @@ const AnnotationPage = () => {
                                 onMouseUp={(e) => handleMouseUp(e)}
                               />
                             </CardBody>
+                            <CardFooter>
+                              {mainCanvasData?.name && (
+                                <span style={{color:"#ffffff"}}>{mainCanvasData.name.split('_').slice(3).join('_')}</span>
+                              )}
+                            </CardFooter>
                           </Card>
                         </Col>
                       </>
@@ -3158,6 +3186,7 @@ const AnnotationPage = () => {
                           handleLabelChange={handleLabelChange}
                           mainImageIndex={mainImageIndex}
                           confidenceLevels={confidenceLevels}
+                          showConfidence={showConfidence}
                         />
                       </div>
 
@@ -3237,13 +3266,6 @@ const AnnotationPage = () => {
                               Confidence
                             </Button>
                             <UncontrolledTooltip target={"navigateToConfidenceLevelPage"}>Go To Confidence Level Page</UncontrolledTooltip>
-                            <Input
-                              type="checkbox"
-                              color="primary"
-                              checked={showOriginalLabels}
-                              onClick={() => { setShowOriginalLabels(!showOriginalLabels) }}>
-                              <InputGroupText>Show Original Labels</InputGroupText>
-                            </Input>
                           </div>
                         )}
                       </Col>

@@ -40,7 +40,8 @@ const AnnotationList = ({
   smallCanvasData,
   setSmallCanvasData,
   mainImageIndex,
-  confidenceLevels
+  confidenceLevels,
+  showConfidence
 }) => {
   // Check if setHoveredAnnotation is a function, if not, use a no-op function
   const apiUrl = process.env.REACT_APP_NODEAPIURL
@@ -846,7 +847,7 @@ const AnnotationList = ({
           <Col md={5}>
             <h5>Annotations ({annotations.length})</h5>
           </Col>
-          <Col md={3} style={{ paddingRight: 0 }}>
+          <Col md={4} style={{ paddingRight: 0 }}>
             <div className="custom-control custom-switch">
               <Input
                 type="checkbox"
@@ -854,13 +855,14 @@ const AnnotationList = ({
                 id="groupByToothToggle"
                 checked={groupByTooth}
                 onChange={() => setGroupByTooth(!groupByTooth)}
+                style={{transform:"scale(1.3)", marginRight:'4%'}}
               />
               <label className="custom-control-label" htmlFor="groupByToothToggle">
-                By Tooth
+                Sort By Tooth
               </label>
             </div>
           </Col>
-          <Col md={4} style={{ justifyContent: "right", alignItems: "right", textAlign: "right" }}>
+          <Col md={3} style={{ justifyContent: "right", alignItems: "right", textAlign: "right" }}>
             <button
               id="btnHideShowAll"
               type="button"
@@ -1018,6 +1020,7 @@ const AnnotationList = ({
                                     <span style={{ flexGrow: 1 }}>
                                       {anno.label}
                                       {anno.created_by ? (anno.created_by.startsWith("Model v") ? "" : (anno.created_by.startsWith("Auto Update Labelling") ? "(A)" : " (M)")) : ""}
+                                      {showConfidence && (` (${anno.confidence.toFixed(2).toString().slice(1)})`)}
                                     </span>
                                   )}
 

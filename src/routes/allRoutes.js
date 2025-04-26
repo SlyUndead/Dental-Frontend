@@ -102,6 +102,7 @@ import NewPatientVisit from "pages/NewPatientVisit"
 import NewPractice from "pages/NewPractice"
 import DentalTreatmentPlan from "pages/TreatmentPlan/TreatmentPlan"
 import ConfidenceLevelPage from "pages/ConfidenceLevelPage"
+import TemporalityPage from "pages/Temporality/TemporalityPage"
 const userRoutes = [
   { path: "/patientList", component: <PatientList /> },
   { path: "/newPatient", component: <NewPatient /> },
@@ -113,6 +114,7 @@ const userRoutes = [
   { path: "/newPractice", component: <NewPractice /> },
   { path: "/treatmentPlan", component: <DentalTreatmentPlan /> },
   { path: "/confidenceLevelPage", component: <ConfidenceLevelPage /> },
+  { path: "/temporalityPage", component: <TemporalityPage />},
   // { path: "/dashboard", component: <Dashboard /> },
 
   // // //calendar
