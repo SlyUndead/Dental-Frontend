@@ -1702,48 +1702,63 @@ const AnnotationPage = () => {
   }, [mainCanvasRef]);
   const loadImages = async () => {
     try {
-      const imagesData = await fetchVisitDateImages();
-      const visitNotes = await fetchNotesContent();
+      const imagesData = await fetchVisitDateImages()
+      const visitNotes = await fetchNotesContent()
       setNotesContent(visitNotes)
-      setIsNotesOpen(false);
-      let mainImageData = [];
-      // let recentImagesData = [];
+      setIsNotesOpen(false)
+      let mainImageData = []
+  
       if (imagesData && imagesData.length > 0) {
-        mainImageData = imagesData[0];
-        // recentImagesData = imagesData.slice(1);
-        setAnnotations(mainImageData.annotations.annotations.annotations);
+        // Check if there's a selected image index in sessionStorage
+        const selectedImageIndex = sessionStorage.getItem("selectedImageIndex")
+        console.log(selectedImageIndex)
+        // If there's a selected image index and it's valid, use it
+        if (selectedImageIndex && Number.parseInt(selectedImageIndex) < imagesData.length) {
+          const index = Number.parseInt(selectedImageIndex)
+          mainImageData = imagesData[index]
+          setMainImageIndex(index)
+          console.log(index)
+        } else {
+          // Otherwise use the first image as default
+          mainImageData = imagesData[0]
+          setMainImageIndex(0)
+        }
+  
+        // Clear the selected image index from sessionStorage
+        sessionStorage.removeItem("selectedImageIndex")
+  
+        setAnnotations(mainImageData.annotations.annotations.annotations)
         setImageGroup(mainImageData.annotations.annotations.group)
+  
         // Initialize smallCanvasRefs with dynamic refs based on the number of images
-        const refsArray = imagesData.map(() => React.createRef());
-        setSmallCanvasRefs(refsArray);
-
+        const refsArray = imagesData.map(() => React.createRef())
+        setSmallCanvasRefs(refsArray)
+  
         // Draw the main image on the large canvas
         if (mainImageData && mainCanvasRef.current) {
-          // console.log(mainImageData)
           setModel(mainImageData.annotations.annotations.model)
-          drawImageOnCanvas(mainCanvasRef.current, mainImageData.image, "main");
+          drawImageOnCanvas(mainCanvasRef.current, mainImageData.image, "main")
           setHistory([mainImageData.annotations.annotations.annotations])
         }
-
+  
         // Draw the thumbnails on small canvases after refs are initialized
         refsArray.forEach((ref, index) => {
           if (ref.current) {
-            drawImageOnCanvas(ref.current, imagesData[index].image, null, "small");
+            drawImageOnCanvas(ref.current, imagesData[index].image, null, "small")
           }
-        });
-        setSmallCanvasData(imagesData);
-        setMainCanvasData(mainImageData);
-      }
-      else if (imagesData) {
+        })
+  
+        setSmallCanvasData(imagesData)
+        setMainCanvasData(mainImageData)
+      } else if (imagesData) {
         setMessage("There are no images for this visit.")
       }
-    }
-    catch (error) {
-      logErrorToServer(error, "loadImages");
-      console.log(error);
+    } catch (error) {
+      logErrorToServer(error, "loadImages")
+      console.log(error)
       setMessage("Unable to load this visit images. Pls contact admin.")
     }
-  };
+  }
   const calculateAge = (dob) => {
     try {
       const today = new Date();

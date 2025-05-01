@@ -3,14 +3,16 @@
 import React, { useState, useEffect } from "react"
 import { Table, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, FormGroup, Label, Input } from "reactstrap"
 import { calculateOverlap, polygonArea } from "../AnnotationTools/path-utils"
+import { useNavigate } from "react-router-dom"
 
-const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, otherSideAnnotations }) => {
+const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, otherSideAnnotations, visitId }) => {
   const [toothAnnotations, setToothAnnotations] = useState([])
   const [filteredToothAnnotations, setFilteredToothAnnotations] = useState([])
   const [selectedCategories, setSelectedCategories] = useState(["Procedure", "Anomaly"])
   const [availableCategories, setAvailableCategories] = useState([])
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [balancedAnnotations, setBalancedAnnotations] = useState([])
+  const navigate = useNavigate()
 
   // Toggle dropdown
   const toggleDropdown = () => setDropdownOpen((prevState) => !prevState)
@@ -24,6 +26,34 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
       // Add category if it's not selected
       setSelectedCategories([...selectedCategories, category])
     }
+  }
+
+  // Handle annotation click to navigate to AnnotationPage
+  const handleAnnotationClick = (anomaly, toothNumber) => {
+    const imageIndex = findImageIndexForAnomaly(anomaly, toothNumber)
+    if (imageIndex !== -1) {
+      // Store the image index in sessionStorage to be used by AnnotationPage
+      sessionStorage.setItem("selectedImageIndex", imageIndex.toString())
+      
+      // NEW CODE: Store the visitId in sessionStorage
+      // Use anomaly.visitId if available, otherwise use the visitId prop
+      const effectiveVisitId = anomaly.visitId || visitId
+      if (effectiveVisitId) {
+        sessionStorage.setItem("visitId", effectiveVisitId)
+      }
+      
+      // Navigate to AnnotationPage
+      navigate("/annotationPage")
+    }
+  }
+
+  // Find the image index that contains the annotation
+  const findImageIndexForAnomaly = (anomaly, toothNumber) => {
+    // If the anomaly has a visitIndex property (from consolidated view), use it directly
+    if (anomaly.visitIndex !== undefined) {
+      return anomaly.visitIndex
+    }
+    return 0
   }
 
   // Process annotations when they change or when a tooth is selected
@@ -382,7 +412,30 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
           {displayAnnotations.map((tooth, index) => (
             <React.Fragment key={index}>
               {tooth.anomalies.map((anomaly, idx) => (
-                <tr key={`${index}-${idx}`}>
+                <tr
+                  key={`${index}-${idx}`}
+                  onClick={() =>
+                    anomaly.category !== "Blank" &&
+                    anomaly.name !== "No anomalies detected" &&
+                    anomaly.name !== "Not detected"
+                      ? handleAnnotationClick(anomaly, tooth.toothNumber)
+                      : null
+                  }
+                  style={
+                    anomaly.category !== "Blank" &&
+                    anomaly.name !== "No anomalies detected" &&
+                    anomaly.name !== "Not detected"
+                      ? { cursor: "pointer" }
+                      : {}
+                  }
+                  className={
+                    anomaly.category !== "Blank" &&
+                    anomaly.name !== "No anomalies detected" &&
+                    anomaly.name !== "Not detected"
+                      ? "clickable-row"
+                      : ""
+                  }
+                >
                   {idx === 0 ? (
                     <td className="text-center font-weight-bold" rowSpan={tooth.anomalies.length}>
                       {tooth.toothNumber}
