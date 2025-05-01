@@ -28,7 +28,7 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
   // Handle annotation click to navigate to AnnotationPage
   const handleAnnotationClick = (anomaly) => {
     if (anomaly.visitIndex !== undefined) {
-        sessionStorage.setItem("selectedImageIndex", anomaly.visitIndex.toString())
+        sessionStorage.setItem("selectedImageIndex", (anomaly.imageNumber - 1).toString())
         if (anomaly.visitId) {
           sessionStorage.setItem("visitId", anomaly.visitId)
         } 
@@ -67,7 +67,6 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
       setFilteredAnnotations([])
       return
     }
-
     // Create a deep copy of annotations and filter anomalies by category
     const filtered = consolidatedAnnotations.map((tooth) => {
       // Filter anomalies based on selected categories
@@ -79,7 +78,6 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
           // Include anomalies with selected categories
           selectedCategories.includes(anomaly.category),
       )
-
       // Return tooth with filtered anomalies
       return {
         ...tooth,

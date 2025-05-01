@@ -25,7 +25,7 @@ import axios from "axios"
 import { setBreadcrumbItems } from "../../store/actions"
 import { connect } from "react-redux"
 import ConsolidatedToothTable from "./ConsolidatedToothTable"
-import {calculateOverlap, polygonArea} from "../AnnotationTools/path-utils"
+import { calculateOverlap, polygonArea } from "../AnnotationTools/path-utils"
 
 const TemporalityPage = (props) => {
   document.title = "Temporality View | AGP Dental Tool"
@@ -159,9 +159,15 @@ const TemporalityPage = (props) => {
         // Process visit annotations
         let visitAnnots = []
         if (imagesData && imagesData.length > 0) {
-          imagesData.forEach((image) => {
+          imagesData.forEach((image, index) => {
             if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
-              visitAnnots = [...visitAnnots, ...image.annotations.annotations.annotations]
+              // Add image ID to each annotation
+              const annotationsWithImageId = image.annotations.annotations.annotations.map(annotation => ({
+                ...annotation,
+                imageId: image._id,
+                imageNumber: image.imageNumber || index + 1
+              }))
+              visitAnnots = [...visitAnnots, ...annotationsWithImageId]
             }
           })
           return visitAnnots
@@ -206,9 +212,14 @@ const TemporalityPage = (props) => {
         // Process last visit annotations
         let lastVisitAnnots = []
         if (lastVisitData.images && lastVisitData.images.length > 0) {
-          lastVisitData.images.forEach((image) => {
+          lastVisitData.images.forEach((image, index) => {
             if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
-              lastVisitAnnots = [...lastVisitAnnots, ...image.annotations.annotations.annotations]
+              const annotationsWithImageId = image.annotations.annotations.annotations.map(annotation => ({
+                ...annotation,
+                imageId: image._id,
+                imageNumber: image.imageNumber || index + 1
+              }))
+              lastVisitAnnots = [...lastVisitAnnots, ...annotationsWithImageId]
             }
           })
 
@@ -225,7 +236,6 @@ const TemporalityPage = (props) => {
         const annotations = await fetchVisitAnnotations(visitId)
         visitAnnotations[visitId] = annotations
       }
-
       setAllVisitsAnnotations(visitAnnotations)
       generateConsolidatedView(visitAnnotations)
     } catch (error) {
@@ -290,7 +300,8 @@ const TemporalityPage = (props) => {
                   overlapPercentage: Math.round(overlapPercentage * 100),
                   visitDate: patientVisits[i].formattedDate,
                   visitIndex: i,
-                  visitId: patientVisits[i]._id
+                  visitId: patientVisits[i]._id,
+                  imageNumber: anno.imageNumber,
                 })
               }
             } catch (error) {
@@ -305,13 +316,13 @@ const TemporalityPage = (props) => {
               anomalies.length > 0
                 ? anomalies
                 : [
-                    {
-                      name: "No anomalies detected",
-                      category: "Info",
-                      visitDate: patientVisits[i].formattedDate,
-                      visitIndex: i,
-                    },
-                  ],
+                  {
+                    name: "No anomalies detected",
+                    category: "Info",
+                    visitDate: patientVisits[i].formattedDate,
+                    visitIndex: i,
+                  },
+                ],
             visitDate: patientVisits[i].formattedDate,
             visitIndex: i,
           }
@@ -390,9 +401,14 @@ const TemporalityPage = (props) => {
         // Process visit annotations
         let visitAnnots = []
         if (visitData.images && visitData.images.length > 0) {
-          visitData.images.forEach((image) => {
+          visitData.images.forEach((image, index) => {
             if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
-              visitAnnots = [...visitAnnots, ...image.annotations.annotations.annotations]
+              const annotationsWithImageId = image.annotations.annotations.annotations.map(annotation => ({
+                ...annotation,
+                imageId: image._id,
+                imageNumber: image.imageNumber || index + 1
+              }))
+              visitAnnots = [...visitAnnots, ...annotationsWithImageId]
             }
           })
           setLastVisitAnnotations(visitAnnots)
@@ -439,9 +455,14 @@ const TemporalityPage = (props) => {
         // Process selected visit annotations
         let selectedVisitAnnots = []
         if (imagesData && imagesData.length > 0) {
-          imagesData.forEach((image) => {
+          imagesData.forEach((image, index) => {
             if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
-              selectedVisitAnnots = [...selectedVisitAnnots, ...image.annotations.annotations.annotations]
+              const annotationsWithImageId = image.annotations.annotations.annotations.map(annotation => ({
+                ...annotation,
+                imageId: image._id,
+                imageNumber: image.imageNumber || index + 1
+              }))
+              selectedVisitAnnots = [...selectedVisitAnnots, ...annotationsWithImageId]
             }
           })
           setSelectedVisitAnnotations(selectedVisitAnnots)

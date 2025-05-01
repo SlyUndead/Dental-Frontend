@@ -1711,13 +1711,11 @@ const AnnotationPage = () => {
       if (imagesData && imagesData.length > 0) {
         // Check if there's a selected image index in sessionStorage
         const selectedImageIndex = sessionStorage.getItem("selectedImageIndex")
-        console.log(selectedImageIndex)
         // If there's a selected image index and it's valid, use it
         if (selectedImageIndex && Number.parseInt(selectedImageIndex) < imagesData.length) {
           const index = Number.parseInt(selectedImageIndex)
           mainImageData = imagesData[index]
           setMainImageIndex(index)
-          console.log(index)
         } else {
           // Otherwise use the first image as default
           mainImageData = imagesData[0]

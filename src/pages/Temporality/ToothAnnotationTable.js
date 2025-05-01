@@ -33,7 +33,7 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
     const imageIndex = findImageIndexForAnomaly(anomaly, toothNumber)
     if (imageIndex !== -1) {
       // Store the image index in sessionStorage to be used by AnnotationPage
-      sessionStorage.setItem("selectedImageIndex", imageIndex.toString())
+      sessionStorage.setItem("selectedImageIndex", (anomaly.imageNumber - 1).toString())
       
       // NEW CODE: Store the visitId in sessionStorage
       // Use anomaly.visitId if available, otherwise use the visitId prop
@@ -155,7 +155,6 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
               const overlap = calculateOverlap(anno.segmentation, toothAnnotation.segmentation)
               const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
               const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
-
               // Only include if overlap is at least 80%
               if (overlapPercentage >= 0.8) {
                 teethData[toothNumber].anomalies.push({
@@ -163,6 +162,7 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
                   category: classCategories[anno.label.toLowerCase()] || "Unknown",
                   confidence: anno.confidence,
                   overlapPercentage: Math.round(overlapPercentage * 100),
+                  imageNumber: anno.imageNumber,
                 })
               }
             } catch (error) {
