@@ -2919,11 +2919,11 @@ const AnnotationPage = () => {
                           <Input
                               type="checkbox"
                               color="primary"
-                              id="original-labels-toggle"
+                              id="confidence-toggle"
                               checked={showConfidence}
                               onClick={() => { setShowConfidence(!showConfidence) }}
                               style={{ width: '2%', paddingRight: '0', height: '30px' }}/>
-                          <UncontrolledTooltip placement="bottom" target="original-labels-toggle">Show Confidence Levels</UncontrolledTooltip>
+                          <UncontrolledTooltip placement="bottom" target="confidence-toggle">Show Confidence Levels</UncontrolledTooltip>
                         {sessionStorage.getItem('clientId') === "67161fcbadd1249d59085f9a" && (
                           <>
                           <InputGroupText>Original Labels</InputGroupText>
