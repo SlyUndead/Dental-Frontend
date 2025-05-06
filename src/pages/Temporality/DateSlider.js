@@ -31,20 +31,24 @@ const DateSlider = ({
         }
       });
 
-      // Convert to array and sort by date (newest first)
+      // Convert to array and sort by date (oldest first, newest last)
       const sortedDates = Array.from(dateMap.values()).sort((a, b) => {
         // Assuming formattedDate is like "May 06, 2023" or ISO string
-        return new Date(b.date) - new Date(a.date);
+        return new Date(a.date) - new Date(b.date);
       });
 
       setUniqueDates(sortedDates);
 
-      // Initialize with the first two dates if available
+      // Initialize with the last two dates if available (newest dates)
       if (sortedDates.length >= 2) {
-        setLeftValue(0);
-        setRightValue(1);
-        // Dates are already sorted, so we know sortedDates[0] is newer than sortedDates[1]
-        onRangeChange(sortedDates[0], sortedDates[1]);
+        // Set to the two newest dates (last two in the array)
+        const lastIndex = sortedDates.length - 1;
+        const secondLastIndex = sortedDates.length - 2;
+
+        setLeftValue(secondLastIndex);
+        setRightValue(lastIndex);
+        // Dates are sorted oldest to newest, so the last one is the newest
+        onRangeChange(sortedDates[secondLastIndex], sortedDates[lastIndex]);
       } else if (sortedDates.length === 1) {
         setLeftValue(0);
         setRightValue(0);
@@ -84,7 +88,7 @@ const DateSlider = ({
 
     // Notify parent of range change if both values were found
     if (firstIndex !== -1 && secondIndex !== -1) {
-      // Pass dates in the correct order (left to right on the screen)
+      // Pass dates in the correct order (older date first, newer date second)
       if (firstIndex <= secondIndex) {
         onRangeChange(uniqueDates[firstIndex], uniqueDates[secondIndex]);
       } else {
@@ -121,7 +125,7 @@ const DateSlider = ({
       // Allow left knob to move anywhere, even past the right knob
       setLeftValue(index);
 
-      // Pass dates in the correct order (left to right on the screen)
+      // Pass dates in the correct order (older date first, newer date second)
       if (index <= rightValue) {
         onRangeChange(uniqueDates[index], uniqueDates[rightValue]);
       } else {
@@ -131,7 +135,7 @@ const DateSlider = ({
       // Allow right knob to move anywhere, even past the left knob
       setRightValue(index);
 
-      // Pass dates in the correct order (left to right on the screen)
+      // Pass dates in the correct order (older date first, newer date second)
       if (leftValue <= index) {
         onRangeChange(uniqueDates[leftValue], uniqueDates[index]);
       } else {
@@ -156,7 +160,7 @@ const DateSlider = ({
     if (leftDist <= rightDist) {
       setLeftValue(index);
 
-      // Pass dates in the correct order (left to right on the screen)
+      // Pass dates in the correct order (older date first, newer date second)
       if (index <= rightValue) {
         onRangeChange(uniqueDates[index], uniqueDates[rightValue]);
       } else {
@@ -165,7 +169,7 @@ const DateSlider = ({
     } else {
       setRightValue(index);
 
-      // Pass dates in the correct order (left to right on the screen)
+      // Pass dates in the correct order (older date first, newer date second)
       if (leftValue <= index) {
         onRangeChange(uniqueDates[leftValue], uniqueDates[index]);
       } else {
@@ -197,7 +201,7 @@ const DateSlider = ({
 
   const handleApply = () => {
     // Call the onApplySelection prop with the selected date objects
-    // If knobs have crossed, pass them in the correct order (left to right)
+    // If knobs have crossed, pass them in the correct order (older date first, newer date second)
     if (leftValue <= rightValue) {
       onApplySelection(uniqueDates[leftValue], uniqueDates[rightValue]);
     } else {
@@ -302,7 +306,7 @@ const DateSlider = ({
             transition: 'background-color 0.3s ease, box-shadow 0.3s ease'
           }}
           onMouseDown={handleMouseDown('left')}
-          title={leftValue === rightValue ? "Both knobs are at the same position" : "Drag to select start date"}
+          title={leftValue === rightValue ? "Both knobs are at the same position" : "Drag to select older date"}
         />
 
         {/* Right knob */}
@@ -326,7 +330,7 @@ const DateSlider = ({
             transition: 'background-color 0.3s ease, box-shadow 0.3s ease'
           }}
           onMouseDown={handleMouseDown('right')}
-          title={leftValue === rightValue ? "Both knobs are at the same position" : "Drag to select end date"}
+          title={leftValue === rightValue ? "Both knobs are at the same position" : "Drag to select newer date"}
         />
       </div>
 
