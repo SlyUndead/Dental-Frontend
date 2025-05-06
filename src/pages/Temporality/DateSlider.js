@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "reactstrap";
 
-const DateSlider = ({ 
-  visits = [], 
+const DateSlider = ({
+  visits = [],
   onRangeChange = () => {},
   onApplySelection = () => {},
   selectedFirstVisitId = null,  // Add these props to control slider externally
@@ -13,7 +13,7 @@ const DateSlider = ({
   const [dragging, setDragging] = useState(null);
   const [hoveredDate, setHoveredDate] = useState(null);
   const [uniqueDates, setUniqueDates] = useState([]);
-  
+
   useEffect(() => {
     // Extract and deduplicate dates from visits
     if (visits.length > 0) {
@@ -30,19 +30,20 @@ const DateSlider = ({
           dateMap.get(dateKey).visitIds.push(visit._id);
         }
       });
-      
+
       // Convert to array and sort by date (newest first)
       const sortedDates = Array.from(dateMap.values()).sort((a, b) => {
         // Assuming formattedDate is like "May 06, 2023" or ISO string
         return new Date(b.date) - new Date(a.date);
       });
-      
+
       setUniqueDates(sortedDates);
-      
+
       // Initialize with the first two dates if available
       if (sortedDates.length >= 2) {
         setLeftValue(0);
         setRightValue(1);
+        // Dates are already sorted, so we know sortedDates[0] is newer than sortedDates[1]
         onRangeChange(sortedDates[0], sortedDates[1]);
       } else if (sortedDates.length === 1) {
         setLeftValue(0);
@@ -55,35 +56,40 @@ const DateSlider = ({
   // New effect to sync slider with external dropdowns
   useEffect(() => {
     if (uniqueDates.length === 0 || (!selectedFirstVisitId && !selectedSecondVisitId)) return;
-    
+
     // Find indices of selected visits in uniqueDates
     let firstIndex = -1;
     let secondIndex = -1;
-    
+
     for (let i = 0; i < uniqueDates.length; i++) {
       const dateObj = uniqueDates[i];
-      
+
       if (selectedFirstVisitId && dateObj.visitIds.includes(selectedFirstVisitId)) {
         firstIndex = i;
       }
-      
+
       if (selectedSecondVisitId && dateObj.visitIds.includes(selectedSecondVisitId)) {
         secondIndex = i;
       }
     }
-    
+
     // Update slider positions if valid indices were found
     if (firstIndex !== -1) {
       setLeftValue(firstIndex);
     }
-    
+
     if (secondIndex !== -1) {
       setRightValue(secondIndex);
     }
-    
+
     // Notify parent of range change if both values were found
     if (firstIndex !== -1 && secondIndex !== -1) {
-      onRangeChange(uniqueDates[firstIndex], uniqueDates[secondIndex]);
+      // Pass dates in the correct order (left to right on the screen)
+      if (firstIndex <= secondIndex) {
+        onRangeChange(uniqueDates[firstIndex], uniqueDates[secondIndex]);
+      } else {
+        onRangeChange(uniqueDates[secondIndex], uniqueDates[firstIndex]);
+      }
     }
   }, [selectedFirstVisitId, selectedSecondVisitId, uniqueDates]);
 
@@ -103,23 +109,33 @@ const DateSlider = ({
 
   const handleMouseMove = (e) => {
     if (!dragging) return;
-    
+
     const sliderRect = e.currentTarget.getBoundingClientRect();
     const position = (e.clientX - sliderRect.left) / sliderRect.width;
     const index = Math.min(
       Math.max(Math.round(position * (uniqueDates.length - 1)), 0),
       uniqueDates.length - 1
     );
-    
+
     if (dragging === "left") {
-      if (index < rightValue) {
-        setLeftValue(index);
+      // Allow left knob to move anywhere, even past the right knob
+      setLeftValue(index);
+
+      // Pass dates in the correct order (left to right on the screen)
+      if (index <= rightValue) {
         onRangeChange(uniqueDates[index], uniqueDates[rightValue]);
+      } else {
+        onRangeChange(uniqueDates[rightValue], uniqueDates[index]);
       }
     } else {
-      if (index > leftValue) {
-        setRightValue(index);
+      // Allow right knob to move anywhere, even past the left knob
+      setRightValue(index);
+
+      // Pass dates in the correct order (left to right on the screen)
+      if (leftValue <= index) {
         onRangeChange(uniqueDates[leftValue], uniqueDates[index]);
+      } else {
+        onRangeChange(uniqueDates[index], uniqueDates[leftValue]);
       }
     }
   };
@@ -131,17 +147,30 @@ const DateSlider = ({
       Math.max(Math.round(position * (uniqueDates.length - 1)), 0),
       uniqueDates.length - 1
     );
-    
+
     // Determine which knob to move based on proximity
     const leftDist = Math.abs(index - leftValue);
     const rightDist = Math.abs(index - rightValue);
-    
-    if (leftDist <= rightDist && index < rightValue) {
+
+    // Move the closest knob to the clicked position, regardless of whether it crosses the other knob
+    if (leftDist <= rightDist) {
       setLeftValue(index);
-      onRangeChange(uniqueDates[index], uniqueDates[rightValue]);
-    } else if (index > leftValue) {
+
+      // Pass dates in the correct order (left to right on the screen)
+      if (index <= rightValue) {
+        onRangeChange(uniqueDates[index], uniqueDates[rightValue]);
+      } else {
+        onRangeChange(uniqueDates[rightValue], uniqueDates[index]);
+      }
+    } else {
       setRightValue(index);
-      onRangeChange(uniqueDates[leftValue], uniqueDates[index]);
+
+      // Pass dates in the correct order (left to right on the screen)
+      if (leftValue <= index) {
+        onRangeChange(uniqueDates[leftValue], uniqueDates[index]);
+      } else {
+        onRangeChange(uniqueDates[index], uniqueDates[leftValue]);
+      }
     }
   };
 
@@ -168,17 +197,22 @@ const DateSlider = ({
 
   const handleApply = () => {
     // Call the onApplySelection prop with the selected date objects
-    onApplySelection(uniqueDates[leftValue], uniqueDates[rightValue]);
+    // If knobs have crossed, pass them in the correct order (left to right)
+    if (leftValue <= rightValue) {
+      onApplySelection(uniqueDates[leftValue], uniqueDates[rightValue]);
+    } else {
+      onApplySelection(uniqueDates[rightValue], uniqueDates[leftValue]);
+    }
   };
 
   return (
     <div className="date-slider-container mb-4">
       <div className="slider-dates d-flex justify-content-between mb-2">
         {uniqueDates.map((date, index) => (
-          <div 
+          <div
             key={index}
-            className="date-marker" 
-            style={{ 
+            className="date-marker"
+            style={{
               left: `${(index / Math.max(uniqueDates.length - 1, 1)) * 100}%`,
               transform: 'translateX(-50%)',
               position: 'absolute'
@@ -187,7 +221,7 @@ const DateSlider = ({
             onMouseLeave={handleDateLeave}
           >
             {hoveredDate === index && (
-              <div className="date-tooltip bg-dark text-white p-1 rounded" 
+              <div className="date-tooltip bg-dark text-white p-1 rounded"
                    style={{ position: 'absolute', bottom: '100%', transform: 'translateX(-50%)', zIndex: 100 }}>
                 {formatDate(date)}
                 {date.visitIds && date.visitIds.length > 1 && (
@@ -198,12 +232,12 @@ const DateSlider = ({
           </div>
         ))}
       </div>
-      
-      <div 
+
+      <div
         className="slider-track position-relative"
-        style={{ 
-          height: '8px', 
-          backgroundColor: '#e0e0e0', 
+        style={{
+          height: '8px',
+          backgroundColor: '#e0e0e0',
           borderRadius: '4px',
           cursor: 'pointer'
         }}
@@ -213,24 +247,27 @@ const DateSlider = ({
         onMouseLeave={handleMouseUp}
       >
         {/* Colored track between knobs */}
-        <div 
-          className="slider-filled" 
+        <div
+          className="slider-filled"
           style={{
             position: 'absolute',
-            left: `${getLeftKnobPosition()}%`,
-            right: `${100 - getRightKnobPosition()}%`,
+            left: `${Math.min(getLeftKnobPosition(), getRightKnobPosition())}%`,
+            right: `${100 - Math.max(getLeftKnobPosition(), getRightKnobPosition())}%`,
             height: '100%',
-            background: 'linear-gradient(90deg, #ff5722, #ff9800, #ffc107)',
+            background: leftValue === rightValue
+              ? '#dc3545' // Red color when both knobs are at the same position
+              : 'linear-gradient(90deg, #ff5722, #ff9800, #ffc107)',
             borderRadius: '4px',
-            pointerEvents: 'none'
+            pointerEvents: 'none',
+            transition: 'background 0.3s ease'
           }}
         />
-        
+
         {/* Tick marks */}
         {uniqueDates.map((_, index) => (
-          <div 
+          <div
             key={index}
-            className="tick-mark" 
+            className="tick-mark"
             style={{
               position: 'absolute',
               left: `${(index / Math.max(uniqueDates.length - 1, 1)) * 100}%`,
@@ -243,9 +280,9 @@ const DateSlider = ({
             }}
           />
         ))}
-        
+
         {/* Left knob */}
-        <div 
+        <div
           className="knob left-knob"
           style={{
             position: 'absolute',
@@ -263,9 +300,9 @@ const DateSlider = ({
           }}
           onMouseDown={handleMouseDown('left')}
         />
-        
+
         {/* Right knob */}
-        <div 
+        <div
           className="knob right-knob"
           style={{
             position: 'absolute',
@@ -284,12 +321,19 @@ const DateSlider = ({
           onMouseDown={handleMouseDown('right')}
         />
       </div>
-      
+
       <div className="mt-3 d-flex justify-content-between align-items-center">
         <div className="selected-dates">
           {uniqueDates.length > 0 && (
             <div className="text-muted">
-              Selected range: {formatDate(uniqueDates[leftValue])} - {formatDate(uniqueDates[rightValue])}
+              {leftValue === rightValue
+                ? `Selected date: ${formatDate(uniqueDates[leftValue])}`
+                : `Selected range: ${
+                    leftValue <= rightValue
+                      ? `${formatDate(uniqueDates[leftValue])} - ${formatDate(uniqueDates[rightValue])}`
+                      : `${formatDate(uniqueDates[rightValue])} - ${formatDate(uniqueDates[leftValue])}`
+                  }`
+              }
               {uniqueDates[leftValue].visitIds && uniqueDates[leftValue].visitIds.length > 1 && (
                 <span className="ml-1 badge badge-light">{uniqueDates[leftValue].visitIds.length} visits</span>
               )}
@@ -299,9 +343,21 @@ const DateSlider = ({
             </div>
           )}
         </div>
-        <Button color="primary" onClick={handleApply}>
-          Apply Selection
-        </Button>
+        <div className="position-relative">
+          <Button
+            color="primary"
+            onClick={handleApply}
+            disabled={leftValue === rightValue}
+            title={leftValue === rightValue ? "Please select different dates to compare" : "Apply the selected date range"}
+          >
+            Apply Selection
+          </Button>
+          {leftValue === rightValue && (
+            <div className="text-danger small mt-1">
+              Please select different dates to compare
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

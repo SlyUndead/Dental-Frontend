@@ -106,12 +106,27 @@ const TemporalityPage = (props) => {
           const groupedVisits = groupVisitsByDate(formattedVisits);
           // Set default visits for comparison (last and second-to-last)
           if (groupedVisits.length >= 2) {
-            setFirstVisitId(groupedVisits[0]._id);
-            setSecondVisitId(groupedVisits[1]._id);
-            setIsComparisonMode(true);
-            // Fetch annotations for both visits
-            handleFirstVisitSelect(groupedVisits[0]._id, formattedVisits);
-            handleSecondVisitSelect(groupedVisits[1]._id, formattedVisits);
+            // Ensure the first visit is the more recent one (should already be sorted this way)
+            const firstVisitDate = new Date(groupedVisits[0].date);
+            const secondVisitDate = new Date(groupedVisits[1].date);
+
+            if (firstVisitDate >= secondVisitDate) {
+              // Normal case - first visit is more recent
+              setFirstVisitId(groupedVisits[0]._id);
+              setSecondVisitId(groupedVisits[1]._id);
+              setIsComparisonMode(true);
+              // Fetch annotations for both visits
+              handleFirstVisitSelect(groupedVisits[0]._id, formattedVisits);
+              handleSecondVisitSelect(groupedVisits[1]._id, formattedVisits);
+            } else {
+              // Swap needed - second visit is more recent
+              setFirstVisitId(groupedVisits[1]._id);
+              setSecondVisitId(groupedVisits[0]._id);
+              setIsComparisonMode(true);
+              // Fetch annotations for both visits
+              handleFirstVisitSelect(groupedVisits[1]._id, formattedVisits);
+              handleSecondVisitSelect(groupedVisits[0]._id, formattedVisits);
+            }
           } else if (groupedVisits.length === 1) {
             setFirstVisitId(groupedVisits[0]._id);
             handleFirstVisitSelect(groupedVisits[0]._id, formattedVisits);
@@ -608,13 +623,30 @@ const TemporalityPage = (props) => {
                   // This is called when the "Apply Selection" button is clicked
                   console.log("Applying selection", firstDateObj, secondDateObj);
 
-                  // Get the first visit ID from the first date
+                  // Check if dates need to be switched (if second date is earlier than first date)
+                  // Note: In our UI, we want the newer date (more recent) to be the first visit
+                  // and the older date to be the second visit
+                  const firstDate = new Date(firstDateObj.date);
+                  const secondDate = new Date(secondDateObj.date);
+
+                  // If the second date is more recent than the first date, swap them
+                  // This ensures the more recent date is always the first visit
+                  if (secondDate > firstDate) {
+                    console.log("Swapping dates because second date is more recent than first date");
+
+                    // Swap the date objects
+                    const tempDateObj = firstDateObj;
+                    firstDateObj = secondDateObj;
+                    secondDateObj = tempDateObj;
+                  }
+
+                  // Get the first visit ID from the first date (more recent date)
                   if (firstDateObj && firstDateObj.visitIds && firstDateObj.visitIds.length > 0) {
                     const firstVisitId = firstDateObj.visitIds[0];
                     handleFirstVisitSelect(firstVisitId, patientVisits);
                   }
 
-                  // Get the second visit ID from the second date
+                  // Get the second visit ID from the second date (older date)
                   if (secondDateObj && secondDateObj.visitIds && secondDateObj.visitIds.length > 0) {
                     const secondVisitId = secondDateObj.visitIds[0];
                     handleSecondVisitSelect(secondVisitId, patientVisits);
@@ -650,7 +682,27 @@ const TemporalityPage = (props) => {
                         {groupVisitsByDate(patientVisits).map((groupedVisit, index) => (
                           <DropdownItem
                             key={groupedVisit._id}
-                            onClick={() => handleFirstVisitSelect(groupedVisit._id, patientVisits)}
+                            onClick={() => {
+                              // Check if we need to swap visits based on dates
+                              const selectedVisit = patientVisits.find((v) => v._id === groupedVisit._id);
+                              const secondVisitObj = patientVisits.find((v) => v._id === secondVisitId);
+
+                              if (selectedVisit && secondVisitObj) {
+                                const selectedDate = new Date(selectedVisit.formattedDate);
+                                const secondDate = new Date(secondVisitObj.formattedDate);
+
+                                // If the selected date is older than the second date, swap them
+                                if (selectedDate < secondDate) {
+                                  console.log("Swapping visits because selected first date is older than second date");
+                                  handleSecondVisitSelect(groupedVisit._id, patientVisits);
+                                  handleFirstVisitSelect(secondVisitId, patientVisits);
+                                  return;
+                                }
+                              }
+
+                              // Normal case - no swap needed
+                              handleFirstVisitSelect(groupedVisit._id, patientVisits);
+                            }}
                             active={firstVisitId === groupedVisit._id}
                             disabled={groupedVisit._id === secondVisitId}
                           >
@@ -681,7 +733,27 @@ const TemporalityPage = (props) => {
                         {groupVisitsByDate(patientVisits).map((groupedVisit, index) => (
                           <DropdownItem
                             key={groupedVisit._id}
-                            onClick={() => handleSecondVisitSelect(groupedVisit._id, patientVisits)}
+                            onClick={() => {
+                              // Check if we need to swap visits based on dates
+                              const selectedVisit = patientVisits.find((v) => v._id === groupedVisit._id);
+                              const firstVisitObj = patientVisits.find((v) => v._id === firstVisitId);
+
+                              if (selectedVisit && firstVisitObj) {
+                                const selectedDate = new Date(selectedVisit.formattedDate);
+                                const firstDate = new Date(firstVisitObj.formattedDate);
+
+                                // If the selected date is more recent than the first date, swap them
+                                if (selectedDate > firstDate) {
+                                  console.log("Swapping visits because selected second date is more recent than first date");
+                                  handleFirstVisitSelect(groupedVisit._id, patientVisits);
+                                  handleSecondVisitSelect(firstVisitId, patientVisits);
+                                  return;
+                                }
+                              }
+
+                              // Normal case - no swap needed
+                              handleSecondVisitSelect(groupedVisit._id, patientVisits);
+                            }}
                             active={secondVisitId === groupedVisit._id}
                             disabled={groupedVisit._id === firstVisitId}
                           >
