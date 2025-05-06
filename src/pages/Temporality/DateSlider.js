@@ -292,13 +292,17 @@ const DateSlider = ({
             width: '20px',
             height: '20px',
             borderRadius: '50%',
-            backgroundColor: '#212121',
+            backgroundColor: leftValue === rightValue ? '#dc3545' : '#212121',
             cursor: 'pointer',
             border: '2px solid #fff',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-            zIndex: 2
+            boxShadow: leftValue === rightValue
+              ? '0 0 0 2px rgba(220, 53, 69, 0.5), 0 2px 4px rgba(0,0,0,0.2)'
+              : '0 2px 4px rgba(0,0,0,0.2)',
+            zIndex: leftValue === rightValue ? 3 : 2,
+            transition: 'background-color 0.3s ease, box-shadow 0.3s ease'
           }}
           onMouseDown={handleMouseDown('left')}
+          title={leftValue === rightValue ? "Both knobs are at the same position" : "Drag to select start date"}
         />
 
         {/* Right knob */}
@@ -312,13 +316,17 @@ const DateSlider = ({
             width: '20px',
             height: '20px',
             borderRadius: '50%',
-            backgroundColor: '#212121',
+            backgroundColor: leftValue === rightValue ? '#dc3545' : '#212121',
             cursor: 'pointer',
             border: '2px solid #fff',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-            zIndex: 2
+            boxShadow: leftValue === rightValue
+              ? '0 0 0 2px rgba(220, 53, 69, 0.5), 0 2px 4px rgba(0,0,0,0.2)'
+              : '0 2px 4px rgba(0,0,0,0.2)',
+            zIndex: leftValue === rightValue ? 3 : 2,
+            transition: 'background-color 0.3s ease, box-shadow 0.3s ease'
           }}
           onMouseDown={handleMouseDown('right')}
+          title={leftValue === rightValue ? "Both knobs are at the same position" : "Drag to select end date"}
         />
       </div>
 
