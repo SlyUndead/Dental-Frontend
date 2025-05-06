@@ -5,6 +5,16 @@ import { Table, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, FormGroup,
 import { calculateOverlap, polygonArea } from "../AnnotationTools/path-utils"
 import { useNavigate } from "react-router-dom"
 
+// Add a style tag for the pink badge if it doesn't exist in your CSS
+const styleElement = document.createElement("style")
+styleElement.textContent = `
+  .bg-pink {
+    background-color: #ff69b4 !important;
+    color: white !important;
+  }
+`
+document.head.appendChild(styleElement)
+
 const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, otherSideAnnotations, visitId }) => {
   const [toothAnnotations, setToothAnnotations] = useState([])
   const [filteredToothAnnotations, setFilteredToothAnnotations] = useState([])
@@ -20,40 +30,26 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
   // Handle category selection
   const handleCategoryToggle = (category) => {
     if (selectedCategories.includes(category)) {
-      // Remove category if it's already selected
       setSelectedCategories(selectedCategories.filter((cat) => cat !== category))
     } else {
-      // Add category if it's not selected
       setSelectedCategories([...selectedCategories, category])
     }
   }
 
   // Handle annotation click to navigate to AnnotationPage
-  const handleAnnotationClick = (anomaly, toothNumber) => {
-    const imageIndex = findImageIndexForAnomaly(anomaly, toothNumber)
-    if (imageIndex !== -1) {
+  const handleAnnotationClick = (anomaly) => {
       // Store the image index in sessionStorage to be used by AnnotationPage
       sessionStorage.setItem("selectedImageIndex", (anomaly.imageNumber - 1).toString())
-      
+
       // NEW CODE: Store the visitId in sessionStorage
       // Use anomaly.visitId if available, otherwise use the visitId prop
       const effectiveVisitId = anomaly.visitId || visitId
       if (effectiveVisitId) {
         sessionStorage.setItem("visitId", effectiveVisitId)
       }
-      
+
       // Navigate to AnnotationPage
       navigate("/annotationPage")
-    }
-  }
-
-  // Find the image index that contains the annotation
-  const findImageIndexForAnomaly = (anomaly, toothNumber) => {
-    // If the anomaly has a visitIndex property (from consolidated view), use it directly
-    if (anomaly.visitIndex !== undefined) {
-      return anomaly.visitIndex
-    }
-    return 0
   }
 
   // Process annotations when they change or when a tooth is selected
@@ -372,13 +368,13 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
               <DropdownItem header>Filter by Type</DropdownItem>
               <DropdownItem divider />
               {availableCategories.map((category) => (
-                <DropdownItem key={category} toggle={false} onClick={(e) => e.stopPropagation()}>
+                <DropdownItem key={category} toggle={false}>
                   <FormGroup check className="mb-0 align-items-center flex justify-content-center">
-                    <Label check>
+                    <Label check className="w-100">
                       <Input
                         type="checkbox"
                         checked={selectedCategories.includes(category)}
-                        onChange={() => handleCategoryToggle(category)}
+                        onClick={() => handleCategoryToggle(category)}
                         style={{ marginRight: "5px", justifyContent: "center", alignItems: "center", display: "flex" }}
                       />
                       {category}
@@ -445,7 +441,23 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
                     {anomaly.category !== "Blank" ? (
                       <div className="d-flex justify-content-between align-items-center">
                         <span>{anomaly.name}</span>
-                        {anomaly.category !== "Info" && <span className="badge bg-info ml-2">{anomaly.category}</span>}
+                        {anomaly.category !== "Info" && (
+                          <span
+                            className={`badge ml-2 ${
+                              anomaly.category === "Anomaly"
+                                ? "bg-danger"
+                                : anomaly.category === "Procedure"
+                                  ? "bg-success"
+                                  : anomaly.category === "Landmark"
+                                    ? "bg-pink"
+                                    : anomaly.category === "Foreign Object"
+                                      ? "bg-warning"
+                                      : "bg-info"
+                            }`}
+                          >
+                            {anomaly.category}
+                          </span>
+                        )}
                       </div>
                     ) : (
                       <div className="text-muted">-</div>
@@ -470,4 +482,4 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
   )
 }
 
-export default ToothAnnotationTable;
+export default ToothAnnotationTable

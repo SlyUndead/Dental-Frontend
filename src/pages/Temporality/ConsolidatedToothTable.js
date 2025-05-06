@@ -4,6 +4,17 @@ import React, { useState, useEffect } from "react"
 import { Table, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, FormGroup, Label, Input } from "reactstrap"
 import { useNavigate } from "react-router-dom"
 
+// Add this at the top of your file, after the imports
+// Add a style tag for the pink badge if it doesn't exist in your CSS
+const styleElement = document.createElement("style")
+styleElement.textContent = `
+  .bg-pink {
+    background-color: #ff69b4 !important;
+    color: white !important;
+  }
+`
+document.head.appendChild(styleElement)
+
 const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, patientVisits }) => {
   const [filteredAnnotations, setFilteredAnnotations] = useState([])
   const [selectedCategories, setSelectedCategories] = useState(["Procedure", "Anomaly"])
@@ -15,7 +26,9 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
   const toggleDropdown = () => setDropdownOpen((prevState) => !prevState)
 
   // Handle category selection
-  const handleCategoryToggle = (category) => {
+  const handleCategoryToggle = (e, category) => {
+    e.preventDefault()
+    e.stopPropagation()
     if (selectedCategories.includes(category)) {
       // Remove category if it's already selected
       setSelectedCategories(selectedCategories.filter((cat) => cat !== category))
@@ -28,18 +41,17 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
   // Handle annotation click to navigate to AnnotationPage
   const handleAnnotationClick = (anomaly) => {
     if (anomaly.visitIndex !== undefined) {
-        sessionStorage.setItem("selectedImageIndex", (anomaly.imageNumber - 1).toString())
-        if (anomaly.visitId) {
-          sessionStorage.setItem("visitId", anomaly.visitId)
-        } 
-        else if (patientVisits && patientVisits.length > anomaly.visitIndex) {
-          const visitId = patientVisits[anomaly.visitIndex]._id
-          sessionStorage.setItem("visitId", visitId)
-        }
-        
-        // Navigate to AnnotationPage
-        navigate("/annotationPage")
+      sessionStorage.setItem("selectedImageIndex", (anomaly.imageNumber - 1).toString())
+      if (anomaly.visitId) {
+        sessionStorage.setItem("visitId", anomaly.visitId)
+      } else if (patientVisits && patientVisits.length > anomaly.visitIndex) {
+        const visitId = patientVisits[anomaly.visitIndex]._id
+        sessionStorage.setItem("visitId", visitId)
       }
+
+      // Navigate to AnnotationPage
+      navigate("/annotationPage")
+    }
   }
 
   // Extract available categories from annotations
@@ -117,7 +129,7 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
                       <Input
                         type="checkbox"
                         checked={selectedCategories.includes(category)}
-                        onChange={() => handleCategoryToggle(category)}
+                        onClick={(e) => handleCategoryToggle(e, category)}
                         style={{ marginRight: "5px", justifyContent: "center", alignItems: "center", display: "flex" }}
                       />
                       {category}
@@ -176,7 +188,23 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
                   <td>
                     <div className="d-flex justify-content-between align-items-center">
                       <span>{anomaly.name}</span>
-                      {anomaly.category !== "Info" && <span className="badge bg-info ml-2">{anomaly.category}</span>}
+                      {anomaly.category !== "Info" && (
+                        <span
+                          className={`badge ml-2 ${
+                            anomaly.category === "Anomaly"
+                              ? "bg-danger"
+                              : anomaly.category === "Procedure"
+                                ? "bg-success"
+                                : anomaly.category === "Landmark"
+                                  ? "bg-pink"
+                                  : anomaly.category === "Foreign Object"
+                                    ? "bg-warning"
+                                    : "bg-info"
+                          }`}
+                        >
+                          {anomaly.category}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="text-center">

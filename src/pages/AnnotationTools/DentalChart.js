@@ -277,7 +277,7 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
             <div style={{ width: "12px", height: "12px", backgroundColor: "#d1d5db", borderRadius: "2px" }}></div>
-            <span style={{ fontSize: "12px" }}>No Annotations</span>
+            <span style={{ fontSize: "12px" }}>Not Detected</span>
           </div>
         </div>
 

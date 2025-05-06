@@ -26,12 +26,14 @@ import { setBreadcrumbItems } from "../../store/actions"
 import { connect } from "react-redux"
 import ConsolidatedToothTable from "./ConsolidatedToothTable"
 import { calculateOverlap, polygonArea } from "../AnnotationTools/path-utils"
+import DateSlider from "./DateSlider"
 
 const TemporalityPage = (props) => {
   document.title = "Temporality View | AGP Dental Tool"
   const apiUrl = process.env.REACT_APP_NODEAPIURL
   const [redirectToLogin, setRedirectToLogin] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isFirstLoading, setIsFirstLoading] = useState(false)
+  const [isSecondLoading, setIsSecondLoading] = useState(false)
   const [message, setMessage] = useState("")
   const [lastVisitAnnotations, setLastVisitAnnotations] = useState([])
   const [selectedVisitAnnotations, setSelectedVisitAnnotations] = useState([])
@@ -45,7 +47,7 @@ const TemporalityPage = (props) => {
   const [secondDropdownOpen, setSecondDropdownOpen] = useState(false)
   const [firstVisitId, setFirstVisitId] = useState(null)
   const [secondVisitId, setSecondVisitId] = useState(null)
-  const [isComparisonMode, setIsComparisonMode] = useState(false)
+  const [isComparisonMode, setIsComparisonMode] = useState(true)
   const [redirectToPatientVisitPage, setRedirectToPatientVisitPage] = useState(false)
   const [isConsolidatedView, setIsConsolidatedView] = useState(false)
   const [consolidatedAnnotations, setConsolidatedAnnotations] = useState([])
@@ -77,7 +79,7 @@ const TemporalityPage = (props) => {
   // Fetch all patient visits
   const fetchPatientVisits = async () => {
     try {
-      setPatientVisits([])
+      setPatientVisits([]);
       const response = await axios.get(
         `${apiUrl}/getPatientVisitsByID?patientId=${sessionStorage.getItem("patientId")}`,
         {
@@ -85,51 +87,51 @@ const TemporalityPage = (props) => {
             Authorization: sessionStorage.getItem("token"),
           },
         },
-      )
+      );
 
       if (response.status === 200) {
-        const visitData = response.data
-        sessionStorage.setItem("token", response.headers["new-token"])
+        const visitData = response.data;
+        sessionStorage.setItem("token", response.headers["new-token"]);
 
         // Format dates and set state
         if (visitData.patienVisits && visitData.patienVisits.length > 0) {
           const formattedVisits = visitData.patienVisits.map((visit) => ({
             ...visit,
             formattedDate: formatDate(new Date(visit.date_of_visit)),
-          }))
+          }));
 
-          // Store all visits
-          setPatientVisits(formattedVisits)
+          // Store all visits (ungrouped)
+          setPatientVisits(formattedVisits);
 
+          const groupedVisits = groupVisitsByDate(formattedVisits);
           // Set default visits for comparison (last and second-to-last)
-          if (formattedVisits.length >= 2) {
-            setFirstVisitId(formattedVisits[0]._id)
-            setSecondVisitId(formattedVisits[1]._id)
-            setIsComparisonMode(true)
-
+          if (groupedVisits.length >= 2) {
+            setFirstVisitId(groupedVisits[0]._id);
+            setSecondVisitId(groupedVisits[1]._id);
+            setIsComparisonMode(true);
             // Fetch annotations for both visits
-            handleFirstVisitSelect(formattedVisits[0]._id)
-            handleSecondVisitSelect(formattedVisits[1]._id)
-          } else if (formattedVisits.length === 1) {
-            setFirstVisitId(formattedVisits[0]._id)
-            handleFirstVisitSelect(formattedVisits[0]._id)
+            handleFirstVisitSelect(groupedVisits[0]._id, formattedVisits);
+            handleSecondVisitSelect(groupedVisits[1]._id, formattedVisits);
+          } else if (groupedVisits.length === 1) {
+            setFirstVisitId(groupedVisits[0]._id);
+            handleFirstVisitSelect(groupedVisits[0]._id, formattedVisits);
           }
-          return formattedVisits
+          return formattedVisits;
         } else {
-          setMessage("No visits found for this patient.")
-          return []
+          setMessage("No visits found for this patient.");
+          return [];
         }
       }
     } catch (error) {
       if (error.status === 403 || error.status === 401) {
-        sessionStorage.removeItem("token")
-        setRedirectToLogin(true)
+        sessionStorage.removeItem("token");
+        setRedirectToLogin(true);
       } else {
-        logErrorToServer(error, "fetchPatientVisits")
-        setMessage("Error fetching patient visits")
-        console.error("Error fetching patient visits:", error)
+        logErrorToServer(error, "fetchPatientVisits");
+        setMessage("Error fetching patient visits");
+        console.error("Error fetching patient visits:", error);
       }
-      return []
+      return [];
     }
   }
 
@@ -140,6 +142,26 @@ const TemporalityPage = (props) => {
       day: "2-digit",
       year: "numeric",
     }).format(date)
+  }
+
+  function groupVisitsByDate(visits) {
+    const groupedVisits = {}
+
+    visits.forEach((visit) => {
+      const dateKey = visit.formattedDate
+
+      if (!groupedVisits[dateKey]) {
+        groupedVisits[dateKey] = {
+          date: dateKey,
+          visits: [visit],
+          _id: visit._id, // Use the first visit's ID as the group ID
+        }
+      } else {
+        groupedVisits[dateKey].visits.push(visit)
+      }
+    })
+
+    return Object.values(groupedVisits)
   }
 
   // Fetch annotations for a specific visit
@@ -162,10 +184,10 @@ const TemporalityPage = (props) => {
           imagesData.forEach((image, index) => {
             if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
               // Add image ID to each annotation
-              const annotationsWithImageId = image.annotations.annotations.annotations.map(annotation => ({
+              const annotationsWithImageId = image.annotations.annotations.annotations.map((annotation) => ({
                 ...annotation,
                 imageId: image._id,
-                imageNumber: image.imageNumber || index + 1
+                imageNumber: image.imageNumber || index + 1,
               }))
               visitAnnots = [...visitAnnots, ...annotationsWithImageId]
             }
@@ -214,10 +236,10 @@ const TemporalityPage = (props) => {
         if (lastVisitData.images && lastVisitData.images.length > 0) {
           lastVisitData.images.forEach((image, index) => {
             if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
-              const annotationsWithImageId = image.annotations.annotations.annotations.map(annotation => ({
+              const annotationsWithImageId = image.annotations.annotations.annotations.map((annotation) => ({
                 ...annotation,
                 imageId: image._id,
-                imageNumber: image.imageNumber || index + 1
+                imageNumber: image.imageNumber || index + 1,
               }))
               lastVisitAnnots = [...lastVisitAnnots, ...annotationsWithImageId]
             }
@@ -334,7 +356,30 @@ const TemporalityPage = (props) => {
     const consolidatedArray = Object.values(consolidatedTeeth).sort((a, b) => a.toothNumber - b.toothNumber)
     setConsolidatedAnnotations(consolidatedArray)
   }
+  const processVisitsForSlider = (visits) => {
+    if (!visits || visits.length === 0) return [];
 
+    // Group visits by date
+    const groupedByDate = {};
+    visits.forEach(visit => {
+      const dateKey = visit.formattedDate;
+      if (!groupedByDate[dateKey]) {
+        groupedByDate[dateKey] = {
+          date: dateKey,
+          visitIds: [visit._id],
+          visits: [visit]
+        };
+      } else {
+        groupedByDate[dateKey].visitIds.push(visit._id);
+        groupedByDate[dateKey].visits.push(visit);
+      }
+    });
+
+    // Convert to array and sort by date (newest first)
+    return Object.values(groupedByDate).sort((a, b) => {
+      return new Date(b.date) - new Date(a.date);
+    });
+  }
   // Fetch class categories
   const fetchClassCategories = async () => {
     try {
@@ -379,114 +424,125 @@ const TemporalityPage = (props) => {
   }
 
   // Handle first visit selection
-  const handleFirstVisitSelect = async (visitId) => {
+  const handleFirstVisitSelect = async (visitId, patientVisits) => {
     setFirstVisitId(visitId)
-    setIsLoading(true)
+    setIsFirstLoading(true)
+    // Find all visits with the same date
+    const selectedVisit = patientVisits.find((v) => v._id === visitId)
+    if (!selectedVisit) {
+      setIsFirstLoading(false);
+      return;
+    }
+
+    const visitsOnSameDate = patientVisits.filter((v) => v.formattedDate === selectedVisit.formattedDate);
 
     try {
-      // Fetch annotations for the first visit
-      const response = await axios.get(
-        `${apiUrl}/get-annotations-for-treatment-plan?patientId=${sessionStorage.getItem("patientId")}`,
-        {
-          headers: {
-            Authorization: sessionStorage.getItem("token"),
+      // Fetch annotations for ALL visits on the same date
+      let combinedAnnotations = [];
+
+      for (const visit of visitsOnSameDate) {
+        const response = await axios.get(`${apiUrl}/visitid-images?visitID=${visit._id}`,
+          {
+            headers: {
+              Authorization: sessionStorage.getItem("token"),
+            },
           },
-        },
-      )
+        );
 
-      if (response.status === 200) {
-        sessionStorage.setItem("token", response.headers["new-token"])
-        const visitData = response.data
+        if (response.status === 200) {
+          sessionStorage.setItem("token", response.headers["new-token"]);
+          const imagesData = response.data.images;
 
-        // Process visit annotations
-        let visitAnnots = []
-        if (visitData.images && visitData.images.length > 0) {
-          visitData.images.forEach((image, index) => {
-            if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
-              const annotationsWithImageId = image.annotations.annotations.annotations.map(annotation => ({
-                ...annotation,
-                imageId: image._id,
-                imageNumber: image.imageNumber || index + 1
-              }))
-              visitAnnots = [...visitAnnots, ...annotationsWithImageId]
-            }
-          })
-          setLastVisitAnnotations(visitAnnots)
-        } else {
-          setMessage("No annotations found for the selected visit.")
-          setLastVisitAnnotations([])
+          // Process visit annotations
+          if (imagesData && imagesData.length > 0) {
+            imagesData.forEach((image, index) => {
+              if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
+                const annotationsWithImageId = image.annotations.annotations.annotations.map((annotation) => ({
+                  ...annotation,
+                  imageId: image._id,
+                  imageNumber: image.imageNumber || index + 1,
+                  visitId: visit._id, // Add visit ID to trace back which visit this annotation came from
+                }));
+                combinedAnnotations = [...combinedAnnotations, ...annotationsWithImageId];
+              }
+            });
+          }
         }
       }
+
+      setLastVisitAnnotations(combinedAnnotations);
+      if (combinedAnnotations.length === 0) {
+        setMessage("No annotations found for the selected date's visits.");
+      }
     } catch (error) {
-      logErrorToServer(error, "handleFirstVisitSelect")
-      setMessage("Error fetching annotations for the first visit")
-      console.error("Error fetching annotations:", error)
-      setLastVisitAnnotations([])
+      logErrorToServer(error, "handleFirstVisitSelect");
+      setMessage("Error fetching annotations for the first visit");
+      console.error("Error fetching annotations:", error);
+      setLastVisitAnnotations([]);
     } finally {
-      setIsLoading(false)
+      setIsFirstLoading(false);
     }
-
-    // If second visit is also selected, enable comparison mode
-    if (secondVisitId) {
-      setIsComparisonMode(true)
-    }
-
-    // Reset tooth selection
-    setSelectedTooth(null)
   }
+  // Modified handleSecondVisitSelect function to fetch annotations from all visits on the same date
+  const handleSecondVisitSelect = async (visitId, patientVisits) => {
+    setSecondVisitId(visitId);
+    setIsSecondLoading(true);
+    // Find all visits with the same date
+    const selectedVisit = patientVisits.find((v) => v._id === visitId);
+    if (!selectedVisit) {
+      setIsSecondLoading(false);
+      return;
+    }
 
-  // Handle second visit selection
-  const handleSecondVisitSelect = async (visitId) => {
-    setSecondVisitId(visitId)
-    setIsLoading(true)
+    const visitsOnSameDate = patientVisits.filter((v) => v.formattedDate === selectedVisit.formattedDate);
 
     try {
-      // Fetch annotations for the second visit
-      const response = await axios.get(`${apiUrl}/visitid-images?visitID=${visitId}`, {
-        headers: {
-          Authorization: sessionStorage.getItem("token"),
-        },
-      })
+      // Fetch annotations for ALL visits on the same date
+      let combinedAnnotations = [];
 
-      if (response.status === 200) {
-        sessionStorage.setItem("token", response.headers["new-token"])
-        const imagesData = response.data.images
+      for (const visit of visitsOnSameDate) {
+        const response = await axios.get(
+          `${apiUrl}/visitid-images?visitID=${visit._id}`,
+          {
+            headers: {
+              Authorization: sessionStorage.getItem("token"),
+            },
+          },
+        );
 
-        // Process selected visit annotations
-        let selectedVisitAnnots = []
-        if (imagesData && imagesData.length > 0) {
-          imagesData.forEach((image, index) => {
-            if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
-              const annotationsWithImageId = image.annotations.annotations.annotations.map(annotation => ({
-                ...annotation,
-                imageId: image._id,
-                imageNumber: image.imageNumber || index + 1
-              }))
-              selectedVisitAnnots = [...selectedVisitAnnots, ...annotationsWithImageId]
-            }
-          })
-          setSelectedVisitAnnotations(selectedVisitAnnots)
-        } else {
-          setMessage("No images found for the selected visit.")
-          setSelectedVisitAnnotations([])
+        if (response.status === 200) {
+          sessionStorage.setItem("token", response.headers["new-token"]);
+          const imagesData = response.data.images;
+
+          // Process visit annotations
+          if (imagesData && imagesData.length > 0) {
+            imagesData.forEach((image, index) => {
+              if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
+                const annotationsWithImageId = image.annotations.annotations.annotations.map((annotation) => ({
+                  ...annotation,
+                  imageId: image._id,
+                  imageNumber: image.imageNumber || index + 1,
+                  visitId: visit._id, // Add visit ID to trace back which visit this annotation came from
+                }));
+                combinedAnnotations = [...combinedAnnotations, ...annotationsWithImageId];
+              }
+            });
+          }
         }
       }
+
+      setSelectedVisitAnnotations(combinedAnnotations);
+      if (combinedAnnotations.length === 0) {
+        setMessage("No annotations found for the selected date's visits.");
+      }
     } catch (error) {
-      logErrorToServer(error, "handleSecondVisitSelect")
-      setMessage("Error fetching annotations for the second visit")
-      console.error("Error fetching annotations:", error)
-      setSelectedVisitAnnotations([])
+      logErrorToServer(error, "handleSecondVisitSelect");
+      setMessage("Error fetching annotations for the second visit");
+      console.error("Error fetching annotations:", error);
+      setSelectedVisitAnnotations([]);
     } finally {
-      setIsLoading(false)
+      setIsSecondLoading(false);
     }
-
-    // If first visit is also selected, enable comparison mode
-    if (firstVisitId) {
-      setIsComparisonMode(true)
-    }
-
-    // Reset tooth selection
-    setComparisonTooth(null)
   }
 
   // Initialize on component mount
@@ -527,7 +583,49 @@ const TemporalityPage = (props) => {
           </Col>
         </Row>
 
-        {!isConsolidatedView && (
+        {!isConsolidatedView && (<>
+          <Row>
+            <Col md={12}>
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <p className="text-muted mb-0">
+                  {isComparisonMode
+                    ? `Comparing visits from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDate || "first visit"} and ${patientVisits.find((v) => v._id === secondVisitId)?.formattedDate || "second visit"}`
+                    : `Viewing dental chart from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDate || "selected visit"}`}
+                </p>
+              </div>
+            </Col>
+            <Col md={12}>
+              {/* Date range slider component */}
+              <DateSlider
+                visits={patientVisits}
+                selectedFirstVisitId={firstVisitId}
+                selectedSecondVisitId={secondVisitId}
+                onRangeChange={(firstDateObj, secondDateObj) => {
+                  // This is just for updating the UI and previewing the selection
+                  console.log("Range changed", firstDateObj, secondDateObj);
+                }}
+                onApplySelection={(firstDateObj, secondDateObj) => {
+                  // This is called when the "Apply Selection" button is clicked
+                  console.log("Applying selection", firstDateObj, secondDateObj);
+
+                  // Get the first visit ID from the first date
+                  if (firstDateObj && firstDateObj.visitIds && firstDateObj.visitIds.length > 0) {
+                    const firstVisitId = firstDateObj.visitIds[0];
+                    handleFirstVisitSelect(firstVisitId, patientVisits);
+                  }
+
+                  // Get the second visit ID from the second date
+                  if (secondDateObj && secondDateObj.visitIds && secondDateObj.visitIds.length > 0) {
+                    const secondVisitId = secondDateObj.visitIds[0];
+                    handleSecondVisitSelect(secondVisitId, patientVisits);
+                  }
+
+                  // Update comparison mode flag if needed
+                  setIsComparisonMode(firstDateObj.date !== secondDateObj.date);
+                }}
+              />
+            </Col>
+          </Row>
           <Row>
             <Col md={12}>
               <div className="d-flex justify-content-between align-items-center">
@@ -548,16 +646,19 @@ const TemporalityPage = (props) => {
                       <DropdownToggle color="primary" className="btn-sm">
                         {patientVisits.find((v) => v._id === firstVisitId)?.formattedDate || "Select Visit"}
                       </DropdownToggle>
-                      <DropdownMenu>
-                        {patientVisits.map((visit, index) => (
+                      <DropdownMenu className="overflow-auto">
+                        {groupVisitsByDate(patientVisits).map((groupedVisit, index) => (
                           <DropdownItem
-                            key={visit._id}
-                            onClick={() => handleFirstVisitSelect(visit._id)}
-                            active={firstVisitId === visit._id}
-                            disabled={visit._id === secondVisitId}
+                            key={groupedVisit._id}
+                            onClick={() => handleFirstVisitSelect(groupedVisit._id, patientVisits)}
+                            active={firstVisitId === groupedVisit._id}
+                            disabled={groupedVisit._id === secondVisitId}
                           >
-                            {visit.formattedDate}
+                            {groupedVisit.date}
                             {index === 0 && <span className="ml-2 badge badge-info">Latest</span>}
+                            {groupedVisit.visits.length > 1 && (
+                              <span className="ml-2 badge badge-secondary">{groupedVisit.visits.length} visits</span>
+                            )}
                           </DropdownItem>
                         ))}
                         {patientVisits.length === 0 && <DropdownItem disabled>No visits available</DropdownItem>}
@@ -576,16 +677,19 @@ const TemporalityPage = (props) => {
                       <DropdownToggle color="primary" className="btn-sm">
                         {patientVisits.find((v) => v._id === secondVisitId)?.formattedDate || "Select Visit"}
                       </DropdownToggle>
-                      <DropdownMenu>
-                        {patientVisits.map((visit, index) => (
+                      <DropdownMenu className="overflow-auto">
+                        {groupVisitsByDate(patientVisits).map((groupedVisit, index) => (
                           <DropdownItem
-                            key={visit._id}
-                            onClick={() => handleSecondVisitSelect(visit._id)}
-                            active={secondVisitId === visit._id}
-                            disabled={visit._id === firstVisitId}
+                            key={groupedVisit._id}
+                            onClick={() => handleSecondVisitSelect(groupedVisit._id, patientVisits)}
+                            active={secondVisitId === groupedVisit._id}
+                            disabled={groupedVisit._id === firstVisitId}
                           >
-                            {visit.formattedDate}
+                            {groupedVisit.date}
                             {index === 0 && <span className="ml-2 badge badge-info">Latest</span>}
+                            {groupedVisit.visits.length > 1 && (
+                              <span className="ml-2 badge badge-secondary">{groupedVisit.visits.length} visits</span>
+                            )}
                           </DropdownItem>
                         ))}
                         {patientVisits.length === 0 && <DropdownItem disabled>No visits available</DropdownItem>}
@@ -598,9 +702,10 @@ const TemporalityPage = (props) => {
             <br />
             <br />
           </Row>
+        </>
         )}
 
-        {isLoading || (isConsolidatedView && isLoadingConsolidated) ? (
+        {isFirstLoading || isSecondLoading || (isConsolidatedView && isLoadingConsolidated) ? (
           <div className="text-center mt-5">
             <Spinner color="primary" />
             <p className="mt-2">
@@ -635,22 +740,6 @@ const TemporalityPage = (props) => {
                     <Card>
                       <CardBody>
                         <h5 className="text-center mb-3">
-                          {patientVisits.find((v) => v._id === firstVisitId)?.formattedDate || "First Visit"}
-                        </h5>
-                        <DentalChart
-                          annotations={lastVisitAnnotations}
-                          classCategories={classCategories}
-                          confidenceLevels={confidenceLevels}
-                          setHiddenAnnotations={setHiddenAnnotations}
-                          onToothSelect={setSelectedTooth}
-                        />
-                      </CardBody>
-                    </Card>
-                  </Col>
-                  <Col md={6}>
-                    <Card>
-                      <CardBody>
-                        <h5 className="text-center mb-3">
                           {patientVisits.find((v) => v._id === secondVisitId)?.formattedDate || "Second Visit"}
                         </h5>
                         <DentalChart
@@ -663,26 +752,25 @@ const TemporalityPage = (props) => {
                       </CardBody>
                     </Card>
                   </Col>
-                </Row>
-
-                <Row>
                   <Col md={6}>
                     <Card>
                       <CardBody>
-                        <h4>
-                          {patientVisits.find((v) => v._id === firstVisitId)?.formattedDate || "First Visit"} - Tooth
-                          Anomalies/Procedures
-                        </h4>
-                        <ToothAnnotationTable
+                        <h5 className="text-center mb-3">
+                          {patientVisits.find((v) => v._id === firstVisitId)?.formattedDate || "First Visit"}
+                        </h5>
+                        <DentalChart
                           annotations={lastVisitAnnotations}
                           classCategories={classCategories}
-                          selectedTooth={selectedTooth}
-                          otherSideAnnotations={selectedVisitAnnotations}
-                          visitId={firstVisitId}
+                          confidenceLevels={confidenceLevels}
+                          setHiddenAnnotations={setHiddenAnnotations}
+                          onToothSelect={setSelectedTooth}
                         />
                       </CardBody>
                     </Card>
                   </Col>
+                </Row>
+
+                <Row>
                   <Col md={6}>
                     <Card>
                       <CardBody>
@@ -693,9 +781,26 @@ const TemporalityPage = (props) => {
                         <ToothAnnotationTable
                           annotations={selectedVisitAnnotations}
                           classCategories={classCategories}
-                          selectedTooth={comparisonTooth}
+                          selectedTooth={selectedTooth}
                           otherSideAnnotations={lastVisitAnnotations}
                           visitId={secondVisitId}
+                        />
+                      </CardBody>
+                    </Card>
+                  </Col>
+                  <Col md={6}>
+                    <Card>
+                      <CardBody>
+                        <h4>
+                          {patientVisits.find((v) => v._id === firstVisitId)?.formattedDate || "First Visit"} - Tooth
+                          Anomalies/Procedures
+                        </h4>
+                        <ToothAnnotationTable
+                          annotations={lastVisitAnnotations}
+                          classCategories={classCategories}
+                          selectedTooth={comparisonTooth}
+                          otherSideAnnotations={selectedVisitAnnotations}
+                          visitId={firstVisitId}
                         />
                       </CardBody>
                     </Card>
