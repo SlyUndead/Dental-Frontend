@@ -113,6 +113,7 @@ const Login = props => {
                   <p className="text-muted text-center">
                     Don't have an account? <Link to="/signup" style={{ color: '#1b69b2' }}>Sign up</Link>
                   </p>
+                  {error&&<p className="text-center" style={{color:'red'}}>{error}</p>}
 
                   <Form className="mt-3" onSubmit={(e) => handleSubmit(e)}>
                     <div className="mb-3">

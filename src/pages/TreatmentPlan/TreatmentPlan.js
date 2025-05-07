@@ -235,19 +235,26 @@ const DentalTreatmentPlan = (props) => {
     const anomalyToToothMap = {};
 
     anomalyAnnotations.forEach(anomaly => {
-      let teethWithOverlap = [];
+      // First check if the anomaly has an associatedTooth field
+      if (anomaly.associatedTooth !== undefined && anomaly.associatedTooth !== null) {
+        // Use the associatedTooth field directly
+        anomalyToToothMap[anomaly.label] = [anomaly.associatedTooth];
+      } else {
+        // Fall back to overlap calculation
+        let teethWithOverlap = [];
 
-      toothAnnotations.forEach(tooth => {
-        const overlapArea = calculateOverlap(anomaly.bounding_box, tooth.bounding_box);
+        toothAnnotations.forEach(tooth => {
+          const overlapArea = calculateOverlap(anomaly.bounding_box, tooth.bounding_box);
 
-        if (overlapArea > 0) {
-          teethWithOverlap.push({ tooth: tooth.label, overlap: overlapArea });
+          if (overlapArea > 0) {
+            teethWithOverlap.push({ tooth: tooth.label, overlap: overlapArea });
+          }
+        });
+
+        if (teethWithOverlap.length > 0) {
+          teethWithOverlap.sort((a, b) => b.overlap - a.overlap);
+          anomalyToToothMap[anomaly.label] = teethWithOverlap.map(t => t.tooth);
         }
-      });
-
-      if (teethWithOverlap.length > 0) {
-        teethWithOverlap.sort((a, b) => b.overlap - a.overlap);
-        anomalyToToothMap[anomaly.label] = teethWithOverlap.map(t => t.tooth);
       }
     });
 
@@ -323,11 +330,31 @@ const DentalTreatmentPlan = (props) => {
   const autofillTreatments = async (annotations, convertedCdtCode) => {
     await checkAnomaliesWithServer(annotations.annotations);
 
-    const anomalyToToothMap = findToothForAnomaly(annotations.annotations);
-    for (const [anomaly, toothNumbers] of Object.entries(anomalyToToothMap)) {
-      const cdtCodes = await fetchCdtCodesFromRAG(anomaly, convertedCdtCode);
+    // First check for anomalies with associatedTooth field
+    const anomaliesWithAssociatedTooth = annotations.annotations.filter(a =>
+      anomalyCache[a.label] && a.associatedTooth !== undefined && a.associatedTooth !== null
+    );
+
+    // Process anomalies that already have associatedTooth field
+    for (const anomaly of anomaliesWithAssociatedTooth) {
+      const cdtCodes = await fetchCdtCodesFromRAG(anomaly.label, convertedCdtCode);
       if (cdtCodes.length > 0) {
-        handleAutoFillTreatments(toothNumbers, cdtCodes, anomaly);
+        handleAutoFillTreatments([anomaly.associatedTooth], cdtCodes, anomaly.label);
+      }
+    }
+
+    // For the rest, use the overlap calculation
+    const anomaliesWithoutAssociatedTooth = annotations.annotations.filter(a =>
+      anomalyCache[a.label] && (a.associatedTooth === undefined || a.associatedTooth === null)
+    );
+
+    if (anomaliesWithoutAssociatedTooth.length > 0) {
+      const anomalyToToothMap = findToothForAnomaly(anomaliesWithoutAssociatedTooth);
+      for (const [anomaly, toothNumbers] of Object.entries(anomalyToToothMap)) {
+        const cdtCodes = await fetchCdtCodesFromRAG(anomaly, convertedCdtCode);
+        if (cdtCodes.length > 0) {
+          handleAutoFillTreatments(toothNumbers, cdtCodes, anomaly);
+        }
       }
     }
   };

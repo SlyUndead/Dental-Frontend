@@ -117,33 +117,25 @@ const TemporalityPage = (props) => {
           // Store all visits (ungrouped)
           setPatientVisits(formattedVisits);
 
-          const groupedVisits = groupVisitsByDate(formattedVisits);
-          // Set default visits for comparison (last and second-to-last)
-          if (groupedVisits.length >= 2) {
-            // Ensure the first visit is the more recent one (should already be sorted this way)
-            const firstVisitDate = new Date(groupedVisits[0].date);
-            const secondVisitDate = new Date(groupedVisits[1].date);
+          // Sort visits by creation date (newest first)
+          const sortedVisits = [...formattedVisits].sort((a, b) => {
+            const dateA = a.created_on ? new Date(a.created_on) : new Date(a.date_of_visit);
+            const dateB = b.created_on ? new Date(b.created_on) : new Date(b.date_of_visit);
+            return dateB - dateA;
+          });
 
-            if (firstVisitDate >= secondVisitDate) {
-              // Normal case - first visit is more recent
-              setFirstVisitId(groupedVisits[0]._id);
-              setSecondVisitId(groupedVisits[1]._id);
-              setIsComparisonMode(true);
-              // Fetch annotations for both visits
-              handleFirstVisitSelect(groupedVisits[0]._id, formattedVisits);
-              handleSecondVisitSelect(groupedVisits[1]._id, formattedVisits);
-            } else {
-              // Swap needed - second visit is more recent
-              setFirstVisitId(groupedVisits[1]._id);
-              setSecondVisitId(groupedVisits[0]._id);
-              setIsComparisonMode(true);
-              // Fetch annotations for both visits
-              handleFirstVisitSelect(groupedVisits[1]._id, formattedVisits);
-              handleSecondVisitSelect(groupedVisits[0]._id, formattedVisits);
-            }
-          } else if (groupedVisits.length === 1) {
-            setFirstVisitId(groupedVisits[0]._id);
-            handleFirstVisitSelect(groupedVisits[0]._id, formattedVisits);
+          // Set default visits for comparison (newest and second-newest)
+          if (sortedVisits.length >= 2) {
+            // First visit is the newest, second visit is the second newest
+            setFirstVisitId(sortedVisits[0]._id);
+            setSecondVisitId(sortedVisits[1]._id);
+            setIsComparisonMode(true);
+            // Fetch annotations for both visits
+            handleFirstVisitSelect(sortedVisits[0]._id, formattedVisits);
+            handleSecondVisitSelect(sortedVisits[1]._id, formattedVisits);
+          } else if (sortedVisits.length === 1) {
+            setFirstVisitId(sortedVisits[0]._id);
+            handleFirstVisitSelect(sortedVisits[0]._id, formattedVisits);
           }
           return formattedVisits;
         } else {
@@ -185,24 +177,15 @@ const TemporalityPage = (props) => {
     }).format(date)
   }
 
+  // This function is no longer needed as we're not grouping visits by date
+  // Keeping an empty function to avoid breaking existing code references
   function groupVisitsByDate(visits) {
-    const groupedVisits = {}
-
-    visits.forEach((visit) => {
-      const dateKey = visit.formattedDate
-
-      if (!groupedVisits[dateKey]) {
-        groupedVisits[dateKey] = {
-          date: dateKey,
-          visits: [visit],
-          _id: visit._id, // Use the first visit's ID as the group ID
-        }
-      } else {
-        groupedVisits[dateKey].visits.push(visit)
-      }
-    })
-
-    return Object.values(groupedVisits)
+    // Instead of grouping, just return the visits with a consistent format
+    return visits.map(visit => ({
+      date: visit.formattedDate,
+      visits: [visit],
+      _id: visit._id,
+    }));
   }
 
   // Fetch annotations for a specific visit
@@ -231,6 +214,7 @@ const TemporalityPage = (props) => {
                 imageNumber: image.imageNumber || index + 1,
               }))
               visitAnnots = [...visitAnnots, ...annotationsWithImageId]
+              console.log(annotationsWithImageId)
             }
           })
           return visitAnnots
@@ -397,30 +381,6 @@ const TemporalityPage = (props) => {
     const consolidatedArray = Object.values(consolidatedTeeth).sort((a, b) => a.toothNumber - b.toothNumber)
     setConsolidatedAnnotations(consolidatedArray)
   }
-  const processVisitsForSlider = (visits) => {
-    if (!visits || visits.length === 0) return [];
-
-    // Group visits by date
-    const groupedByDate = {};
-    visits.forEach(visit => {
-      const dateKey = visit.formattedDate;
-      if (!groupedByDate[dateKey]) {
-        groupedByDate[dateKey] = {
-          date: dateKey,
-          visitIds: [visit._id],
-          visits: [visit]
-        };
-      } else {
-        groupedByDate[dateKey].visitIds.push(visit._id);
-        groupedByDate[dateKey].visits.push(visit);
-      }
-    });
-
-    // Convert to array and sort by date (newest first)
-    return Object.values(groupedByDate).sort((a, b) => {
-      return new Date(b.date) - new Date(a.date);
-    });
-  }
   // Fetch class categories
   const fetchClassCategories = async () => {
     try {
@@ -468,52 +428,47 @@ const TemporalityPage = (props) => {
   const handleFirstVisitSelect = async (visitId, patientVisits) => {
     setFirstVisitId(visitId)
     setIsFirstLoading(true)
-    // Find all visits with the same date
+    // Find the selected visit
     const selectedVisit = patientVisits.find((v) => v._id === visitId)
     if (!selectedVisit) {
       setIsFirstLoading(false);
       return;
     }
 
-    const visitsOnSameDate = patientVisits.filter((v) => v.formattedDate === selectedVisit.formattedDate);
-
     try {
-      // Fetch annotations for ALL visits on the same date
-      let combinedAnnotations = [];
-
-      for (const visit of visitsOnSameDate) {
-        const response = await axios.get(`${apiUrl}/visitid-images?visitID=${visit._id}`,
-          {
-            headers: {
-              Authorization: sessionStorage.getItem("token"),
-            },
+      // Fetch annotations for ONLY the selected visit
+      const response = await axios.get(`${apiUrl}/visitid-images?visitID=${visitId}`,
+        {
+          headers: {
+            Authorization: sessionStorage.getItem("token"),
           },
-        );
+        },
+      );
 
-        if (response.status === 200) {
-          sessionStorage.setItem("token", response.headers["new-token"]);
-          const imagesData = response.data.images;
+      if (response.status === 200) {
+        sessionStorage.setItem("token", response.headers["new-token"]);
+        const imagesData = response.data.images;
+        let visitAnnotations = [];
 
-          // Process visit annotations
-          if (imagesData && imagesData.length > 0) {
-            imagesData.forEach((image, index) => {
-              if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
-                const annotationsWithImageId = image.annotations.annotations.annotations.map((annotation) => ({
-                  ...annotation,
-                  imageId: image._id,
-                  imageNumber: image.imageNumber || index + 1,
-                  visitId: visit._id, // Add visit ID to trace back which visit this annotation came from
-                }));
-                combinedAnnotations = [...combinedAnnotations, ...annotationsWithImageId];
-              }
-            });
-          }
+        // Process visit annotations
+        if (imagesData && imagesData.length > 0) {
+          imagesData.forEach((image, index) => {
+            if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
+              const annotationsWithImageId = image.annotations.annotations.annotations.map((annotation) => ({
+                ...annotation,
+                imageId: image._id,
+                imageNumber: image.imageNumber || index + 1,
+                visitId: visitId, // Add visit ID to trace back which visit this annotation came from
+              }));
+              visitAnnotations = [...visitAnnotations, ...annotationsWithImageId];
+            }
+          });
         }
-      }
 
-      setLastVisitAnnotations(combinedAnnotations);
-      if (combinedAnnotations.length === 0) {
-        setMessage("No annotations found for the selected date's visits.");
+        setLastVisitAnnotations(visitAnnotations);
+        if (visitAnnotations.length === 0) {
+          setMessage("No annotations found for the selected visit.");
+        }
       }
     } catch (error) {
       logErrorToServer(error, "handleFirstVisitSelect");
@@ -524,57 +479,52 @@ const TemporalityPage = (props) => {
       setIsFirstLoading(false);
     }
   }
-  // Modified handleSecondVisitSelect function to fetch annotations from all visits on the same date
+  // Handle second visit selection
   const handleSecondVisitSelect = async (visitId, patientVisits) => {
     setSecondVisitId(visitId);
     setIsSecondLoading(true);
-    // Find all visits with the same date
+    // Find the selected visit
     const selectedVisit = patientVisits.find((v) => v._id === visitId);
     if (!selectedVisit) {
       setIsSecondLoading(false);
       return;
     }
 
-    const visitsOnSameDate = patientVisits.filter((v) => v.formattedDate === selectedVisit.formattedDate);
-
     try {
-      // Fetch annotations for ALL visits on the same date
-      let combinedAnnotations = [];
-
-      for (const visit of visitsOnSameDate) {
-        const response = await axios.get(
-          `${apiUrl}/visitid-images?visitID=${visit._id}`,
-          {
-            headers: {
-              Authorization: sessionStorage.getItem("token"),
-            },
+      // Fetch annotations for ONLY the selected visit
+      const response = await axios.get(
+        `${apiUrl}/visitid-images?visitID=${visitId}`,
+        {
+          headers: {
+            Authorization: sessionStorage.getItem("token"),
           },
-        );
+        },
+      );
 
-        if (response.status === 200) {
-          sessionStorage.setItem("token", response.headers["new-token"]);
-          const imagesData = response.data.images;
+      if (response.status === 200) {
+        sessionStorage.setItem("token", response.headers["new-token"]);
+        const imagesData = response.data.images;
+        let visitAnnotations = [];
 
-          // Process visit annotations
-          if (imagesData && imagesData.length > 0) {
-            imagesData.forEach((image, index) => {
-              if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
-                const annotationsWithImageId = image.annotations.annotations.annotations.map((annotation) => ({
-                  ...annotation,
-                  imageId: image._id,
-                  imageNumber: image.imageNumber || index + 1,
-                  visitId: visit._id, // Add visit ID to trace back which visit this annotation came from
-                }));
-                combinedAnnotations = [...combinedAnnotations, ...annotationsWithImageId];
-              }
-            });
-          }
+        // Process visit annotations
+        if (imagesData && imagesData.length > 0) {
+          imagesData.forEach((image, index) => {
+            if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
+              const annotationsWithImageId = image.annotations.annotations.annotations.map((annotation) => ({
+                ...annotation,
+                imageId: image._id,
+                imageNumber: image.imageNumber || index + 1,
+                visitId: visitId, // Add visit ID to trace back which visit this annotation came from
+              }));
+              visitAnnotations = [...visitAnnotations, ...annotationsWithImageId];
+            }
+          });
         }
-      }
 
-      setSelectedVisitAnnotations(combinedAnnotations);
-      if (combinedAnnotations.length === 0) {
-        setMessage("No annotations found for the selected date's visits.");
+        setSelectedVisitAnnotations(visitAnnotations);
+        if (visitAnnotations.length === 0) {
+          setMessage("No annotations found for the selected visit.");
+        }
       }
     } catch (error) {
       logErrorToServer(error, "handleSecondVisitSelect");
@@ -642,16 +592,11 @@ const TemporalityPage = (props) => {
                 selectedFirstVisitId={firstVisitId}
                 selectedSecondVisitId={secondVisitId}
                 onRangeChange={(firstVisitObj, secondVisitObj) => {
-                  // This is just for updating the UI and previewing the selection
-                  console.log("Range changed", firstVisitObj, secondVisitObj);
+                  // This is just for preview, no action needed
                 }}
                 onApplySelection={(firstVisitObj, secondVisitObj) => {
-                  // This is called when the "Apply Selection" button is clicked
-                  console.log("Applying selection", firstVisitObj, secondVisitObj);
-
-                  // Check if visits need to be switched based on creation time
-                  // Note: In our UI, we want the newer visit (more recent) to be the first visit
-                  // and the older visit to be the second visit
+                  // Make sure the newer visit is always the first visit (right side)
+                  // and the older visit is always the second visit (left side)
                   const firstCreationDate = firstVisitObj.visitObj.created_on
                     ? new Date(firstVisitObj.visitObj.created_on)
                     : new Date(firstVisitObj.visitObj.date_of_visit);
@@ -661,22 +606,19 @@ const TemporalityPage = (props) => {
                     : new Date(secondVisitObj.visitObj.date_of_visit);
 
                   // If the second visit is more recent than the first visit, swap them
-                  // This ensures the more recent visit is always the first visit
                   if (secondCreationDate > firstCreationDate) {
-                    console.log("Swapping visits because second visit is more recent than first visit");
-
                     // Swap the visit objects
                     const tempVisitObj = firstVisitObj;
                     firstVisitObj = secondVisitObj;
                     secondVisitObj = tempVisitObj;
                   }
 
-                  // Get the first visit ID
+                  // Get the first visit ID (newer visit)
                   if (firstVisitObj && firstVisitObj.id) {
                     handleFirstVisitSelect(firstVisitObj.id, patientVisits);
                   }
 
-                  // Get the second visit ID
+                  // Get the second visit ID (older visit)
                   if (secondVisitObj && secondVisitObj.id) {
                     handleSecondVisitSelect(secondVisitObj.id, patientVisits);
                   }
@@ -697,64 +639,7 @@ const TemporalityPage = (props) => {
                 </p>
                 <div className="d-flex align-items-center">
                   <div className="mr-4">
-                    <span className="mr-2">First Visit:</span>
-                    <Dropdown
-                      isOpen={firstDropdownOpen}
-                      toggle={toggleFirstDropdown}
-                      direction="down"
-                      className="d-inline-block"
-                    >
-                      <DropdownToggle color="primary" className="btn-sm">
-                        {patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "Select Visit"}
-                      </DropdownToggle>
-                      <DropdownMenu className="overflow-auto">
-                        {patientVisits.sort((a, b) => {
-                          // Sort by creation date (newest first)
-                          const dateA = a.created_on ? new Date(a.created_on) : new Date(a.date_of_visit);
-                          const dateB = b.created_on ? new Date(b.created_on) : new Date(b.date_of_visit);
-                          return dateB - dateA;
-                        }).map((visit, index) => (
-                          <DropdownItem
-                            key={visit._id}
-                            onClick={() => {
-                              // Check if we need to swap visits based on creation dates
-                              const secondVisitObj = patientVisits.find((v) => v._id === secondVisitId);
-
-                              if (visit && secondVisitObj) {
-                                const selectedCreationDate = visit.created_on
-                                  ? new Date(visit.created_on)
-                                  : new Date(visit.date_of_visit);
-
-                                const secondCreationDate = secondVisitObj.created_on
-                                  ? new Date(secondVisitObj.created_on)
-                                  : new Date(secondVisitObj.date_of_visit);
-
-                                // If the selected visit is older than the second visit, swap them
-                                if (selectedCreationDate < secondCreationDate) {
-                                  console.log("Swapping visits because selected first visit is older than second visit");
-                                  handleSecondVisitSelect(visit._id, patientVisits);
-                                  handleFirstVisitSelect(secondVisitId, patientVisits);
-                                  return;
-                                }
-                              }
-
-                              // Normal case - no swap needed
-                              handleFirstVisitSelect(visit._id, patientVisits);
-                            }}
-                            active={firstVisitId === visit._id}
-                            disabled={visit._id === secondVisitId}
-                          >
-                            {visit.formattedDateTime}
-                            {index === 0 && <span className="ml-2 badge badge-info">Latest</span>}
-                          </DropdownItem>
-                        ))}
-                        {patientVisits.length === 0 && <DropdownItem disabled>No visits available</DropdownItem>}
-                      </DropdownMenu>
-                    </Dropdown>
-                  </div>
-
-                  <div>
-                    <span className="mr-2">Second Visit:</span>
+                    <span className="mr-2">Left Visit:</span>
                     <Dropdown
                       isOpen={secondDropdownOpen}
                       toggle={toggleSecondDropdown}
@@ -788,7 +673,6 @@ const TemporalityPage = (props) => {
 
                                 // If the selected visit is more recent than the first visit, swap them
                                 if (selectedCreationDate > firstCreationDate) {
-                                  console.log("Swapping visits because selected second visit is more recent than first visit");
                                   handleFirstVisitSelect(visit._id, patientVisits);
                                   handleSecondVisitSelect(firstVisitId, patientVisits);
                                   return;
@@ -800,6 +684,62 @@ const TemporalityPage = (props) => {
                             }}
                             active={secondVisitId === visit._id}
                             disabled={visit._id === firstVisitId}
+                          >
+                            {visit.formattedDateTime}
+                            {index === 0 && <span className="ml-2 badge badge-info">Latest</span>}
+                          </DropdownItem>
+                        ))}
+                        {patientVisits.length === 0 && <DropdownItem disabled>No visits available</DropdownItem>}
+                      </DropdownMenu>
+                    </Dropdown>
+                  </div>
+
+                  <div>
+                    <span className="mr-2">Right Visit:</span>
+                    <Dropdown
+                      isOpen={firstDropdownOpen}
+                      toggle={toggleFirstDropdown}
+                      direction="down"
+                      className="d-inline-block"
+                    >
+                      <DropdownToggle color="primary" className="btn-sm">
+                        {patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "Select Visit"}
+                      </DropdownToggle>
+                      <DropdownMenu className="overflow-auto">
+                        {patientVisits.sort((a, b) => {
+                          // Sort by creation date (newest first)
+                          const dateA = a.created_on ? new Date(a.created_on) : new Date(a.date_of_visit);
+                          const dateB = b.created_on ? new Date(b.created_on) : new Date(b.date_of_visit);
+                          return dateB - dateA;
+                        }).map((visit, index) => (
+                          <DropdownItem
+                            key={visit._id}
+                            onClick={() => {
+                              // Check if we need to swap visits based on creation dates
+                              const secondVisitObj = patientVisits.find((v) => v._id === secondVisitId);
+
+                              if (visit && secondVisitObj) {
+                                const selectedCreationDate = visit.created_on
+                                  ? new Date(visit.created_on)
+                                  : new Date(visit.date_of_visit);
+
+                                const secondCreationDate = secondVisitObj.created_on
+                                  ? new Date(secondVisitObj.created_on)
+                                  : new Date(secondVisitObj.date_of_visit);
+
+                                // If the selected visit is older than the second visit, swap them
+                                if (selectedCreationDate < secondCreationDate) {
+                                  handleSecondVisitSelect(visit._id, patientVisits);
+                                  handleFirstVisitSelect(secondVisitId, patientVisits);
+                                  return;
+                                }
+                              }
+
+                              // Normal case - no swap needed
+                              handleFirstVisitSelect(visit._id, patientVisits);
+                            }}
+                            active={firstVisitId === visit._id}
+                            disabled={visit._id === secondVisitId}
                           >
                             {visit.formattedDateTime}
                             {index === 0 && <span className="ml-2 badge badge-info">Latest</span>}
@@ -897,6 +837,7 @@ const TemporalityPage = (props) => {
                           selectedTooth={selectedTooth}
                           otherSideAnnotations={lastVisitAnnotations}
                           visitId={secondVisitId}
+                          patientVisits={patientVisits}
                         />
                       </CardBody>
                     </Card>
@@ -914,6 +855,7 @@ const TemporalityPage = (props) => {
                           selectedTooth={comparisonTooth}
                           otherSideAnnotations={selectedVisitAnnotations}
                           visitId={firstVisitId}
+                          patientVisits={patientVisits}
                         />
                       </CardBody>
                     </Card>
@@ -949,6 +891,7 @@ const TemporalityPage = (props) => {
                           classCategories={classCategories}
                           selectedTooth={selectedTooth}
                           visitId={firstVisitId}
+                          patientVisits={patientVisits}
                         />
                       </CardBody>
                     </Card>

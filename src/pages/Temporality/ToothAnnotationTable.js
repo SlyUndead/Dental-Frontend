@@ -15,7 +15,7 @@ styleElement.textContent = `
 `
 document.head.appendChild(styleElement)
 
-const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, otherSideAnnotations, visitId }) => {
+const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, otherSideAnnotations, visitId, patientVisits }) => {
   const [toothAnnotations, setToothAnnotations] = useState([])
   const [filteredToothAnnotations, setFilteredToothAnnotations] = useState([])
   const [selectedCategories, setSelectedCategories] = useState(["Procedure", "Anomaly"])
@@ -41,11 +41,20 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
       // Store the image index in sessionStorage to be used by AnnotationPage
       sessionStorage.setItem("selectedImageIndex", (anomaly.imageNumber - 1).toString())
 
-      // NEW CODE: Store the visitId in sessionStorage
+      // Store the visitId in sessionStorage
       // Use anomaly.visitId if available, otherwise use the visitId prop
       const effectiveVisitId = anomaly.visitId || visitId
       if (effectiveVisitId) {
         sessionStorage.setItem("visitId", effectiveVisitId)
+
+        // Find the visit in patientVisits and set the date_of_xray in sessionStorage
+        if (patientVisits && patientVisits.length > 0) {
+          const visit = patientVisits.find(v => v._id === effectiveVisitId)
+          if (visit && visit.date_of_xray) {
+            console.log("Setting xrayDate in sessionStorage:", visit.date_of_xray)
+            sessionStorage.setItem("xrayDate", visit.date_of_xray)
+          }
+        }
       }
 
       // Navigate to AnnotationPage
@@ -78,9 +87,79 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
 
     // If a specific tooth is selected, only show annotations for that tooth
     if (selectedTooth) {
-      const selectedToothAnnotation = toothAnnots.find((anno) => Number.parseInt(anno.label) === selectedTooth)
+      // Special case for "Unassigned" selection
+      if (selectedTooth === "Unassigned") {
+        // Find all anomalies that don't have an associatedTooth or have associatedTooth set to null or "Unassigned"
+        const unassignedAnomalies = []
 
-      if (selectedToothAnnotation) {
+        annotations.forEach((anno) => {
+          // Skip tooth annotations
+          if (!isNaN(Number.parseInt(anno.label))) {
+            return
+          }
+
+          // Check if this annotation has an associatedTooth field that's null or "Unassigned"
+          if (anno.associatedTooth === null || anno.associatedTooth === "Unassigned") {
+            unassignedAnomalies.push({
+              name: anno.label,
+              category: classCategories[anno.label.toLowerCase()] || "Unknown",
+              confidence: anno.confidence,
+              imageNumber: anno.imageNumber,
+              visitId: anno.visitId
+            })
+            return
+          }
+
+          // If it has a valid associatedTooth, skip it (it's already assigned)
+          if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
+            return
+          }
+
+          // For annotations without associatedTooth field, check if they overlap with any tooth
+          let isAssigned = false
+
+          toothAnnots.forEach((toothAnno) => {
+            if (!anno.segmentation || !toothAnno.segmentation) {
+              return
+            }
+
+            try {
+              const overlap = calculateOverlap(anno.segmentation, toothAnno.segmentation)
+              const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
+              const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
+
+              if (overlapPercentage >= 0.8) {
+                isAssigned = true
+              }
+            } catch (error) {
+              console.error("Error calculating overlap:", error)
+            }
+          })
+
+          // If not assigned to any tooth, add to unassigned
+          if (!isAssigned) {
+            unassignedAnomalies.push({
+              name: anno.label,
+              category: classCategories[anno.label.toLowerCase()] || "Unknown",
+              confidence: anno.confidence,
+              imageNumber: anno.imageNumber,
+              visitId: anno.visitId
+            })
+          }
+        })
+
+        // Create an entry for unassigned anomalies
+        setToothAnnotations([
+          {
+            toothNumber: "Unassigned",
+            anomalies: unassignedAnomalies.length > 0 ? unassignedAnomalies : [{ name: "No anomalies detected", category: "Info" }],
+            isUnassigned: true
+          },
+        ])
+      } else {
+        const selectedToothAnnotation = toothAnnots.find((anno) => Number.parseInt(anno.label) === selectedTooth)
+
+        if (selectedToothAnnotation) {
         // Find all anomalies that overlap with this tooth by at least 80%
         const anomalies = []
 
@@ -91,20 +170,39 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
           }
 
           try {
-            // Calculate overlap
-            const overlap = calculateOverlap(anno.segmentation, selectedToothAnnotation.segmentation)
-            const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
-            const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
+            // First check if the annotation has an associatedTooth field
+            if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
+              const associatedToothNumber = Number.parseInt(anno.associatedTooth)
+              if (associatedToothNumber === selectedTooth) {
+                anomalies.push({
+                  toothNumber: selectedTooth,
+                  name: anno.label,
+                  category: classCategories[anno.label.toLowerCase()] || "Unknown",
+                  confidence: anno.confidence,
+                  imageNumber: anno.imageNumber,
+                  visitId: anno.visitId
+                })
+              }
+            }
+            // If no associatedTooth field or it's null, fall back to overlap calculation
+            else {
+              // Calculate overlap
+              const overlap = calculateOverlap(anno.segmentation, selectedToothAnnotation.segmentation)
+              const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
+              const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
 
-            // Only include if overlap is at least 80%
-            if (overlapPercentage >= 0.8) {
-              anomalies.push({
-                toothNumber: selectedTooth,
-                name: anno.label,
-                category: classCategories[anno.label.toLowerCase()] || "Unknown",
-                confidence: anno.confidence,
-                overlapPercentage: Math.round(overlapPercentage * 100),
-              })
+              // Only include if overlap is at least 80%
+              if (overlapPercentage >= 0.8) {
+                anomalies.push({
+                  toothNumber: selectedTooth,
+                  name: anno.label,
+                  category: classCategories[anno.label.toLowerCase()] || "Unknown",
+                  confidence: anno.confidence,
+                  overlapPercentage: Math.round(overlapPercentage * 100),
+                  imageNumber: anno.imageNumber,
+                  visitId: anno.visitId
+                })
+              }
             }
           } catch (error) {
             console.error("Error calculating overlap:", error)
@@ -120,6 +218,7 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
         ])
       } else {
         setToothAnnotations([])
+      }
       }
     } else {
       // Show all teeth with their anomalies
@@ -146,23 +245,40 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
               return
             }
 
-            try {
-              // Calculate overlap
-              const overlap = calculateOverlap(anno.segmentation, toothAnnotation.segmentation)
-              const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
-              const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
-              // Only include if overlap is at least 80%
-              if (overlapPercentage >= 0.8) {
+            // First check if the annotation has an associatedTooth field
+            if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
+              const associatedToothNumber = Number.parseInt(anno.associatedTooth)
+              if (associatedToothNumber === Number.parseInt(toothNumber)) {
                 teethData[toothNumber].anomalies.push({
                   name: anno.label,
                   category: classCategories[anno.label.toLowerCase()] || "Unknown",
                   confidence: anno.confidence,
-                  overlapPercentage: Math.round(overlapPercentage * 100),
                   imageNumber: anno.imageNumber,
+                  visitId: anno.visitId
                 })
               }
-            } catch (error) {
-              console.error("Error calculating overlap:", error)
+            }
+            // If no associatedTooth field or it's null, fall back to overlap calculation
+            else {
+              try {
+                // Calculate overlap
+                const overlap = calculateOverlap(anno.segmentation, toothAnnotation.segmentation)
+                const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
+                const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
+                // Only include if overlap is at least 80%
+                if (overlapPercentage >= 0.8) {
+                  teethData[toothNumber].anomalies.push({
+                    name: anno.label,
+                    category: classCategories[anno.label.toLowerCase()] || "Unknown",
+                    confidence: anno.confidence,
+                    overlapPercentage: Math.round(overlapPercentage * 100),
+                    imageNumber: anno.imageNumber,
+                    visitId: anno.visitId
+                  })
+                }
+              } catch (error) {
+                console.error("Error calculating overlap:", error)
+              }
             }
           })
 
@@ -173,8 +289,72 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
         }
       })
 
-      // Convert to array and sort by tooth number
-      const result = Object.values(teethData).sort((a, b) => a.toothNumber - b.toothNumber)
+      // Find unassigned anomalies (those that don't have an associatedTooth or don't overlap with any tooth by at least 80%)
+      const unassignedAnomalies = []
+      annotations.forEach((anno) => {
+        // Skip tooth annotations (numeric labels)
+        if (!isNaN(Number.parseInt(anno.label))) {
+          return
+        }
+
+        // Check if this annotation has an associatedTooth field that's null or "Unassigned"
+        if (anno.associatedTooth === null || anno.associatedTooth === "Unassigned") {
+          unassignedAnomalies.push({
+            name: anno.label,
+            category: classCategories[anno.label.toLowerCase()] || "Unknown",
+            confidence: anno.confidence,
+            imageNumber: anno.imageNumber,
+            visitId: anno.visitId
+          })
+          return
+        }
+
+        // If it has a valid associatedTooth, skip it (it's already assigned)
+        if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
+          return
+        }
+
+        // For annotations without associatedTooth field, check if they've been assigned to any tooth
+        let isAssigned = false
+        Object.keys(teethData).forEach(toothNumber => {
+          const anomalies = teethData[toothNumber].anomalies
+          if (anomalies.some(a => a.name === anno.label &&
+                              a.confidence === anno.confidence &&
+                              a.imageNumber === anno.imageNumber)) {
+            isAssigned = true
+          }
+        })
+
+        // If not assigned to any tooth, add to unassigned
+        if (!isAssigned) {
+          unassignedAnomalies.push({
+            name: anno.label,
+            category: classCategories[anno.label.toLowerCase()] || "Unknown",
+            confidence: anno.confidence,
+            imageNumber: anno.imageNumber,
+            visitId: anno.visitId
+          })
+        }
+      })
+
+      // If there are unassigned anomalies, add them as a special "Unassigned" tooth
+      if (unassignedAnomalies.length > 0) {
+        teethData["unassigned"] = {
+          toothNumber: "Unassigned",
+          anomalies: unassignedAnomalies,
+          isUnassigned: true // Flag to identify this as the unassigned category
+        }
+      }
+
+      // Convert to array and sort by tooth number, with "Unassigned" at the end
+      const result = Object.values(teethData).sort((a, b) => {
+        // Always put "Unassigned" at the end
+        if (a.toothNumber === "Unassigned" || a.isUnassigned) return 1
+        if (b.toothNumber === "Unassigned" || b.isUnassigned) return -1
+        // Otherwise sort by tooth number
+        return a.toothNumber - b.toothNumber
+      })
+
       setToothAnnotations(result)
     }
   }, [annotations, classCategories, selectedTooth])
@@ -248,23 +428,37 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
               return
             }
 
-            try {
-              // Calculate overlap
-              const overlap = calculateOverlap(anno.segmentation, toothAnnotation.segmentation)
-              const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
-              const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
-
-              // Only include if overlap is at least 80%
-              if (overlapPercentage >= 0.8) {
+            // First check if the annotation has an associatedTooth field
+            if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
+              const associatedToothNumber = Number.parseInt(anno.associatedTooth)
+              if (associatedToothNumber === Number.parseInt(toothNumber)) {
                 otherSideTeethData[toothNumber].anomalies.push({
                   name: anno.label,
                   category: classCategories[anno.label.toLowerCase()] || "Unknown",
                   confidence: anno.confidence,
-                  overlapPercentage: Math.round(overlapPercentage * 100),
                 })
               }
-            } catch (error) {
-              console.error("Error calculating overlap:", error)
+            }
+            // If no associatedTooth field or it's null, fall back to overlap calculation
+            else {
+              try {
+                // Calculate overlap
+                const overlap = calculateOverlap(anno.segmentation, toothAnnotation.segmentation)
+                const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
+                const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
+
+                // Only include if overlap is at least 80%
+                if (overlapPercentage >= 0.8) {
+                  otherSideTeethData[toothNumber].anomalies.push({
+                    name: anno.label,
+                    category: classCategories[anno.label.toLowerCase()] || "Unknown",
+                    confidence: anno.confidence,
+                    overlapPercentage: Math.round(overlapPercentage * 100),
+                  })
+                }
+              } catch (error) {
+                console.error("Error calculating overlap:", error)
+              }
             }
           })
 
@@ -337,8 +531,14 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
       return tooth
     })
 
-    // Sort by tooth number for consistent display
-    balanced.sort((a, b) => a.toothNumber - b.toothNumber)
+    // Sort by tooth number for consistent display, with "Unassigned" at the end
+    balanced.sort((a, b) => {
+      // Always put "Unassigned" at the end
+      if (a.toothNumber === "Unassigned" || a.isUnassigned) return 1
+      if (b.toothNumber === "Unassigned" || b.isUnassigned) return -1
+      // Otherwise sort by tooth number
+      return a.toothNumber - b.toothNumber
+    })
 
     setBalancedAnnotations(balanced)
   }, [filteredToothAnnotations, otherSideAnnotations, selectedCategories, classCategories])

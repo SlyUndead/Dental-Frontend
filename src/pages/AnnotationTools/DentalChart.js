@@ -45,25 +45,37 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
       }
 
       // This is a non-tooth annotation (potential anomaly or procedure)
-      // Find which tooth it overlaps with the most
-      let maxOverlap = 0
+      // Use the associatedTooth field if available, otherwise find which tooth it overlaps with
       let associatedToothIndex = -1
 
-      toothAnnotations.forEach((toothAnno) => {
-        const toothNumber = Number.parseInt(toothAnno.label)
+      // Check if the annotation has an associatedTooth field
+      if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
+        const toothNumber = Number.parseInt(anno.associatedTooth)
         if (!isNaN(toothNumber) && toothNumber >= 1 && toothNumber <= 32) {
-          const overlap = calculateOverlap(anno.segmentation, toothAnno.segmentation)
-
-          // We need to calculate the total area of the annotation to determine the percentage
-          const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
-          const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
-
-          if (overlapPercentage > 0.8 && overlap > maxOverlap) {
-            maxOverlap = overlap
-            associatedToothIndex = toothNumber - 1
-          }
+          associatedToothIndex = toothNumber - 1
         }
-      })
+      }
+      // If no associatedTooth field or it's null, use "Unassigned"
+      else {
+        // Keep the old calculation logic as fallback
+        let maxOverlap = 0
+
+        toothAnnotations.forEach((toothAnno) => {
+          const toothNumber = Number.parseInt(toothAnno.label)
+          if (!isNaN(toothNumber) && toothNumber >= 1 && toothNumber <= 32) {
+            const overlap = calculateOverlap(anno.segmentation, toothAnno.segmentation)
+
+            // We need to calculate the total area of the annotation to determine the percentage
+            const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
+            const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
+
+            if (overlapPercentage > 0.8 && overlap > maxOverlap) {
+              maxOverlap = overlap
+              associatedToothIndex = toothNumber - 1
+            }
+          }
+        })
+      }
 
       // If we found an associated tooth, update its status
       if (associatedToothIndex >= 0) {
@@ -126,8 +138,18 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
         return
       }
 
-      // For anomalies and other annotations, check if they overlap with the tooth
-      if (toothAnnotation) {
+      // For anomalies and other annotations, check if they are associated with the tooth
+      // First check the associatedTooth field if available
+      if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
+        const associatedToothNumber = Number.parseInt(anno.associatedTooth)
+        if (associatedToothNumber === toothNumber) {
+          visibleAnnotations.push(index)
+        } else {
+          hiddenAnnotations.push(index)
+        }
+      }
+      // If no associatedTooth field or it's null, fall back to overlap calculation
+      else if (toothAnnotation) {
         const overlap = calculateOverlap(anno.segmentation, toothAnnotation.segmentation)
         const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
         const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0

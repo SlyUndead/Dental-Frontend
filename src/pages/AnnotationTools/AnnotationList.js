@@ -268,9 +268,14 @@ const AnnotationList = ({
         // This is a tooth annotation itself
         toothNumber = anno.label
       } else {
-        // For anomalies, find the associated tooth
-        const toothAnnotations = annotations.filter(a => !isNaN(Number.parseInt(a.label)))
-        toothNumber = findToothForStoredAnomaly(anno, toothAnnotations) || "Unassigned"
+        // For anomalies, check the associatedTooth field first
+        if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
+          toothNumber = anno.associatedTooth
+        } else {
+          // Fall back to calculating the associated tooth
+          const toothAnnotations = annotations.filter(a => !isNaN(Number.parseInt(a.label)))
+          toothNumber = findToothForStoredAnomaly(anno, toothAnnotations) || "Unassigned"
+        }
       }
 
       if (!byTooth[toothNumber]) {
@@ -422,14 +427,26 @@ const AnnotationList = ({
   const autofillTreatments = async (annotationsList, convertedCdtCode) => {
     await checkAnomaliesWithServer(annotationsList)
     let finalResult = treatments
-    for (const [index, annotation] of Object.entries(annotationsList)) {
+    for (const [_, annotation] of Object.entries(annotationsList)) {
       // console.log(annotation, annotationsList)
       const cdtCodes = await fetchCdtCodesFromRAG(annotation.label, convertedCdtCode)
       if (cdtCodes.length > 0) {
-        finalResult = [
-          ...finalResult,
-          ...handleAutoFillTreatments([annotation.associatedTooth], cdtCodes, annotation.label),
-        ]
+        // Use the associatedTooth field directly if available
+        let toothNumber = null
+        if (annotation.associatedTooth !== undefined && annotation.associatedTooth !== null) {
+          toothNumber = annotation.associatedTooth
+        } else {
+          // Fall back to the associatedTooth from the global checked annotations
+          toothNumber = annotation.associatedTooth
+        }
+
+        // Only proceed if we have a valid tooth number
+        if (toothNumber) {
+          finalResult = [
+            ...finalResult,
+            ...handleAutoFillTreatments([toothNumber], cdtCodes, annotation.label),
+          ]
+        }
       }
     }
     return finalResult
@@ -585,10 +602,6 @@ const AnnotationList = ({
       return
     }
 
-    // Get tooth annotations from current image
-    const toothAnnotations = annotations.filter((a) => !isNaN(Number.parseInt(a.label)))
-    // Find the associated tooth for this anomaly
-    const associatedTooth = findToothForStoredAnomaly(anno, toothAnnotations)
     // Create a copy of the global checked annotations
     const updatedGlobalChecked = { ...globalCheckedAnnotations }
     const uniqueKey = getAnnotationUniqueKey(anno)
@@ -596,6 +609,17 @@ const AnnotationList = ({
     if (updatedGlobalChecked[uniqueKey]) {
       delete updatedGlobalChecked[uniqueKey]
     } else {
+      // Use the associatedTooth field if available, otherwise calculate it
+      let associatedTooth = null
+      if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
+        associatedTooth = anno.associatedTooth
+      } else {
+        // Get tooth annotations from current image
+        const toothAnnotations = annotations.filter((a) => !isNaN(Number.parseInt(a.label)))
+        // Find the associated tooth for this anomaly
+        associatedTooth = findToothForStoredAnomaly(anno, toothAnnotations)
+      }
+
       updatedGlobalChecked[uniqueKey] = {
         label: anno.label,
         segmentation: anno.segmentation,
@@ -635,6 +659,12 @@ const AnnotationList = ({
     generateTreatmentPlan()
   }
   const findToothForStoredAnomaly = (anomaly, toothAnnotations) => {
+    // First check if the annotation has an associatedTooth field
+    if (anomaly.associatedTooth !== undefined && anomaly.associatedTooth !== null) {
+      return anomaly.associatedTooth
+    }
+
+    // If no associatedTooth field or it's null, fall back to overlap calculation
     let maxOverlap = 0
     let associatedTooth = null
 

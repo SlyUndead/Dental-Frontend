@@ -1,5 +1,6 @@
 import axios from "axios";
 import { logErrorToServer } from "utils/logError";
+import { calculateOverlap, polygonArea } from "../../pages/AnnotationTools/path-utils";
 export const getCoordinatesFromAPI = async (file, model, base64Image, thumbnailBase64, visitId, imageFileName, patientID, imageNumber, annotationFileName) => {
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   const formData = new FormData();
@@ -41,10 +42,12 @@ export const getCoordinatesFromAPI = async (file, model, base64Image, thumbnailB
         sessionStorage.setItem('token', response.headers['new-token'])
         // Axios automatically parses JSON response
         const data = response.data;
-        // console.log(data);
 
+        // Add associatedTooth field to each annotation
+        const processedData = addAssociatedToothToAnnotations(data);
+        console.log(processedData);
         // Format the response data as needed for coordinates
-        return data;
+        return processedData;
       }
       else {
         if (response.status === 403 || response.status === 401) {
@@ -86,14 +89,18 @@ export const getCoordinatesFromAPI = async (file, model, base64Image, thumbnailB
       }
       if (response.status === 200) {
         // console.log(response.data)
-        const scaledResponse = {
+        // Process the response to add associatedTooth field
+        const processedData = addAssociatedToothToAnnotations({
           annotations: response.data,
-          status: response.data.status,
+          status: response.data.status
+        });
+
+        const scaledResponse = {
+          annotations: processedData.annotations,
+          status: processedData.status,
         };
         // console.log(response)
-        // Axios automatically parses JSON response
-        const data = response.data;
-        // console.log(data);
+        // console.log(processedData);
         try {
           const apiUrl = process.env.REACT_APP_NODEAPIURL;
           const response = await axios.put(`${apiUrl}/upload/image-and-annotations`, {
@@ -190,14 +197,7 @@ const createThumbnail = (file) => {
   });
 };
 
-function createImage(file) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = URL.createObjectURL(file);
-  });
-}
+// Removed unused createImage function
 
 function getFileAsBase64(file) {
   return new Promise((resolve, reject) => {
@@ -206,4 +206,69 @@ function getFileAsBase64(file) {
     reader.onload = () => resolve(reader.result);
     reader.onerror = error => reject(error);
   });
+}
+
+// Function to add associatedTooth field to each annotation
+function addAssociatedToothToAnnotations(data) {
+  if (!data || !data.annotations || !Array.isArray(data.annotations)) {
+    return data;
+  }
+
+  // First, filter out tooth annotations (numeric labels)
+  const toothAnnotations = data.annotations.filter(anno => {
+    return !isNaN(Number.parseInt(anno.label)) &&
+           Number.parseInt(anno.label) >= 1 &&
+           Number.parseInt(anno.label) <= 32;
+  });
+
+  // If no tooth annotations found, return original data
+  if (toothAnnotations.length === 0) {
+    return data;
+  }
+
+  // Process each annotation to find associated tooth
+  const processedAnnotations = data.annotations.map(anno => {
+    // Skip tooth annotations (they don't need an associatedTooth field)
+    if (!isNaN(Number.parseInt(anno.label))) {
+      return anno;
+    }
+
+    // Check overlap with each tooth
+    let maxOverlap = 0;
+    let associatedTooth = null;
+
+    for (const toothAnno of toothAnnotations) {
+      // Skip if either annotation doesn't have segmentation
+      if (!anno.segmentation || !toothAnno.segmentation) {
+        continue;
+      }
+
+      try {
+        // Calculate overlap
+        const overlap = calculateOverlap(anno.segmentation, toothAnno.segmentation);
+        const annoArea = polygonArea(anno.segmentation.map(point => [point.x, point.y]));
+        const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0;
+
+        // Only consider if overlap is at least 80%
+        if (overlapPercentage >= 0.8 && overlap > maxOverlap) {
+          maxOverlap = overlap;
+          associatedTooth = Number.parseInt(toothAnno.label);
+        }
+      } catch (error) {
+        console.error("Error calculating overlap:", error);
+      }
+    }
+
+    // Add associatedTooth field to the annotation
+    return {
+      ...anno,
+      associatedTooth: associatedTooth
+    };
+  });
+
+  // Return the updated data
+  return {
+    ...data,
+    annotations: processedAnnotations
+  };
 }
