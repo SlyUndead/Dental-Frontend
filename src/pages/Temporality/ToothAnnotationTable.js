@@ -38,27 +38,25 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
 
   // Handle annotation click to navigate to AnnotationPage
   const handleAnnotationClick = (anomaly) => {
-      // Store the image index in sessionStorage to be used by AnnotationPage
-      sessionStorage.setItem("selectedImageIndex", (anomaly.imageNumber - 1).toString())
+    sessionStorage.setItem("selectedImageIndex", (anomaly.imageNumber - 1).toString())
 
-      // Store the visitId in sessionStorage
-      // Use anomaly.visitId if available, otherwise use the visitId prop
-      const effectiveVisitId = anomaly.visitId || visitId
-      if (effectiveVisitId) {
-        sessionStorage.setItem("visitId", effectiveVisitId)
+    // Store the visitId in sessionStorage
+    // Use anomaly.visitId if available, otherwise use the visitId prop
+    const effectiveVisitId = anomaly.visitId || visitId
+    if (effectiveVisitId) {
+      sessionStorage.setItem("visitId", effectiveVisitId)
 
-        // Find the visit in patientVisits and set the date_of_xray in sessionStorage
-        if (patientVisits && patientVisits.length > 0) {
-          const visit = patientVisits.find(v => v._id === effectiveVisitId)
-          if (visit && visit.date_of_xray) {
-            console.log("Setting xrayDate in sessionStorage:", visit.date_of_xray)
-            sessionStorage.setItem("xrayDate", visit.date_of_xray)
-          }
+      // Find the visit in patientVisits and set the date_of_xray in sessionStorage
+      if (patientVisits && patientVisits.length > 0) {
+        const visit = patientVisits.find(v => v._id === effectiveVisitId)
+        if (visit && visit.date_of_xray) {
+          sessionStorage.setItem("xrayDate", visit.date_of_xray)
         }
       }
+    }
 
-      // Navigate to AnnotationPage
-      navigate("/annotationPage")
+    // Navigate to AnnotationPage
+    navigate("/annotationPage")
   }
 
   // Process annotations when they change or when a tooth is selected
@@ -160,65 +158,65 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
         const selectedToothAnnotation = toothAnnots.find((anno) => Number.parseInt(anno.label) === selectedTooth)
 
         if (selectedToothAnnotation) {
-        // Find all anomalies that overlap with this tooth by at least 80%
-        const anomalies = []
+          // Find all anomalies that overlap with this tooth by at least 80%
+          const anomalies = []
 
-        annotations.forEach((anno) => {
-          // Skip tooth annotations and annotations without segmentation
-          if (!isNaN(Number.parseInt(anno.label)) || !anno.segmentation || !selectedToothAnnotation.segmentation) {
-            return
-          }
-
-          try {
-            // First check if the annotation has an associatedTooth field
-            if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
-              const associatedToothNumber = Number.parseInt(anno.associatedTooth)
-              if (associatedToothNumber === selectedTooth) {
-                anomalies.push({
-                  toothNumber: selectedTooth,
-                  name: anno.label,
-                  category: classCategories[anno.label.toLowerCase()] || "Unknown",
-                  confidence: anno.confidence,
-                  imageNumber: anno.imageNumber,
-                  visitId: anno.visitId
-                })
-              }
+          annotations.forEach((anno) => {
+            // Skip tooth annotations and annotations without segmentation
+            if (!isNaN(Number.parseInt(anno.label)) || !anno.segmentation || !selectedToothAnnotation.segmentation) {
+              return
             }
-            // If no associatedTooth field or it's null, fall back to overlap calculation
-            else {
-              // Calculate overlap
-              const overlap = calculateOverlap(anno.segmentation, selectedToothAnnotation.segmentation)
-              const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
-              const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
 
-              // Only include if overlap is at least 80%
-              if (overlapPercentage >= 0.8) {
-                anomalies.push({
-                  toothNumber: selectedTooth,
-                  name: anno.label,
-                  category: classCategories[anno.label.toLowerCase()] || "Unknown",
-                  confidence: anno.confidence,
-                  overlapPercentage: Math.round(overlapPercentage * 100),
-                  imageNumber: anno.imageNumber,
-                  visitId: anno.visitId
-                })
+            try {
+              // First check if the annotation has an associatedTooth field
+              if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
+                const associatedToothNumber = Number.parseInt(anno.associatedTooth)
+                if (associatedToothNumber === selectedTooth) {
+                  anomalies.push({
+                    toothNumber: selectedTooth,
+                    name: anno.label,
+                    category: classCategories[anno.label.toLowerCase()] || "Unknown",
+                    confidence: anno.confidence,
+                    imageNumber: anno.imageNumber,
+                    visitId: anno.visitId
+                  })
+                }
               }
-            }
-          } catch (error) {
-            console.error("Error calculating overlap:", error)
-          }
-        })
+              // If no associatedTooth field or it's null, fall back to overlap calculation
+              else {
+                // Calculate overlap
+                const overlap = calculateOverlap(anno.segmentation, selectedToothAnnotation.segmentation)
+                const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
+                const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
 
-        // Create a single entry for the selected tooth
-        setToothAnnotations([
-          {
-            toothNumber: selectedTooth,
-            anomalies: anomalies.length > 0 ? anomalies : [{ name: "No anomalies detected", category: "Info" }],
-          },
-        ])
-      } else {
-        setToothAnnotations([])
-      }
+                // Only include if overlap is at least 80%
+                if (overlapPercentage >= 0.8) {
+                  anomalies.push({
+                    toothNumber: selectedTooth,
+                    name: anno.label,
+                    category: classCategories[anno.label.toLowerCase()] || "Unknown",
+                    confidence: anno.confidence,
+                    overlapPercentage: Math.round(overlapPercentage * 100),
+                    imageNumber: anno.imageNumber,
+                    visitId: anno.visitId
+                  })
+                }
+              }
+            } catch (error) {
+              console.error("Error calculating overlap:", error)
+            }
+          })
+
+          // Create a single entry for the selected tooth
+          setToothAnnotations([
+            {
+              toothNumber: selectedTooth,
+              anomalies: anomalies.length > 0 ? anomalies : [{ name: "No anomalies detected", category: "Info" }],
+            },
+          ])
+        } else {
+          setToothAnnotations([])
+        }
       }
     } else {
       // Show all teeth with their anomalies
@@ -319,8 +317,8 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
         Object.keys(teethData).forEach(toothNumber => {
           const anomalies = teethData[toothNumber].anomalies
           if (anomalies.some(a => a.name === anno.label &&
-                              a.confidence === anno.confidence &&
-                              a.imageNumber === anno.imageNumber)) {
+            a.confidence === anno.confidence &&
+            a.imageNumber === anno.imageNumber)) {
             isAssigned = true
           }
         })
@@ -612,22 +610,22 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
                   key={`${index}-${idx}`}
                   onClick={() =>
                     anomaly.category !== "Blank" &&
-                    anomaly.name !== "No anomalies detected" &&
-                    anomaly.name !== "Not detected"
+                      anomaly.name !== "No anomalies detected" &&
+                      anomaly.name !== "Not detected"
                       ? handleAnnotationClick(anomaly, tooth.toothNumber)
                       : null
                   }
                   style={
                     anomaly.category !== "Blank" &&
-                    anomaly.name !== "No anomalies detected" &&
-                    anomaly.name !== "Not detected"
+                      anomaly.name !== "No anomalies detected" &&
+                      anomaly.name !== "Not detected"
                       ? { cursor: "pointer" }
                       : {}
                   }
                   className={
                     anomaly.category !== "Blank" &&
-                    anomaly.name !== "No anomalies detected" &&
-                    anomaly.name !== "Not detected"
+                      anomaly.name !== "No anomalies detected" &&
+                      anomaly.name !== "Not detected"
                       ? "clickable-row"
                       : ""
                   }
@@ -643,8 +641,7 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
                         <span>{anomaly.name}</span>
                         {anomaly.category !== "Info" && (
                           <span
-                            className={`badge ml-2 ${
-                              anomaly.category === "Anomaly"
+                            className={`badge ml-2 ${anomaly.category === "Anomaly"
                                 ? "bg-danger"
                                 : anomaly.category === "Procedure"
                                   ? "bg-success"
@@ -653,7 +650,7 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
                                     : anomaly.category === "Foreign Object"
                                       ? "bg-warning"
                                       : "bg-info"
-                            }`}
+                              }`}
                           >
                             {anomaly.category}
                           </span>
