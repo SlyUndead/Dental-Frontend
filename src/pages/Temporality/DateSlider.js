@@ -15,44 +15,57 @@ const DateSlider = ({
   const [uniqueDates, setUniqueDates] = useState([]);
 
   useEffect(() => {
-    // Extract and deduplicate dates from visits
+    // Process individual visits instead of grouping by date
     if (visits.length > 0) {
-      // Get unique dates
-      const dateMap = new Map();
-      visits.forEach(visit => {
-        const dateKey = visit.formattedDate || visit.date_of_visit;
-        if (!dateMap.has(dateKey)) {
-          dateMap.set(dateKey, {
-            date: dateKey,
-            visitIds: [visit._id]
-          });
-        } else {
-          dateMap.get(dateKey).visitIds.push(visit._id);
-        }
+      // Format each visit with date and time information
+      const formattedVisits = visits.map(visit => {
+        // Format the date and time for display
+        const visitDate = new Date(visit.date_of_visit);
+        const creationDate = visit.created_on ? new Date(visit.created_on) : visitDate;
+
+        // Format time as HH:MM AM/PM
+        const timeString = creationDate.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+
+        return {
+          id: visit._id,
+          date: visit.formattedDate || new Intl.DateTimeFormat("en-US", {
+            month: "short",
+            day: "2-digit",
+            year: "numeric",
+          }).format(visitDate),
+          time: timeString,
+          fullDateTime: `${visit.formattedDate} ${timeString}`,
+          visitObj: visit
+        };
       });
 
-      // Convert to array and sort by date (oldest first, newest last)
-      const sortedDates = Array.from(dateMap.values()).sort((a, b) => {
-        // Assuming formattedDate is like "May 06, 2023" or ISO string
-        return new Date(a.date) - new Date(b.date);
+      // Sort visits by creation date (oldest first, newest last)
+      const sortedVisits = formattedVisits.sort((a, b) => {
+        const dateA = a.visitObj.created_on ? new Date(a.visitObj.created_on) : new Date(a.visitObj.date_of_visit);
+        const dateB = b.visitObj.created_on ? new Date(b.visitObj.created_on) : new Date(b.visitObj.date_of_visit);
+        return dateA - dateB;
       });
 
-      setUniqueDates(sortedDates);
+      setUniqueDates(sortedVisits);
 
-      // Initialize with the last two dates if available (newest dates)
-      if (sortedDates.length >= 2) {
-        // Set to the two newest dates (last two in the array)
-        const lastIndex = sortedDates.length - 1;
-        const secondLastIndex = sortedDates.length - 2;
+      // Initialize with the last two visits if available (newest visits)
+      if (sortedVisits.length >= 2) {
+        // Set to the two newest visits (last two in the array)
+        const lastIndex = sortedVisits.length - 1;
+        const secondLastIndex = sortedVisits.length - 2;
 
         setLeftValue(secondLastIndex);
         setRightValue(lastIndex);
-        // Dates are sorted oldest to newest, so the last one is the newest
-        onRangeChange(sortedDates[secondLastIndex], sortedDates[lastIndex]);
-      } else if (sortedDates.length === 1) {
+        // Visits are sorted oldest to newest, so the last one is the newest
+        onRangeChange(sortedVisits[secondLastIndex], sortedVisits[lastIndex]);
+      } else if (sortedVisits.length === 1) {
         setLeftValue(0);
         setRightValue(0);
-        onRangeChange(sortedDates[0], sortedDates[0]);
+        onRangeChange(sortedVisits[0], sortedVisits[0]);
       }
     }
   }, [visits]);
@@ -66,13 +79,13 @@ const DateSlider = ({
     let secondIndex = -1;
 
     for (let i = 0; i < uniqueDates.length; i++) {
-      const dateObj = uniqueDates[i];
+      const visitObj = uniqueDates[i];
 
-      if (selectedFirstVisitId && dateObj.visitIds.includes(selectedFirstVisitId)) {
+      if (selectedFirstVisitId && visitObj.id === selectedFirstVisitId) {
         firstIndex = i;
       }
 
-      if (selectedSecondVisitId && dateObj.visitIds.includes(selectedSecondVisitId)) {
+      if (selectedSecondVisitId && visitObj.id === selectedSecondVisitId) {
         secondIndex = i;
       }
     }
@@ -88,7 +101,7 @@ const DateSlider = ({
 
     // Notify parent of range change if both values were found
     if (firstIndex !== -1 && secondIndex !== -1) {
-      // Pass dates in the correct order (older date first, newer date second)
+      // Pass visits in the correct order (older visit first, newer visit second)
       if (firstIndex <= secondIndex) {
         onRangeChange(uniqueDates[firstIndex], uniqueDates[secondIndex]);
       } else {
@@ -186,9 +199,9 @@ const DateSlider = ({
     return (rightValue / Math.max(uniqueDates.length - 1, 1)) * 100;
   };
 
-  const formatDate = (dateObj) => {
-    // Return the date string directly
-    return dateObj.date;
+  const formatDate = (visitObj) => {
+    // Return the date and time string
+    return `${visitObj.date} ${visitObj.time}`;
   };
 
   const handleDateHover = (index) => {
@@ -200,8 +213,8 @@ const DateSlider = ({
   };
 
   const handleApply = () => {
-    // Call the onApplySelection prop with the selected date objects
-    // If knobs have crossed, pass them in the correct order (older date first, newer date second)
+    // Call the onApplySelection prop with the selected visit objects
+    // If knobs have crossed, pass them in the correct order (older visit first, newer visit second)
     if (leftValue <= rightValue) {
       onApplySelection(uniqueDates[leftValue], uniqueDates[rightValue]);
     } else {
@@ -226,11 +239,8 @@ const DateSlider = ({
           >
             {hoveredDate === index && (
               <div className="date-tooltip bg-dark text-white p-1 rounded"
-                   style={{ position: 'absolute', bottom: '100%', transform: 'translateX(-50%)', zIndex: 100 }}>
+                   style={{ position: 'absolute', bottom: '100%', transform: 'translateX(-50%)', zIndex: 100, whiteSpace: 'nowrap' }}>
                 {formatDate(date)}
-                {date.visitIds && date.visitIds.length > 1 && (
-                  <span className="ml-1 badge badge-light">{date.visitIds.length} visits</span>
-                )}
               </div>
             )}
           </div>
@@ -335,26 +345,6 @@ const DateSlider = ({
       </div>
 
       <div className="mt-3 d-flex justify-content-between align-items-center">
-        <div className="selected-dates">
-          {uniqueDates.length > 0 && (
-            <div className="text-muted">
-              {leftValue === rightValue
-                ? `Selected date: ${formatDate(uniqueDates[leftValue])}`
-                : `Selected range: ${
-                    leftValue <= rightValue
-                      ? `${formatDate(uniqueDates[leftValue])} - ${formatDate(uniqueDates[rightValue])}`
-                      : `${formatDate(uniqueDates[rightValue])} - ${formatDate(uniqueDates[leftValue])}`
-                  }`
-              }
-              {uniqueDates[leftValue].visitIds && uniqueDates[leftValue].visitIds.length > 1 && (
-                <span className="ml-1 badge badge-light">{uniqueDates[leftValue].visitIds.length} visits</span>
-              )}
-              {uniqueDates[rightValue].visitIds && uniqueDates[rightValue].visitIds.length > 1 && (
-                <span className="ml-1 badge badge-light">{uniqueDates[rightValue].visitIds.length} visits</span>
-              )}
-            </div>
-          )}
-        </div>
         <div className="position-relative">
           <Button
             color="primary"
@@ -367,6 +357,20 @@ const DateSlider = ({
           {leftValue === rightValue && (
             <div className="text-danger small mt-1">
               Please select different dates to compare
+            </div>
+          )}
+        </div>
+        <div className="selected-dates">
+          {uniqueDates.length > 0 && (
+            <div className="text-muted">
+              {leftValue === rightValue
+                ? `Selected visit: ${formatDate(uniqueDates[leftValue])}`
+                : `Selected visits: ${
+                    leftValue <= rightValue
+                      ? `${formatDate(uniqueDates[leftValue])} - ${formatDate(uniqueDates[rightValue])}`
+                      : `${formatDate(uniqueDates[rightValue])} - ${formatDate(uniqueDates[leftValue])}`
+                  }`
+              }
             </div>
           )}
         </div>

@@ -95,10 +95,24 @@ const TemporalityPage = (props) => {
 
         // Format dates and set state
         if (visitData.patienVisits && visitData.patienVisits.length > 0) {
-          const formattedVisits = visitData.patienVisits.map((visit) => ({
-            ...visit,
-            formattedDate: formatDate(new Date(visit.date_of_visit)),
-          }));
+          const formattedVisits = visitData.patienVisits.map((visit) => {
+            const visitDate = new Date(visit.date_of_visit);
+            const creationDate = visit.created_on ? new Date(visit.created_on) : visitDate;
+
+            // Format time as HH:MM AM/PM
+            const timeString = creationDate.toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true
+            });
+
+            return {
+              ...visit,
+              formattedDate: formatDate(visitDate),
+              formattedDateTime: `${formatDate(visitDate)} ${timeString}`,
+              creationTime: timeString
+            };
+          });
 
           // Store all visits (ungrouped)
           setPatientVisits(formattedVisits);
@@ -156,6 +170,18 @@ const TemporalityPage = (props) => {
       month: "short",
       day: "2-digit",
       year: "numeric",
+    }).format(date)
+  }
+
+  // Format date with time for display
+  const formatDateWithTime = (date) => {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true
     }).format(date)
   }
 
@@ -604,8 +630,8 @@ const TemporalityPage = (props) => {
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <p className="text-muted mb-0">
                   {isComparisonMode
-                    ? `Comparing visits from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDate || "first visit"} and ${patientVisits.find((v) => v._id === secondVisitId)?.formattedDate || "second visit"}`
-                    : `Viewing dental chart from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDate || "selected visit"}`}
+                    ? `Comparing visits from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "first visit"} and ${patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "second visit"}`
+                    : `Viewing dental chart from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "selected visit"}`}
                 </p>
               </div>
             </Col>
@@ -615,45 +641,48 @@ const TemporalityPage = (props) => {
                 visits={patientVisits}
                 selectedFirstVisitId={firstVisitId}
                 selectedSecondVisitId={secondVisitId}
-                onRangeChange={(firstDateObj, secondDateObj) => {
+                onRangeChange={(firstVisitObj, secondVisitObj) => {
                   // This is just for updating the UI and previewing the selection
-                  console.log("Range changed", firstDateObj, secondDateObj);
+                  console.log("Range changed", firstVisitObj, secondVisitObj);
                 }}
-                onApplySelection={(firstDateObj, secondDateObj) => {
+                onApplySelection={(firstVisitObj, secondVisitObj) => {
                   // This is called when the "Apply Selection" button is clicked
-                  console.log("Applying selection", firstDateObj, secondDateObj);
+                  console.log("Applying selection", firstVisitObj, secondVisitObj);
 
-                  // Check if dates need to be switched (if second date is earlier than first date)
-                  // Note: In our UI, we want the newer date (more recent) to be the first visit
-                  // and the older date to be the second visit
-                  const firstDate = new Date(firstDateObj.date);
-                  const secondDate = new Date(secondDateObj.date);
+                  // Check if visits need to be switched based on creation time
+                  // Note: In our UI, we want the newer visit (more recent) to be the first visit
+                  // and the older visit to be the second visit
+                  const firstCreationDate = firstVisitObj.visitObj.created_on
+                    ? new Date(firstVisitObj.visitObj.created_on)
+                    : new Date(firstVisitObj.visitObj.date_of_visit);
 
-                  // If the second date is more recent than the first date, swap them
-                  // This ensures the more recent date is always the first visit
-                  if (secondDate > firstDate) {
-                    console.log("Swapping dates because second date is more recent than first date");
+                  const secondCreationDate = secondVisitObj.visitObj.created_on
+                    ? new Date(secondVisitObj.visitObj.created_on)
+                    : new Date(secondVisitObj.visitObj.date_of_visit);
 
-                    // Swap the date objects
-                    const tempDateObj = firstDateObj;
-                    firstDateObj = secondDateObj;
-                    secondDateObj = tempDateObj;
+                  // If the second visit is more recent than the first visit, swap them
+                  // This ensures the more recent visit is always the first visit
+                  if (secondCreationDate > firstCreationDate) {
+                    console.log("Swapping visits because second visit is more recent than first visit");
+
+                    // Swap the visit objects
+                    const tempVisitObj = firstVisitObj;
+                    firstVisitObj = secondVisitObj;
+                    secondVisitObj = tempVisitObj;
                   }
 
-                  // Get the first visit ID from the first date (more recent date)
-                  if (firstDateObj && firstDateObj.visitIds && firstDateObj.visitIds.length > 0) {
-                    const firstVisitId = firstDateObj.visitIds[0];
-                    handleFirstVisitSelect(firstVisitId, patientVisits);
+                  // Get the first visit ID
+                  if (firstVisitObj && firstVisitObj.id) {
+                    handleFirstVisitSelect(firstVisitObj.id, patientVisits);
                   }
 
-                  // Get the second visit ID from the second date (older date)
-                  if (secondDateObj && secondDateObj.visitIds && secondDateObj.visitIds.length > 0) {
-                    const secondVisitId = secondDateObj.visitIds[0];
-                    handleSecondVisitSelect(secondVisitId, patientVisits);
+                  // Get the second visit ID
+                  if (secondVisitObj && secondVisitObj.id) {
+                    handleSecondVisitSelect(secondVisitObj.id, patientVisits);
                   }
 
                   // Update comparison mode flag if needed
-                  setIsComparisonMode(firstDateObj.date !== secondDateObj.date);
+                  setIsComparisonMode(firstVisitObj.id !== secondVisitObj.id);
                 }}
               />
             </Col>
@@ -663,8 +692,8 @@ const TemporalityPage = (props) => {
               <div className="d-flex justify-content-between align-items-center">
                 <p className="text-muted mb-0">
                   {isComparisonMode
-                    ? `Comparing visits from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDate || "first visit"} and ${patientVisits.find((v) => v._id === secondVisitId)?.formattedDate || "second visit"}`
-                    : `Viewing dental chart from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDate || "selected visit"}`}
+                    ? `Comparing visits from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "first visit"} and ${patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "second visit"}`
+                    : `Viewing dental chart from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "selected visit"}`}
                 </p>
                 <div className="d-flex align-items-center">
                   <div className="mr-4">
@@ -676,41 +705,47 @@ const TemporalityPage = (props) => {
                       className="d-inline-block"
                     >
                       <DropdownToggle color="primary" className="btn-sm">
-                        {patientVisits.find((v) => v._id === firstVisitId)?.formattedDate || "Select Visit"}
+                        {patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "Select Visit"}
                       </DropdownToggle>
                       <DropdownMenu className="overflow-auto">
-                        {groupVisitsByDate(patientVisits).map((groupedVisit, index) => (
+                        {patientVisits.sort((a, b) => {
+                          // Sort by creation date (newest first)
+                          const dateA = a.created_on ? new Date(a.created_on) : new Date(a.date_of_visit);
+                          const dateB = b.created_on ? new Date(b.created_on) : new Date(b.date_of_visit);
+                          return dateB - dateA;
+                        }).map((visit, index) => (
                           <DropdownItem
-                            key={groupedVisit._id}
+                            key={visit._id}
                             onClick={() => {
-                              // Check if we need to swap visits based on dates
-                              const selectedVisit = patientVisits.find((v) => v._id === groupedVisit._id);
+                              // Check if we need to swap visits based on creation dates
                               const secondVisitObj = patientVisits.find((v) => v._id === secondVisitId);
 
-                              if (selectedVisit && secondVisitObj) {
-                                const selectedDate = new Date(selectedVisit.formattedDate);
-                                const secondDate = new Date(secondVisitObj.formattedDate);
+                              if (visit && secondVisitObj) {
+                                const selectedCreationDate = visit.created_on
+                                  ? new Date(visit.created_on)
+                                  : new Date(visit.date_of_visit);
 
-                                // If the selected date is older than the second date, swap them
-                                if (selectedDate < secondDate) {
-                                  console.log("Swapping visits because selected first date is older than second date");
-                                  handleSecondVisitSelect(groupedVisit._id, patientVisits);
+                                const secondCreationDate = secondVisitObj.created_on
+                                  ? new Date(secondVisitObj.created_on)
+                                  : new Date(secondVisitObj.date_of_visit);
+
+                                // If the selected visit is older than the second visit, swap them
+                                if (selectedCreationDate < secondCreationDate) {
+                                  console.log("Swapping visits because selected first visit is older than second visit");
+                                  handleSecondVisitSelect(visit._id, patientVisits);
                                   handleFirstVisitSelect(secondVisitId, patientVisits);
                                   return;
                                 }
                               }
 
                               // Normal case - no swap needed
-                              handleFirstVisitSelect(groupedVisit._id, patientVisits);
+                              handleFirstVisitSelect(visit._id, patientVisits);
                             }}
-                            active={firstVisitId === groupedVisit._id}
-                            disabled={groupedVisit._id === secondVisitId}
+                            active={firstVisitId === visit._id}
+                            disabled={visit._id === secondVisitId}
                           >
-                            {groupedVisit.date}
+                            {visit.formattedDateTime}
                             {index === 0 && <span className="ml-2 badge badge-info">Latest</span>}
-                            {groupedVisit.visits.length > 1 && (
-                              <span className="ml-2 badge badge-secondary">{groupedVisit.visits.length} visits</span>
-                            )}
                           </DropdownItem>
                         ))}
                         {patientVisits.length === 0 && <DropdownItem disabled>No visits available</DropdownItem>}
@@ -727,41 +762,47 @@ const TemporalityPage = (props) => {
                       className="d-inline-block"
                     >
                       <DropdownToggle color="primary" className="btn-sm">
-                        {patientVisits.find((v) => v._id === secondVisitId)?.formattedDate || "Select Visit"}
+                        {patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "Select Visit"}
                       </DropdownToggle>
                       <DropdownMenu className="overflow-auto">
-                        {groupVisitsByDate(patientVisits).map((groupedVisit, index) => (
+                        {patientVisits.sort((a, b) => {
+                          // Sort by creation date (newest first)
+                          const dateA = a.created_on ? new Date(a.created_on) : new Date(a.date_of_visit);
+                          const dateB = b.created_on ? new Date(b.created_on) : new Date(b.date_of_visit);
+                          return dateB - dateA;
+                        }).map((visit, index) => (
                           <DropdownItem
-                            key={groupedVisit._id}
+                            key={visit._id}
                             onClick={() => {
-                              // Check if we need to swap visits based on dates
-                              const selectedVisit = patientVisits.find((v) => v._id === groupedVisit._id);
+                              // Check if we need to swap visits based on creation dates
                               const firstVisitObj = patientVisits.find((v) => v._id === firstVisitId);
 
-                              if (selectedVisit && firstVisitObj) {
-                                const selectedDate = new Date(selectedVisit.formattedDate);
-                                const firstDate = new Date(firstVisitObj.formattedDate);
+                              if (visit && firstVisitObj) {
+                                const selectedCreationDate = visit.created_on
+                                  ? new Date(visit.created_on)
+                                  : new Date(visit.date_of_visit);
 
-                                // If the selected date is more recent than the first date, swap them
-                                if (selectedDate > firstDate) {
-                                  console.log("Swapping visits because selected second date is more recent than first date");
-                                  handleFirstVisitSelect(groupedVisit._id, patientVisits);
+                                const firstCreationDate = firstVisitObj.created_on
+                                  ? new Date(firstVisitObj.created_on)
+                                  : new Date(firstVisitObj.date_of_visit);
+
+                                // If the selected visit is more recent than the first visit, swap them
+                                if (selectedCreationDate > firstCreationDate) {
+                                  console.log("Swapping visits because selected second visit is more recent than first visit");
+                                  handleFirstVisitSelect(visit._id, patientVisits);
                                   handleSecondVisitSelect(firstVisitId, patientVisits);
                                   return;
                                 }
                               }
 
                               // Normal case - no swap needed
-                              handleSecondVisitSelect(groupedVisit._id, patientVisits);
+                              handleSecondVisitSelect(visit._id, patientVisits);
                             }}
-                            active={secondVisitId === groupedVisit._id}
-                            disabled={groupedVisit._id === firstVisitId}
+                            active={secondVisitId === visit._id}
+                            disabled={visit._id === firstVisitId}
                           >
-                            {groupedVisit.date}
+                            {visit.formattedDateTime}
                             {index === 0 && <span className="ml-2 badge badge-info">Latest</span>}
-                            {groupedVisit.visits.length > 1 && (
-                              <span className="ml-2 badge badge-secondary">{groupedVisit.visits.length} visits</span>
-                            )}
                           </DropdownItem>
                         ))}
                         {patientVisits.length === 0 && <DropdownItem disabled>No visits available</DropdownItem>}
@@ -812,7 +853,7 @@ const TemporalityPage = (props) => {
                     <Card>
                       <CardBody>
                         <h5 className="text-center mb-3">
-                          {patientVisits.find((v) => v._id === secondVisitId)?.formattedDate || "Second Visit"}
+                          {patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "Second Visit"}
                         </h5>
                         <DentalChart
                           annotations={selectedVisitAnnotations}
@@ -828,7 +869,7 @@ const TemporalityPage = (props) => {
                     <Card>
                       <CardBody>
                         <h5 className="text-center mb-3">
-                          {patientVisits.find((v) => v._id === firstVisitId)?.formattedDate || "First Visit"}
+                          {patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "First Visit"}
                         </h5>
                         <DentalChart
                           annotations={lastVisitAnnotations}
@@ -847,7 +888,7 @@ const TemporalityPage = (props) => {
                     <Card>
                       <CardBody>
                         <h4>
-                          {patientVisits.find((v) => v._id === secondVisitId)?.formattedDate || "Second Visit"} - Tooth
+                          {patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "Second Visit"} - Tooth
                           Anomalies/Procedures
                         </h4>
                         <ToothAnnotationTable
@@ -864,7 +905,7 @@ const TemporalityPage = (props) => {
                     <Card>
                       <CardBody>
                         <h4>
-                          {patientVisits.find((v) => v._id === firstVisitId)?.formattedDate || "First Visit"} - Tooth
+                          {patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "First Visit"} - Tooth
                           Anomalies/Procedures
                         </h4>
                         <ToothAnnotationTable
