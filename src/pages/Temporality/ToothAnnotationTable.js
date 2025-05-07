@@ -38,7 +38,13 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
 
   // Handle annotation click to navigate to AnnotationPage
   const handleAnnotationClick = (anomaly) => {
-    sessionStorage.setItem("selectedImageIndex", (anomaly.imageNumber - 1).toString())
+    // Store the image name instead of the image number
+    if (anomaly.imageName) {
+      sessionStorage.setItem("selectedImageName", anomaly.imageName)
+    } else if (anomaly.imageNumber) {
+      // Fallback to image number for backward compatibility
+      sessionStorage.setItem("selectedImageIndex", (anomaly.imageNumber - 1).toString())
+    }
 
     // Store the visitId in sessionStorage
     // Use anomaly.visitId if available, otherwise use the visitId prop
@@ -103,6 +109,7 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
               category: classCategories[anno.label.toLowerCase()] || "Unknown",
               confidence: anno.confidence,
               imageNumber: anno.imageNumber,
+              imageName: anno.imageName,
               visitId: anno.visitId
             })
             return
@@ -141,6 +148,7 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
               category: classCategories[anno.label.toLowerCase()] || "Unknown",
               confidence: anno.confidence,
               imageNumber: anno.imageNumber,
+              imageName: anno.imageName,
               visitId: anno.visitId
             })
           }
@@ -178,6 +186,7 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
                     category: classCategories[anno.label.toLowerCase()] || "Unknown",
                     confidence: anno.confidence,
                     imageNumber: anno.imageNumber,
+                    imageName: anno.imageName,
                     visitId: anno.visitId
                   })
                 }
@@ -198,6 +207,7 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
                     confidence: anno.confidence,
                     overlapPercentage: Math.round(overlapPercentage * 100),
                     imageNumber: anno.imageNumber,
+                    imageName: anno.imageName,
                     visitId: anno.visitId
                   })
                 }
@@ -252,6 +262,7 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
                   category: classCategories[anno.label.toLowerCase()] || "Unknown",
                   confidence: anno.confidence,
                   imageNumber: anno.imageNumber,
+                  imageName: anno.imageName,
                   visitId: anno.visitId
                 })
               }
@@ -271,6 +282,7 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
                     confidence: anno.confidence,
                     overlapPercentage: Math.round(overlapPercentage * 100),
                     imageNumber: anno.imageNumber,
+                    imageName: anno.imageName,
                     visitId: anno.visitId
                   })
                 }
@@ -302,6 +314,7 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
             category: classCategories[anno.label.toLowerCase()] || "Unknown",
             confidence: anno.confidence,
             imageNumber: anno.imageNumber,
+            imageName: anno.imageName,
             visitId: anno.visitId
           })
           return
@@ -330,6 +343,7 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
             category: classCategories[anno.label.toLowerCase()] || "Unknown",
             confidence: anno.confidence,
             imageNumber: anno.imageNumber,
+            imageName: anno.imageName,
             visitId: anno.visitId
           })
         }

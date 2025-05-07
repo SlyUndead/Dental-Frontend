@@ -458,6 +458,7 @@ const TemporalityPage = (props) => {
                 ...annotation,
                 imageId: image._id,
                 imageNumber: image.imageNumber || index + 1,
+                imageName: image.name,
                 visitId: visitId, // Add visit ID to trace back which visit this annotation came from
               }));
               visitAnnotations = [...visitAnnotations, ...annotationsWithImageId];
@@ -514,6 +515,7 @@ const TemporalityPage = (props) => {
                 ...annotation,
                 imageId: image._id,
                 imageNumber: image.imageNumber || index + 1,
+                imageName: image.name,
                 visitId: visitId, // Add visit ID to trace back which visit this annotation came from
               }));
               visitAnnotations = [...visitAnnotations, ...annotationsWithImageId];

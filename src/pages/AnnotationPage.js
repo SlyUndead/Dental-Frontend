@@ -621,7 +621,7 @@ const AnnotationPage = () => {
     }
   };
   //   const isPointInImage = (point) => {
-  //     return point[0] >= 0 && point[0] < image.width  && 
+  //     return point[0] >= 0 && point[0] < image.width  &&
   //            point[1] >= 0 && point[1] < image.height;
   // };
   const handleMouseUp = () => {
@@ -1397,8 +1397,8 @@ const AnnotationPage = () => {
   }
   // const handleLabelChange = (newValue) => {
   //   if (selectedAnnotation && !isNaN(parseInt(selectedAnnotation.label))) {
-  //     const updatedAnnotation = { 
-  //       ...selectedAnnotation, 
+  //     const updatedAnnotation = {
+  //       ...selectedAnnotation,
   //       label: newValue,
   //       created_by: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`,
   //       created_on: new Date().toISOString()
@@ -1707,12 +1707,26 @@ const AnnotationPage = () => {
       setNotesContent(visitNotes)
       setIsNotesOpen(false)
       let mainImageData = []
-  
+
       if (imagesData && imagesData.length > 0) {
-        // Check if there's a selected image index in sessionStorage
+        // Check if there's a selected image name in sessionStorage
+        const selectedImageName = sessionStorage.getItem("selectedImageName")
         const selectedImageIndex = sessionStorage.getItem("selectedImageIndex")
-        // If there's a selected image index and it's valid, use it
-        if (selectedImageIndex && Number.parseInt(selectedImageIndex) < imagesData.length) {
+
+        // First try to find the image by name
+        if (selectedImageName) {
+          const index = imagesData.findIndex(img => img.name === selectedImageName)
+          if (index !== -1) {
+            mainImageData = imagesData[index]
+            setMainImageIndex(index)
+          } else {
+            // If image name not found, use the first image as default
+            mainImageData = imagesData[0]
+            setMainImageIndex(0)
+          }
+        }
+        // If no image name, try to use the image index (for backward compatibility)
+        else if (selectedImageIndex && Number.parseInt(selectedImageIndex) < imagesData.length) {
           const index = Number.parseInt(selectedImageIndex)
           mainImageData = imagesData[index]
           setMainImageIndex(index)
@@ -1721,31 +1735,32 @@ const AnnotationPage = () => {
           mainImageData = imagesData[0]
           setMainImageIndex(0)
         }
-  
-        // Clear the selected image index from sessionStorage
+
+        // Clear the selected image info from sessionStorage
+        sessionStorage.removeItem("selectedImageName")
         sessionStorage.removeItem("selectedImageIndex")
-  
+
         setAnnotations(mainImageData.annotations.annotations.annotations)
         setImageGroup(mainImageData.annotations.annotations.group)
-  
+
         // Initialize smallCanvasRefs with dynamic refs based on the number of images
         const refsArray = imagesData.map(() => React.createRef())
         setSmallCanvasRefs(refsArray)
-  
+
         // Draw the main image on the large canvas
         if (mainImageData && mainCanvasRef.current) {
           setModel(mainImageData.annotations.annotations.model)
           drawImageOnCanvas(mainCanvasRef.current, mainImageData.image, "main")
           setHistory([mainImageData.annotations.annotations.annotations])
         }
-  
+
         // Draw the thumbnails on small canvases after refs are initialized
         refsArray.forEach((ref, index) => {
           if (ref.current) {
             drawImageOnCanvas(ref.current, imagesData[index].image, null, "small")
           }
         })
-  
+
         setSmallCanvasData(imagesData)
         setMainCanvasData(mainImageData)
       } else if (imagesData) {
@@ -1828,7 +1843,7 @@ const AnnotationPage = () => {
       setMessage("Unable to load this visit images. Pls contact admin")
     }
   }, []);
-  // useEffect(() => { 
+  // useEffect(() => {
   //   const handleNavigationAway = () => {
   //     console.log("Exited through button")
   //     dispatch(changeMode(preLayoutMode));
@@ -2364,7 +2379,8 @@ const AnnotationPage = () => {
     localStorage.removeItem('globalCheckedAnnotations')
     dispatch(changeMode(preLayoutMode));
     sessionStorage.removeItem('preLayoutMode');
-    return <Navigate to="/patientImagesList" />
+    window.history.back();
+    // return <Navigate to="/patientImagesList" />
   }
   if (redirectToLogin) {
     return <Navigate to="/login" />
@@ -2718,7 +2734,20 @@ const AnnotationPage = () => {
                     </Row>}
                   <Row>
                     <Col md={1}>
-                      <button id="btnExit" onClick={() => { setExitClick(true) }} style={{ background: 'none', border: 'none', padding: '0' }}>
+                      <button id="btnExit" onClick={() => {
+                        // Clean up resources
+                        localStorage.removeItem('globalCheckedAnnotations');
+                        dispatch(changeMode(preLayoutMode));
+                        sessionStorage.removeItem('preLayoutMode');
+
+                        // Use browser history to go back if possible
+                        if (window.history.length > 1) {
+                          window.history.back();
+                        } else {
+                          // Fallback to direct navigation if no history
+                          setExitClick(true);
+                        }
+                      }} style={{ background: 'none', border: 'none', padding: '0' }}>
                         <img src={imgExit} alt="Exit" style={{ width: '30px', height: '30px' }} />
                       </button> &nbsp;
                       <UncontrolledTooltip placement="bottom" target="btnExit">Exit</UncontrolledTooltip>
@@ -3069,7 +3098,7 @@ const AnnotationPage = () => {
                         //className="d-flex flex-column"
                         style={{ marginTop: 12, padding: 0 }}
                       >
-                        {/* Control Buttons 
+                        {/* Control Buttons
                         <div className="mb-4" style={{ margin: 0, padding: 0 }}>
                           <Button color="primary" className="mb-2 w-100" onClick={startLiveWireTracing}>
                             {!isLiveWireTracingActive ? 'Start LiveWire' : 'Stop LiveWire'}
@@ -3108,7 +3137,7 @@ const AnnotationPage = () => {
                               padding: 0,
                               height: '100%',
                               overflow: 'auto',  // Add scrollbars
-                              position: 'relative',  // For absolute positioning of canvas                              
+                              position: 'relative',  // For absolute positioning of canvas
                               maxHeight: '600px',
                             }}
                             ref={containerRef}
