@@ -277,23 +277,86 @@ const DateSlider = ({
           }}
         />
 
-        {/* Tick marks */}
-        {uniqueDates.map((_, index) => (
-          <div
-            key={index}
-            className="tick-mark"
-            style={{
-              position: 'absolute',
-              left: `${(index / Math.max(uniqueDates.length - 1, 1)) * 100}%`,
-              height: '12px',
-              width: '2px',
-              backgroundColor: '#757575',
-              transform: 'translateX(-50%)',
-              top: '-2px',
-              pointerEvents: 'none'
-            }}
-          />
-        ))}
+        {/* Tick marks with month labels */}
+        {(() => {
+          // Track information about the previous tick mark
+          let prevTickHadLabel = false;
+          let prevLabelPlacedAbove = false;
+
+          return uniqueDates.map((date, index) => {
+            // Check if this is the first date of a new month
+            const isNewMonth = index === 0 ||
+              (index > 0 &&
+                new Date(date.visitObj.date_of_visit).getMonth() !==
+                new Date(uniqueDates[index - 1].visitObj.date_of_visit).getMonth());
+
+            // Format month and year for display (e.g., "Apr '25")
+            const monthYearLabel = isNewMonth ?
+              new Date(date.visitObj.date_of_visit).toLocaleDateString('en-US', {
+                month: 'short',
+                year: '2-digit'
+              }) : null;
+
+            // Determine if this label should be placed above
+            let placeAbove = false;
+
+            // If the previous tick mark had a label and it was not placed above,
+            // then place this label above
+            if (isNewMonth && prevTickHadLabel && !prevLabelPlacedAbove) {
+              placeAbove = true;
+            }
+
+            // Store current label placement for next iteration
+            const currentTickHasLabel = isNewMonth;
+            const currentLabelPlacedAbove = isNewMonth ? placeAbove : false;
+
+            // After rendering, update tracking variables for next iteration
+            const result = (
+              <div key={index}>
+                <div
+                  className="tick-mark"
+                  style={{
+                    position: 'absolute',
+                    left: `${(index / Math.max(uniqueDates.length - 1, 1)) * 100}%`,
+                    height: '12px',
+                    width: isNewMonth ? '3px' : '2px', // Make month start ticks slightly wider
+                    backgroundColor: isNewMonth ? '#333' : '#757575', // Make month start ticks darker
+                    transform: 'translateX(-50%)',
+                    top: '-2px',
+                    pointerEvents: 'none'
+                  }}
+                />
+                {/* Month label - positioned above or below based on our logic */}
+                {isNewMonth && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: `${(index / Math.max(uniqueDates.length - 1, 1)) * 100}%`,
+                      transform: 'translateX(-50%)',
+                      top: placeAbove ? '-25px' : '20px', // Position above or below the tick mark
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      color: '#333',
+                      whiteSpace: 'nowrap',
+                      backgroundColor: 'rgba(255, 255, 255, 0.8)', // Semi-transparent background
+                      padding: '2px 4px',
+                      borderRadius: '3px',
+                      zIndex: 5 // Ensure it appears above other elements
+                    }}
+                  >
+                    {monthYearLabel}
+                  </div>
+                )}
+              </div>
+            );
+
+            // Update tracking variables for next iteration
+            prevTickHadLabel = currentTickHasLabel;
+            prevLabelPlacedAbove = currentLabelPlacedAbove;
+
+            return result;
+          });
+        })()}
 
         {/* Left knob */}
         <div
@@ -344,7 +407,7 @@ const DateSlider = ({
         />
       </div>
 
-      <div className="mt-3 d-flex justify-content-between align-items-center">
+      <div className="mt-5 d-flex justify-content-between align-items-center">
         <div className="position-relative">
           <Button
             color="primary"
