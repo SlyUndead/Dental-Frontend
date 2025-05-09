@@ -15,7 +15,7 @@ styleElement.textContent = `
 `
 document.head.appendChild(styleElement)
 
-const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, patientVisits }) => {
+const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, patientVisits, selectedTooth }) => {
     const [filteredAnnotations, setFilteredAnnotations] = useState([])
     const [selectedCategories, setSelectedCategories] = useState(["Procedure", "Anomaly"])
     const [availableCategories, setAvailableCategories] = useState([])
@@ -38,9 +38,13 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
         }
     }
 
-    // Handle annotation click to navigate to AnnotationPage
+    // Handle annotation click to open AnnotationPage in a new tab
     const handleAnnotationClick = (anomaly) => {
         if (anomaly.visitIndex !== undefined) {
+            // Create a new window/tab
+            const newWindow = window.open('', '_blank');
+
+            // Store data in sessionStorage
             sessionStorage.setItem("selectedImageIndex", (anomaly.imageNumber - 1).toString())
             if (anomaly.visitId) {
                 sessionStorage.setItem("visitId", anomaly.visitId)
@@ -49,8 +53,13 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
                 sessionStorage.setItem("visitId", visitId)
             }
 
-            // Navigate to AnnotationPage
-            navigate("/annotationPage")
+            // Set the URL for the new tab and navigate
+            if (newWindow) {
+                newWindow.location.href = `${window.location.origin}/annotationPage`;
+            } else {
+                // Fallback to regular navigation if popup is blocked
+                navigate("/annotationPage");
+            }
         }
     }
 
@@ -73,14 +82,31 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
         setAvailableCategories(Array.from(categories).sort())
     }, [consolidatedAnnotations])
 
-    // Filter annotations based on selected categories
+    // Filter annotations based on selected categories and selected tooth
     useEffect(() => {
         if (!consolidatedAnnotations || consolidatedAnnotations.length === 0) {
             setFilteredAnnotations([])
             return
         }
-        // Create a deep copy of annotations and filter anomalies by category
-        const filtered = consolidatedAnnotations.map((tooth) => {
+
+        // First, filter by selected tooth if one is selected
+        let teethToShow = consolidatedAnnotations
+        if (selectedTooth) {
+            // If "Unassigned" is selected, only show unassigned teeth
+            if (selectedTooth === "Unassigned") {
+                teethToShow = consolidatedAnnotations.filter(tooth =>
+                    tooth.toothNumber === "Unassigned" || tooth.isUnassigned
+                )
+            } else {
+                // Otherwise, only show the selected tooth
+                teethToShow = consolidatedAnnotations.filter(tooth =>
+                    tooth.toothNumber === selectedTooth
+                )
+            }
+        }
+
+        // Then, create a deep copy of filtered teeth and filter anomalies by category
+        const filtered = teethToShow.map((tooth) => {
             // Filter anomalies based on selected categories
             const filteredAnomalies = tooth.anomalies.filter(
                 (anomaly) =>
@@ -99,7 +125,7 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
         })
 
         setFilteredAnnotations(filtered)
-    }, [consolidatedAnnotations, selectedCategories])
+    }, [consolidatedAnnotations, selectedCategories, selectedTooth])
 
     if (!consolidatedAnnotations || consolidatedAnnotations.length === 0) {
         return (
@@ -161,71 +187,74 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
                     </tr>
                 </thead>
                 <tbody>
-                    {filteredAnnotations.map((tooth, index) => (
-                        <React.Fragment key={index}>
-                            {tooth.anomalies.map((anomaly, idx) => (
-                                <tr
-                                    key={`${index}-${idx}`}
-                                    onClick={() =>
-                                        anomaly.name !== "No anomalies detected" && anomaly.name !== "Not detected"
-                                            ? handleAnnotationClick(anomaly)
-                                            : null
-                                    }
-                                    style={
-                                        anomaly.name !== "No anomalies detected" && anomaly.name !== "Not detected"
-                                            ? { cursor: "pointer" }
-                                            : {}
-                                    }
-                                    className={
-                                        anomaly.name !== "No anomalies detected" && anomaly.name !== "Not detected" ? "clickable-row" : ""
-                                    }
-                                >
-                                    {idx === 0 ? (
-                                        <td className="text-center font-weight-bold" rowSpan={tooth.anomalies.length}>
-                                            {tooth.toothNumber}
+                    {filteredAnnotations
+                        .filter(tooth => !selectedTooth || tooth.toothNumber === selectedTooth ||
+                               (selectedTooth === "Unassigned" && (tooth.toothNumber === "Unassigned" || tooth.isUnassigned)))
+                        .map((tooth, index) => (
+                            <React.Fragment key={index}>
+                                {tooth.anomalies.map((anomaly, idx) => (
+                                    <tr
+                                        key={`${index}-${idx}`}
+                                        onClick={() =>
+                                            anomaly.name !== "No anomalies detected" && anomaly.name !== "Not detected"
+                                                ? handleAnnotationClick(anomaly)
+                                                : null
+                                        }
+                                        style={
+                                            anomaly.name !== "No anomalies detected" && anomaly.name !== "Not detected"
+                                                ? { cursor: "pointer" }
+                                                : {}
+                                        }
+                                        className={
+                                            anomaly.name !== "No anomalies detected" && anomaly.name !== "Not detected" ? "clickable-row" : ""
+                                        }
+                                    >
+                                        {idx === 0 ? (
+                                            <td className="text-center font-weight-bold" rowSpan={tooth.anomalies.length}>
+                                                {tooth.toothNumber}
+                                            </td>
+                                        ) : null}
+                                        <td>
+                                            <div className="d-flex justify-content-between align-items-center">
+                                                <span>{anomaly.name}</span>
+                                                {anomaly.category !== "Info" && (
+                                                    <span
+                                                        className={`badge ml-2 ${anomaly.category === "Anomaly"
+                                                                ? "bg-danger"
+                                                                : anomaly.category === "Procedure"
+                                                                    ? "bg-success"
+                                                                    : anomaly.category === "Landmark"
+                                                                        ? "bg-pink"
+                                                                        : anomaly.category === "Foreign Object"
+                                                                            ? "bg-warning"
+                                                                            : "bg-info"
+                                                            }`}
+                                                    >
+                                                        {anomaly.category}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
-                                    ) : null}
-                                    <td>
-                                        <div className="d-flex justify-content-between align-items-center">
-                                            <span>{anomaly.name}</span>
-                                            {anomaly.category !== "Info" && (
-                                                <span
-                                                    className={`badge ml-2 ${anomaly.category === "Anomaly"
-                                                            ? "bg-danger"
-                                                            : anomaly.category === "Procedure"
-                                                                ? "bg-success"
-                                                                : anomaly.category === "Landmark"
-                                                                    ? "bg-pink"
-                                                                    : anomaly.category === "Foreign Object"
-                                                                        ? "bg-warning"
-                                                                        : "bg-info"
-                                                        }`}
-                                                >
-                                                    {anomaly.category}
-                                                </span>
+                                        <td className="text-center">
+                                            {anomaly.confidence ? (
+                                                <span>{anomaly.confidence.toFixed(2).toString().slice(1)}</span>
+                                            ) : anomaly.category === "Info" ? (
+                                                "-"
+                                            ) : (
+                                                "0.80"
                                             )}
-                                        </div>
-                                    </td>
-                                    <td className="text-center">
-                                        {anomaly.confidence ? (
-                                            <span>{anomaly.confidence.toFixed(2).toString().slice(1)}</span>
-                                        ) : anomaly.category === "Info" ? (
-                                            "-"
-                                        ) : (
-                                            "0.80"
-                                        )}
-                                    </td>
-                                    <td>
-                                        {anomaly.visitDate ? (
-                                            <span className="badge bg-secondary">{anomaly.visitDate}</span>
-                                        ) : (
-                                            <span>-</span>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </React.Fragment>
-                    ))}
+                                        </td>
+                                        <td>
+                                            {anomaly.visitDate ? (
+                                                <span className="badge bg-secondary">{anomaly.visitDate}</span>
+                                            ) : (
+                                                <span>-</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </React.Fragment>
+                        ))}
                 </tbody>
             </Table>
         </div>

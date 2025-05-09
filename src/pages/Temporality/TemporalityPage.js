@@ -43,7 +43,6 @@ const TemporalityPage = (props) => {
   const [classCategories, setClassCategories] = useState({})
   const [confidenceLevels, setConfidenceLevels] = useState({})
   const [selectedTooth, setSelectedTooth] = useState(null)
-  const [comparisonTooth, setComparisonTooth] = useState(null)
   const [patientVisits, setPatientVisits] = useState([])
   const [firstDropdownOpen, setFirstDropdownOpen] = useState(false)
   const [secondDropdownOpen, setSecondDropdownOpen] = useState(false)
@@ -993,10 +992,19 @@ const TemporalityPage = (props) => {
                   <Card>
                     <CardBody>
                       <h4 className="mb-4">Consolidated View - Latest Data Across All Visits</h4>
+                      <DentalChart
+                        annotations={consolidatedAnnotations}
+                        classCategories={classCategories}
+                        confidenceLevels={confidenceLevels}
+                        setHiddenAnnotations={setHiddenAnnotations}
+                        onToothSelect={setSelectedTooth}
+                        externalSelectedTooth={selectedTooth}
+                      />
                       <ConsolidatedToothTable
                         consolidatedAnnotations={consolidatedAnnotations}
                         classCategories={classCategories}
                         patientVisits={patientVisits}
+                        selectedTooth={selectedTooth}
                       />
                     </CardBody>
                   </Card>
@@ -1017,7 +1025,8 @@ const TemporalityPage = (props) => {
                           classCategories={classCategories}
                           confidenceLevels={confidenceLevels}
                           setHiddenAnnotations={setHiddenAnnotations}
-                          onToothSelect={setComparisonTooth}
+                          onToothSelect={setSelectedTooth}
+                          externalSelectedTooth={selectedTooth}
                         />
                       </CardBody>
                     </Card>
@@ -1034,6 +1043,7 @@ const TemporalityPage = (props) => {
                           confidenceLevels={confidenceLevels}
                           setHiddenAnnotations={setHiddenAnnotations}
                           onToothSelect={setSelectedTooth}
+                          externalSelectedTooth={selectedTooth}
                         />
                       </CardBody>
                     </Card>
@@ -1069,7 +1079,7 @@ const TemporalityPage = (props) => {
                         <ToothAnnotationTable
                           annotations={lastVisitAnnotations}
                           classCategories={classCategories}
-                          selectedTooth={comparisonTooth}
+                          selectedTooth={selectedTooth}
                           otherSideAnnotations={selectedVisitAnnotations}
                           visitId={firstVisitId}
                           patientVisits={patientVisits}
@@ -1086,12 +1096,14 @@ const TemporalityPage = (props) => {
                   <Col md={12}>
                     <Card>
                       <CardBody>
+                        <h5 className="mb-3">Dental Chart</h5>
                         <DentalChart
                           annotations={lastVisitAnnotations}
                           classCategories={classCategories}
                           confidenceLevels={confidenceLevels}
                           setHiddenAnnotations={setHiddenAnnotations}
                           onToothSelect={setSelectedTooth}
+                          externalSelectedTooth={selectedTooth}
                         />
                       </CardBody>
                     </Card>

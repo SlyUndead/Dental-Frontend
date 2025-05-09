@@ -167,7 +167,7 @@ const NewPatient = (props) => {
             setMessage(`${errors.length} files failed to upload:\n${errors.join('\n')}`);
             return;
         }
-
+        sessionStorage.setItem("xrayDate", dateOfXray)
         // Set success states if no errors occurred
         sessionStorage.setItem('last', true);
         sessionStorage.setItem('first', false);

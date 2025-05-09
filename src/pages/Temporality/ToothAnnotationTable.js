@@ -36,9 +36,12 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
     }
   }
 
-  // Handle annotation click to navigate to AnnotationPage
+  // Handle annotation click to open AnnotationPage in a new tab
   const handleAnnotationClick = (anomaly) => {
-    // Store the image name instead of the image number
+    // Create a new window/tab
+    const newWindow = window.open('', '_blank');
+
+    // Store data in sessionStorage for the new tab
     if (anomaly.imageName) {
       sessionStorage.setItem("selectedImageName", anomaly.imageName)
     } else if (anomaly.imageNumber) {
@@ -61,8 +64,13 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
       }
     }
 
-    // Navigate to AnnotationPage
-    navigate("/annotationPage")
+    // Set the URL for the new tab and navigate
+    if (newWindow) {
+      newWindow.location.href = `${window.location.origin}/annotationPage`;
+    } else {
+      // Fallback to regular navigation if popup is blocked
+      navigate("/annotationPage");
+    }
   }
 
   // Process annotations when they change or when a tooth is selected
@@ -618,76 +626,79 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
           </tr>
         </thead>
         <tbody>
-          {displayAnnotations.map((tooth, index) => (
-            <React.Fragment key={index}>
-              {tooth.anomalies.map((anomaly, idx) => (
-                <tr
-                  key={`${index}-${idx}`}
-                  onClick={() =>
-                    anomaly.category !== "Blank" &&
-                      anomaly.name !== "No anomalies detected" &&
-                      anomaly.name !== "Not detected"
-                      ? handleAnnotationClick(anomaly, tooth.toothNumber)
-                      : null
-                  }
-                  style={
-                    anomaly.category !== "Blank" &&
-                      anomaly.name !== "No anomalies detected" &&
-                      anomaly.name !== "Not detected"
-                      ? { cursor: "pointer" }
-                      : {}
-                  }
-                  className={
-                    anomaly.category !== "Blank" &&
-                      anomaly.name !== "No anomalies detected" &&
-                      anomaly.name !== "Not detected"
-                      ? "clickable-row"
-                      : ""
-                  }
-                >
-                  {idx === 0 ? (
-                    <td className="text-center font-weight-bold" rowSpan={tooth.anomalies.length}>
-                      {tooth.toothNumber}
+          {displayAnnotations
+            .filter(tooth => !selectedTooth || tooth.toothNumber === selectedTooth ||
+                   (selectedTooth === "Unassigned" && (tooth.toothNumber === "Unassigned" || tooth.isUnassigned)))
+            .map((tooth, index) => (
+              <React.Fragment key={index}>
+                {tooth.anomalies.map((anomaly, idx) => (
+                  <tr
+                    key={`${index}-${idx}`}
+                    onClick={() =>
+                      anomaly.category !== "Blank" &&
+                        anomaly.name !== "No anomalies detected" &&
+                        anomaly.name !== "Not detected"
+                        ? handleAnnotationClick(anomaly, tooth.toothNumber)
+                        : null
+                    }
+                    style={
+                      anomaly.category !== "Blank" &&
+                        anomaly.name !== "No anomalies detected" &&
+                        anomaly.name !== "Not detected"
+                        ? { cursor: "pointer" }
+                        : {}
+                    }
+                    className={
+                      anomaly.category !== "Blank" &&
+                        anomaly.name !== "No anomalies detected" &&
+                        anomaly.name !== "Not detected"
+                        ? "clickable-row"
+                        : ""
+                    }
+                  >
+                    {idx === 0 ? (
+                      <td className="text-center font-weight-bold" rowSpan={tooth.anomalies.length}>
+                        {tooth.toothNumber}
+                      </td>
+                    ) : null}
+                    <td>
+                      {anomaly.category !== "Blank" ? (
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span>{anomaly.name}</span>
+                          {anomaly.category !== "Info" && (
+                            <span
+                              className={`badge ml-2 ${anomaly.category === "Anomaly"
+                                  ? "bg-danger"
+                                  : anomaly.category === "Procedure"
+                                    ? "bg-success"
+                                    : anomaly.category === "Landmark"
+                                      ? "bg-pink"
+                                      : anomaly.category === "Foreign Object"
+                                        ? "bg-warning"
+                                        : "bg-info"
+                                }`}
+                            >
+                              {anomaly.category}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-muted">-</div>
+                      )}
                     </td>
-                  ) : null}
-                  <td>
-                    {anomaly.category !== "Blank" ? (
-                      <div className="d-flex justify-content-between align-items-center">
-                        <span>{anomaly.name}</span>
-                        {anomaly.category !== "Info" && (
-                          <span
-                            className={`badge ml-2 ${anomaly.category === "Anomaly"
-                                ? "bg-danger"
-                                : anomaly.category === "Procedure"
-                                  ? "bg-success"
-                                  : anomaly.category === "Landmark"
-                                    ? "bg-pink"
-                                    : anomaly.category === "Foreign Object"
-                                      ? "bg-warning"
-                                      : "bg-info"
-                              }`}
-                          >
-                            {anomaly.category}
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-muted">-</div>
-                    )}
-                  </td>
-                  <td className="text-center">
-                    {anomaly.confidence ? (
-                      <span>{anomaly.confidence.toFixed(2).toString().slice(1)}</span>
-                    ) : anomaly.category === "Info" || anomaly.category === "Blank" ? (
-                      "-"
-                    ) : (
-                      "0.80"
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </React.Fragment>
-          ))}
+                    <td className="text-center">
+                      {anomaly.confidence ? (
+                        <span>{anomaly.confidence.toFixed(2).toString().slice(1)}</span>
+                      ) : anomaly.category === "Info" || anomaly.category === "Blank" ? (
+                        "-"
+                      ) : (
+                        "0.80"
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </React.Fragment>
+            ))}
         </tbody>
       </Table>
     </div>

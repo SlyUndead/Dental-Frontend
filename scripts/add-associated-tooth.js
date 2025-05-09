@@ -213,7 +213,7 @@ async function getPatientVisits(patientId) {
 // Function to get all images for a visit
 async function getVisitImages(visitId) {
   try {
-    const response = await axios.get(`${apiUrl}/visitid-images?visitID=${visitId}`, {
+    const response = await axios.get(`${apiUrl}/visitid-annotations?visitID=${visitId}`, {
       headers: {
         Authorization: currentToken
       }

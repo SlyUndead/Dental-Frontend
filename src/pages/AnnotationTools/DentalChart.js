@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { calculateOverlap, polygonArea } from "./path-utils"
 import { Button } from "reactstrap"
 import Tooth01 from '../../assets/SVG-1-to-32/1-32/01.svg'
@@ -36,9 +36,17 @@ import Tooth30 from '../../assets/SVG-1-to-32/1-32/30.svg'
 import Tooth31 from '../../assets/SVG-1-to-32/1-32/31.svg'
 import Tooth32 from '../../assets/SVG-1-to-32/1-32/32.svg'
 
-const DentalChart = ({ annotations, classCategories, confidenceLevels, setHiddenAnnotations }) => {
+const DentalChart = ({ annotations, classCategories, confidenceLevels, setHiddenAnnotations, onToothSelect, externalSelectedTooth }) => {
   // State to track which tooth is selected
-  const [selectedTooth, setSelectedTooth] = useState(null)
+  // If externalSelectedTooth is provided, use it as the initial value
+  const [selectedTooth, setSelectedTooth] = useState(externalSelectedTooth || null)
+
+  // Update internal state when externalSelectedTooth changes
+  useEffect(() => {
+    if (externalSelectedTooth !== undefined) {
+      setSelectedTooth(externalSelectedTooth);
+    }
+  }, [externalSelectedTooth])
 
   // Create a mapping of tooth numbers to their imported SVG files
   const toothImages = {
@@ -175,11 +183,20 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
       setSelectedTooth(null)
       // Show all annotations
       setHiddenAnnotations([])
+      // Notify parent component
+      if (onToothSelect) {
+        onToothSelect(null)
+      }
       return
     }
 
     // Set the selected tooth
     setSelectedTooth(toothNumber)
+
+    // Notify parent component
+    if (onToothSelect) {
+      onToothSelect(toothNumber)
+    }
 
     // Find the annotation indices to keep visible (associated with this tooth)
     const visibleAnnotations = []
@@ -363,6 +380,9 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
               onClick={() => {
                 setSelectedTooth(null);
                 setHiddenAnnotations([]);
+                if (onToothSelect) {
+                  onToothSelect(null);
+                }
               }}
             >
               Clear Selection
