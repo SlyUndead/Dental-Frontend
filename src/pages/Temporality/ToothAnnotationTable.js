@@ -194,6 +194,7 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
               // If no associatedTooth field or it's null, fall back to overlap calculation
               else {
                 // Calculate overlap
+                console.log("Calculating overlap for", anno.label)
                 const overlap = calculateOverlap(anno.segmentation, selectedToothAnnotation.segmentation)
                 const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
                 const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0

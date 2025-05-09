@@ -3,10 +3,78 @@
 import { useState, useMemo } from "react"
 import { calculateOverlap, polygonArea } from "./path-utils"
 import { Button } from "reactstrap"
+import Tooth01 from '../../assets/SVG-1-to-32/1-32/01.svg'
+import Tooth02 from '../../assets/SVG-1-to-32/1-32/02.svg'
+import Tooth03 from '../../assets/SVG-1-to-32/1-32/03.svg'
+import Tooth04 from '../../assets/SVG-1-to-32/1-32/04.svg'
+import Tooth05 from '../../assets/SVG-1-to-32/1-32/05.svg'
+import Tooth06 from '../../assets/SVG-1-to-32/1-32/06.svg'
+import Tooth07 from '../../assets/SVG-1-to-32/1-32/07.svg'
+import Tooth08 from '../../assets/SVG-1-to-32/1-32/08.svg'
+import Tooth09 from '../../assets/SVG-1-to-32/1-32/09.svg'
+import Tooth10 from '../../assets/SVG-1-to-32/1-32/10.svg'
+import Tooth11 from '../../assets/SVG-1-to-32/1-32/11.svg'
+import Tooth12 from '../../assets/SVG-1-to-32/1-32/12.svg'
+import Tooth13 from '../../assets/SVG-1-to-32/1-32/13.svg'
+import Tooth14 from '../../assets/SVG-1-to-32/1-32/14.svg'
+import Tooth15 from '../../assets/SVG-1-to-32/1-32/15.svg'
+import Tooth16 from '../../assets/SVG-1-to-32/1-32/16.svg'
+import Tooth17 from '../../assets/SVG-1-to-32/1-32/17.svg'
+import Tooth18 from '../../assets/SVG-1-to-32/1-32/18.svg'
+import Tooth19 from '../../assets/SVG-1-to-32/1-32/19.svg'
+import Tooth20 from '../../assets/SVG-1-to-32/1-32/20.svg'
+import Tooth21 from '../../assets/SVG-1-to-32/1-32/21.svg'
+import Tooth22 from '../../assets/SVG-1-to-32/1-32/22.svg'
+import Tooth23 from '../../assets/SVG-1-to-32/1-32/23.svg'
+import Tooth24 from '../../assets/SVG-1-to-32/1-32/24.svg'
+import Tooth25 from '../../assets/SVG-1-to-32/1-32/25.svg'
+import Tooth26 from '../../assets/SVG-1-to-32/1-32/26.svg'
+import Tooth27 from '../../assets/SVG-1-to-32/1-32/27.svg'
+import Tooth28 from '../../assets/SVG-1-to-32/1-32/28.svg'
+import Tooth29 from '../../assets/SVG-1-to-32/1-32/29.svg'
+import Tooth30 from '../../assets/SVG-1-to-32/1-32/30.svg'
+import Tooth31 from '../../assets/SVG-1-to-32/1-32/31.svg'
+import Tooth32 from '../../assets/SVG-1-to-32/1-32/32.svg'
 
 const DentalChart = ({ annotations, classCategories, confidenceLevels, setHiddenAnnotations }) => {
   // State to track which tooth is selected
   const [selectedTooth, setSelectedTooth] = useState(null)
+
+  // Create a mapping of tooth numbers to their imported SVG files
+  const toothImages = {
+    1: Tooth01,
+    2: Tooth02,
+    3: Tooth03,
+    4: Tooth04,
+    5: Tooth05,
+    6: Tooth06,
+    7: Tooth07,
+    8: Tooth08,
+    9: Tooth09,
+    10: Tooth10,
+    11: Tooth11,
+    12: Tooth12,
+    13: Tooth13,
+    14: Tooth14,
+    15: Tooth15,
+    16: Tooth16,
+    17: Tooth17,
+    18: Tooth18,
+    19: Tooth19,
+    20: Tooth20,
+    21: Tooth21,
+    22: Tooth22,
+    23: Tooth23,
+    24: Tooth24,
+    25: Tooth25,
+    26: Tooth26,
+    27: Tooth27,
+    28: Tooth28,
+    29: Tooth29,
+    30: Tooth30,
+    31: Tooth31,
+    32: Tooth32
+  }
 
   // Initialize teeth data (1-32)
   const teeth = useMemo(() => {
@@ -199,30 +267,22 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
                 }}>
                   {tooth.number}
                 </div>
-                <svg viewBox="0 0 60 40" style={{ width: "18px", height: "30px" }} transform="scale(1 -1)">
-                  <path
-                    d="M53.065,10.656c-0.818-3.096-3.213-6.05-6.742-8.317c-4.348-2.796-10.496-3.107-16.05-0.813L30.098,1.6 C30,1.643,29.905,1.686,29.802,1.722c-0.465,0.161-0.822,0.3-1.113,0.413c-0.923,0.356-0.922,0.357-2.44-0.09 c-4.335-1.277-9.851-2.553-14.087-1.053c-5.729,2.03-10.809,8.752-9.239,19.19c0.187,1.238,0.368,2.485,0.551,3.739 c1.312,9.014,2.669,18.334,6.154,26.75l0.117,0.284c0.866,2.11,2.315,5.642,4.839,5.642h0.203l0.187-0.079 c2.312-0.979,3.18-3.201,3.812-4.824c0.427-1.096,0.807-2.211,1.175-3.29c0.927-2.723,1.803-5.293,3.381-7.603 c1.198-1.75,4.43-5.559,8.556-3.101c2.756,1.642,3.62,4.953,4.456,8.156c0.238,0.913,0.485,1.857,0.771,2.739 c1.21,3.729,2.782,7.574,5.268,7.829c1.298,0.134,2.517-0.75,3.588-2.631c1.958-3.431,2.799-7.255,3.611-10.953l0.287-1.3 c0.32-1.43,0.676-2.905,1.039-4.413C52.96,28.639,55.277,19.016,53.065,10.656z M48.973,36.66c-0.366,1.519-0.724,3.005-1.046,4.444 l-0.29,1.309c-0.78,3.552-1.587,7.224-3.394,10.391c-0.608,1.066-1.249,1.655-1.647,1.633c-0.458-0.048-1.724-0.771-3.569-6.457 c-0.269-0.826-0.497-1.701-0.738-2.628c-0.895-3.426-1.908-7.308-5.368-9.369c-3.82-2.272-8.121-0.856-11.229,3.69 c-1.733,2.535-2.694,5.357-3.624,8.086c-0.36,1.06-0.733,2.154-1.145,3.209c-0.641,1.642-1.24,2.961-2.512,3.608 c-1.135-0.283-2.346-3.233-2.815-4.379l-0.12-0.291c-3.391-8.186-4.729-17.38-6.022-26.271c-0.184-1.258-0.365-2.509-0.552-3.749 c-1.009-6.71,1.051-14.571,7.929-17.009c1.12-0.396,2.389-0.557,3.717-0.557c3.058,0,6.428,0.849,9.024,1.611 c6.423,3.649,6.423,5.229,6.397,11.756l-0.003,1.317c0,0.553,0.447,1,1,1s1-0.447,1-1l0.003-1.31 c0.022-5.722,0.014-8.417-4.555-11.695l0.001,0c0.273-0.106,0.607-0.236,1.041-0.387c0.148-0.051,0.294-0.113,0.442-0.178 l0.144-0.063c4.953-2.048,10.395-1.798,14.2,0.648c3.108,1.998,5.2,4.536,5.891,7.147C53.214,19.04,50.96,28.401,48.973,36.66z"
-                    style={{
-                      fill:
-                        getToothColor(tooth) === "grey"
-                          ? "#d1d5db"
-                          : getToothColor(tooth) === "red"
-                            ? "#f87171"
-                            : getToothColor(tooth) === "green"
-                              ? "#4ade80"
-                              : "#93c5fd",
-                      stroke:
-                        getToothColor(tooth) === "grey"
-                          ? "#9ca3af"
-                          : getToothColor(tooth) === "red"
-                            ? "#b91c1c"
-                            : getToothColor(tooth) === "green"
-                              ? "#15803d"
-                              : "#3b82f6",
-                      strokeWidth: "2",
-                    }}
-                  />
-                </svg>
+                <img
+                  src={toothImages[tooth.number]}
+                  alt={`Tooth ${tooth.number}`}
+                  viewBox="0 0 60 40"
+                  style={{
+                    width: "24px",
+                    height: "50px",
+                    filter: getToothColor(tooth) === "grey"
+                      ? "invert(84%) sepia(9%) saturate(188%) hue-rotate(185deg) brightness(92%) contrast(85%)"
+                      : getToothColor(tooth) === "red"
+                        ? "invert(27%) sepia(90%) saturate(7500%) hue-rotate(0deg) brightness(105%) contrast(115%)"
+                        : getToothColor(tooth) === "green"
+                          ? "invert(85%) sepia(27%) saturate(1115%) hue-rotate(86deg) brightness(92%) contrast(87%)"
+                          : "invert(69%) sepia(45%) saturate(1129%) hue-rotate(191deg) brightness(103%) contrast(98%)"
+                  }}
+                />
               </div>
             ))}
         </div>
@@ -246,30 +306,22 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
                 }}
                 onClick={() => handleToothClick(tooth.number)}
               >
-                <svg viewBox="0 0 60 40" style={{ width: "18px", height: "30px" }}>
-                  <path
-                    d="M53.065,10.656c-0.818-3.096-3.213-6.05-6.742-8.317c-4.348-2.796-10.496-3.107-16.05-0.813L30.098,1.6 C30,1.643,29.905,1.686,29.802,1.722c-0.465,0.161-0.822,0.3-1.113,0.413c-0.923,0.356-0.922,0.357-2.44-0.09 c-4.335-1.277-9.851-2.553-14.087-1.053c-5.729,2.03-10.809,8.752-9.239,19.19c0.187,1.238,0.368,2.485,0.551,3.739 c1.312,9.014,2.669,18.334,6.154,26.75l0.117,0.284c0.866,2.11,2.315,5.642,4.839,5.642h0.203l0.187-0.079 c2.312-0.979,3.18-3.201,3.812-4.824c0.427-1.096,0.807-2.211,1.175-3.29c0.927-2.723,1.803-5.293,3.381-7.603 c1.198-1.75,4.43-5.559,8.556-3.101c2.756,1.642,3.62,4.953,4.456,8.156c0.238,0.913,0.485,1.857,0.771,2.739 c1.21,3.729,2.782,7.574,5.268,7.829c1.298,0.134,2.517-0.75,3.588-2.631c1.958-3.431,2.799-7.255,3.611-10.953l0.287-1.3 c0.32-1.43,0.676-2.905,1.039-4.413C52.96,28.639,55.277,19.016,53.065,10.656z M48.973,36.66c-0.366,1.519-0.724,3.005-1.046,4.444 l-0.29,1.309c-0.78,3.552-1.587,7.224-3.394,10.391c-0.608,1.066-1.249,1.655-1.647,1.633c-0.458-0.048-1.724-0.771-3.569-6.457 c-0.269-0.826-0.497-1.701-0.738-2.628c-0.895-3.426-1.908-7.308-5.368-9.369c-3.82-2.272-8.121-0.856-11.229,3.69 c-1.733,2.535-2.694,5.357-3.624,8.086c-0.36,1.06-0.733,2.154-1.145,3.209c-0.641,1.642-1.24,2.961-2.512,3.608 c-1.135-0.283-2.346-3.233-2.815-4.379l-0.12-0.291c-3.391-8.186-4.729-17.38-6.022-26.271c-0.184-1.258-0.365-2.509-0.552-3.749 c-1.009-6.71,1.051-14.571,7.929-17.009c1.12-0.396,2.389-0.557,3.717-0.557c3.058,0,6.428,0.849,9.024,1.611 c6.423,3.649,6.423,5.229,6.397,11.756l-0.003,1.317c0,0.553,0.447,1,1,1s1-0.447,1-1l0.003-1.31 c0.022-5.722,0.014-8.417-4.555-11.695l0.001,0c0.273-0.106,0.607-0.236,1.041-0.387c0.148-0.051,0.294-0.113,0.442-0.178 l0.144-0.063c4.953-2.048,10.395-1.798,14.2,0.648c3.108,1.998,5.2,4.536,5.891,7.147C53.214,19.04,50.96,28.401,48.973,36.66z"
-                    style={{
-                      fill:
-                        getToothColor(tooth) === "grey"
-                          ? "#d1d5db"
-                          : getToothColor(tooth) === "red"
-                            ? "#f87171"
-                            : getToothColor(tooth) === "green"
-                              ? "#4ade80"
-                              : "#93c5fd",
-                      stroke:
-                        getToothColor(tooth) === "grey"
-                          ? "#9ca3af"
-                          : getToothColor(tooth) === "red"
-                            ? "#b91c1c"
-                            : getToothColor(tooth) === "green"
-                              ? "#15803d"
-                              : "#3b82f6",
-                      strokeWidth: "2",
-                    }}
-                  />
-                </svg>
+                <img
+                  src={toothImages[tooth.number]}
+                  alt={`Tooth ${tooth.number}`}
+                  viewBox="0 0 60 40"
+                  style={{
+                    width: "24px",
+                    height: "50px",
+                    filter: getToothColor(tooth) === "grey"
+                      ? "invert(84%) sepia(9%) saturate(188%) hue-rotate(185deg) brightness(92%) contrast(85%)"
+                      : getToothColor(tooth) === "red"
+                        ? "invert(27%) sepia(90%) saturate(7500%) hue-rotate(0deg) brightness(105%) contrast(115%)"
+                        : getToothColor(tooth) === "green"
+                          ? "invert(85%) sepia(27%) saturate(1115%) hue-rotate(86deg) brightness(92%) contrast(87%)"
+                          : "invert(69%) sepia(45%) saturate(1129%) hue-rotate(191deg) brightness(103%) contrast(98%)"
+                  }}
+                />
                 <div style={{
                   fontSize: "10px",
                   fontWeight: selectedTooth === tooth.number ? "700" : "500",

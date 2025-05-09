@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   Card,
   CardBody,
@@ -19,6 +19,7 @@ import {
 import { Navigate } from "react-router-dom"
 import "bootstrap/dist/css/bootstrap.min.css"
 import { logErrorToServer } from "utils/logError"
+import "../../assets/scss/custom/plugins/icons/_fontawesome.scss"
 import DentalChart from "../AnnotationTools/DentalChart"
 import ToothAnnotationTable from "./ToothAnnotationTable"
 import axios from "axios"
@@ -31,6 +32,7 @@ import DateSlider from "./DateSlider"
 const TemporalityPage = (props) => {
   document.title = "Temporality View | AGP Dental Tool"
   const apiUrl = process.env.REACT_APP_NODEAPIURL
+  const printRef = useRef(null)
   const [redirectToLogin, setRedirectToLogin] = useState(false)
   const [isFirstLoading, setIsFirstLoading] = useState(false)
   const [isSecondLoading, setIsSecondLoading] = useState(false)
@@ -68,12 +70,97 @@ const TemporalityPage = (props) => {
   // Toggle consolidated view
   const toggleConsolidatedView = async () => {
     const newValue = !isConsolidatedView
-    setIsConsolidatedView(newValue)
 
     if (newValue) {
       // When enabling consolidated view, fetch all visits' annotations if not already done
+      setIsConsolidatedView(true) // Set this first to show loading state
       await fetchAllVisitsAnnotations()
+    } else {
+      // When disabling consolidated view, clear the consolidated data to free up memory
+      // This prevents the 3-second delay when toggling off
+      setIsConsolidatedView(false)
+
+      // Use setTimeout to clear data after the UI has updated
+      // This prevents the UI from freezing during the state update
+      setTimeout(() => {
+        if (!isConsolidatedView) { // Double-check we're still in non-consolidated mode
+          setAllVisitsAnnotations({})
+          setConsolidatedAnnotations([])
+        }
+      }, 100)
     }
+  }
+
+  // Handle print functionality
+  const handlePrint = () => {
+    const patientName = sessionStorage.getItem('patientName')
+    const printWindow = window.open('', '_blank')
+
+    // Collect all stylesheets
+    const styles = Array.from(document.styleSheets).map((styleSheet) => {
+      try {
+        const rules = Array.from(styleSheet.cssRules)
+          .filter(rule => {
+            // Ignore table hover styles
+            return !rule.selectorText || !rule.selectorText.includes(':hover')
+          })
+          .map(rule => rule.cssText)
+          .join('\n')
+        return `<style>${rules}</style>`
+      } catch (e) {
+        // Handle CORS issues if styleSheet is from another domain
+        return ''
+      }
+    }).join('\n')
+
+    // Get the content to print
+    const contentToPrint = printRef.current.innerHTML
+
+    // Write to the new window
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Temporality View - ${patientName}</title>
+          ${styles}
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 20px;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 20px;
+              font-size: 24px;
+              font-weight: bold;
+            }
+            @media print {
+              @page {
+                margin: 10mm;
+              }
+              button, .no-print {
+                display: none !important;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            Temporality View - ${patientName}
+          </div>
+          <div>
+            ${contentToPrint}
+          </div>
+        </body>
+      </html>
+    `)
+
+    printWindow.document.close()
+
+    // Wait for styles to load then print
+    setTimeout(() => {
+      printWindow.print()
+      printWindow.close()
+    }, 500)
   }
 
   // Fetch all patient visits
@@ -192,7 +279,7 @@ const TemporalityPage = (props) => {
   const fetchVisitAnnotations = async (visitId) => {
     try {
       // Fetch images for the selected visit
-      const response = await axios.get(`${apiUrl}/visitid-images?visitID=${visitId}`, {
+      const response = await axios.get(`${apiUrl}/visitid-annotations?visitID=${visitId}`, {
         headers: {
           Authorization: sessionStorage.getItem("token"),
         },
@@ -212,14 +299,14 @@ const TemporalityPage = (props) => {
                 ...annotation,
                 imageId: image._id,
                 imageNumber: image.imageNumber || index + 1,
+                imageName: image.name,
+                visitId: visitId,
               }))
               visitAnnots = [...visitAnnots, ...annotationsWithImageId]
-              console.log(annotationsWithImageId)
             }
           })
           return visitAnnots
         } else {
-          console.log(`No images found for visit ${visitId}`)
           return []
         }
       }
@@ -233,14 +320,22 @@ const TemporalityPage = (props) => {
   // Fetch annotations for all visits
   const fetchAllVisitsAnnotations = async () => {
     if (Object.keys(allVisitsAnnotations).length > 0 && !isLoadingConsolidated) {
-      // If we already have all annotations, just generate the consolidated view
       generateConsolidatedView()
+      return
+    }
+
+    // If we have consolidated annotations already, no need to regenerate them
+    if (consolidatedAnnotations.length > 0 && !isLoadingConsolidated) {
       return
     }
 
     setIsLoadingConsolidated(true)
     try {
       const visitAnnotations = {}
+      // Track which teeth we've already found
+      const foundTeeth = new Set()
+      // Track which teeth still need to be found (teeth 1-32)
+      const remainingTeeth = new Set(Array.from({ length: 32 }, (_, i) => i + 1))
 
       // First, get the latest visit annotations (treatment plan)
       const lastVisitResponse = await axios.get(
@@ -265,6 +360,8 @@ const TemporalityPage = (props) => {
                 ...annotation,
                 imageId: image._id,
                 imageNumber: image.imageNumber || index + 1,
+                imageName: image.name,
+                visitId: lastVisitData.visitId || patientVisits[0]?._id,
               }))
               lastVisitAnnots = [...lastVisitAnnots, ...annotationsWithImageId]
             }
@@ -273,16 +370,44 @@ const TemporalityPage = (props) => {
           // Store the latest visit annotations
           if (patientVisits.length > 0) {
             visitAnnotations[patientVisits[0]._id] = lastVisitAnnots
+
+            // Check which teeth were found in this visit
+            lastVisitAnnots.forEach(anno => {
+              if (!isNaN(Number.parseInt(anno.label))) {
+                const toothNumber = Number.parseInt(anno.label)
+                if (toothNumber >= 1 && toothNumber <= 32) {
+                  foundTeeth.add(toothNumber)
+                  remainingTeeth.delete(toothNumber)
+                }
+              }
+            })
           }
         }
       }
 
-      // Then fetch annotations for all other visits
+      // Then fetch annotations for other visits only if needed
       for (let i = 1; i < patientVisits.length; i++) {
+        // If we've found all teeth, stop fetching more visits
+        if (remainingTeeth.size === 0) {
+          break
+        }
+
         const visitId = patientVisits[i]._id
         const annotations = await fetchVisitAnnotations(visitId)
         visitAnnotations[visitId] = annotations
+
+        // Check which teeth were found in this visit
+        annotations.forEach(anno => {
+          if (!isNaN(Number.parseInt(anno.label))) {
+            const toothNumber = Number.parseInt(anno.label)
+            if (toothNumber >= 1 && toothNumber <= 32 && !foundTeeth.has(toothNumber)) {
+              foundTeeth.add(toothNumber)
+              remainingTeeth.delete(toothNumber)
+            }
+          }
+        })
       }
+
       setAllVisitsAnnotations(visitAnnotations)
       generateConsolidatedView(visitAnnotations)
     } catch (error) {
@@ -299,9 +424,12 @@ const TemporalityPage = (props) => {
     const annotations = visitAnnots || allVisitsAnnotations
     if (!annotations || Object.keys(annotations).length === 0) return
 
-    // Get all tooth numbers across all visits
-    const allTeethNumbers = new Set()
+    // Track which teeth we've already processed
+    const processedTeeth = new Set()
     const consolidatedTeeth = {}
+
+    // Track which teeth still need to be found
+    const remainingTeeth = new Set(Array.from({ length: 32 }, (_, i) => i + 1))
 
     // Process visits in order (newest to oldest)
     for (let i = 0; i < patientVisits.length; i++) {
@@ -311,27 +439,52 @@ const TemporalityPage = (props) => {
       // Get tooth annotations for this visit
       const toothAnnots = visitAnnotations.filter((anno) => !isNaN(Number.parseInt(anno.label)))
 
-      // Add all tooth numbers to our set
-      toothAnnots.forEach((anno) => {
-        const toothNumber = Number.parseInt(anno.label)
-        allTeethNumbers.add(toothNumber)
-      })
+      // If we've found all teeth, we can stop processing visits
+      if (remainingTeeth.size === 0) {
+        break
+      }
 
       // For each tooth in this visit
       toothAnnots.forEach((toothAnno) => {
         const toothNumber = Number.parseInt(toothAnno.label)
 
-        // If we haven't already found this tooth in a more recent visit
-        if (!consolidatedTeeth[toothNumber]) {
-          // Find all anomalies that overlap with this tooth
-          const anomalies = []
+        // If we've already processed this tooth in a more recent visit, skip it
+        if (processedTeeth.has(toothNumber)) {
+          return
+        }
 
-          visitAnnotations.forEach((anno) => {
-            // Skip tooth annotations and annotations without segmentation
-            if (!isNaN(Number.parseInt(anno.label)) || !anno.segmentation || !toothAnno.segmentation) {
-              return
+        // Mark this tooth as processed
+        processedTeeth.add(toothNumber)
+        remainingTeeth.delete(toothNumber)
+
+        // Find all anomalies that are associated with this tooth
+        const anomalies = []
+
+        visitAnnotations.forEach((anno) => {
+          // Skip tooth annotations
+          if (!isNaN(Number.parseInt(anno.label))) {
+            return
+          }
+
+          // First check if the annotation has an associatedTooth field
+          if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
+            // If the associatedTooth matches this tooth, add it to anomalies
+            if (Number.parseInt(anno.associatedTooth) === toothNumber) {
+              anomalies.push({
+                name: anno.label,
+                category: classCategories[anno.label.toLowerCase()] || "Unknown",
+                confidence: anno.confidence,
+                overlapPercentage: 100, // We're using associatedTooth, so it's a perfect match
+                visitDate: patientVisits[i].formattedDate,
+                visitIndex: i,
+                visitId: patientVisits[i]._id,
+                imageNumber: anno.imageNumber,
+                imageName: anno.imageName,
+              })
             }
-
+          }
+          // If no associatedTooth field or it's null, fall back to overlap calculation
+          else if (anno.segmentation && toothAnno.segmentation) {
             try {
               // Calculate overlap
               const overlap = calculateOverlap(anno.segmentation, toothAnno.segmentation)
@@ -349,36 +502,91 @@ const TemporalityPage = (props) => {
                   visitIndex: i,
                   visitId: patientVisits[i]._id,
                   imageNumber: anno.imageNumber,
+                  imageName: anno.imageName,
                 })
               }
             } catch (error) {
               console.error("Error calculating overlap:", error)
             }
-          })
-
-          // Store this tooth with its anomalies and visit info
-          consolidatedTeeth[toothNumber] = {
-            toothNumber,
-            anomalies:
-              anomalies.length > 0
-                ? anomalies
-                : [
-                  {
-                    name: "No anomalies detected",
-                    category: "Info",
-                    visitDate: patientVisits[i].formattedDate,
-                    visitIndex: i,
-                  },
-                ],
-            visitDate: patientVisits[i].formattedDate,
-            visitIndex: i,
           }
+        })
+
+        // Store this tooth with its anomalies and visit info
+        consolidatedTeeth[toothNumber] = {
+          toothNumber,
+          anomalies:
+            anomalies.length > 0
+              ? anomalies
+              : [
+                {
+                  name: "No anomalies detected",
+                  category: "Info",
+                  visitDate: patientVisits[i].formattedDate,
+                  visitIndex: i,
+                },
+              ],
+          visitDate: patientVisits[i].formattedDate,
+          visitIndex: i,
         }
       })
     }
 
-    // Convert to array and sort by tooth number
-    const consolidatedArray = Object.values(consolidatedTeeth).sort((a, b) => a.toothNumber - b.toothNumber)
+    // Process unassigned annotations
+    const unassignedAnomalies = []
+
+    // Go through all visits to find unassigned annotations
+    for (let i = 0; i < patientVisits.length; i++) {
+      const visitId = patientVisits[i]._id
+      const visitAnnotations = annotations[visitId] || []
+
+      // Skip tooth annotations and look for unassigned anomalies
+      visitAnnotations.forEach((anno) => {
+        // Skip tooth annotations
+        if (!isNaN(Number.parseInt(anno.label))) {
+          return
+        }
+
+        // Check if this annotation has an associatedTooth field that's null or "Unassigned"
+        if (anno.associatedTooth === null || anno.associatedTooth === "Unassigned") {
+          unassignedAnomalies.push({
+            name: anno.label,
+            category: classCategories[anno.label.toLowerCase()] || "Unknown",
+            confidence: anno.confidence,
+            visitDate: patientVisits[i].formattedDate,
+            visitIndex: i,
+            visitId: patientVisits[i]._id,
+            imageNumber: anno.imageNumber,
+            imageName: anno.imageName,
+          })
+        }
+      })
+
+      // If we've found unassigned anomalies, we can stop looking in older visits
+      if (unassignedAnomalies.length > 0) {
+        break
+      }
+    }
+
+    // Add unassigned anomalies if any were found
+    if (unassignedAnomalies.length > 0) {
+      consolidatedTeeth["unassigned"] = {
+        toothNumber: "Unassigned",
+        anomalies: unassignedAnomalies,
+        isUnassigned: true,
+        visitDate: unassignedAnomalies[0].visitDate,
+        visitIndex: unassignedAnomalies[0].visitIndex,
+      }
+    }
+
+    // Convert to array and sort by tooth number, with "Unassigned" at the end
+    const consolidatedArray = Object.values(consolidatedTeeth).sort((a, b) => {
+      // Always put "Unassigned" at the end
+      if (a.toothNumber === "Unassigned" || a.isUnassigned) return 1
+      if (b.toothNumber === "Unassigned" || b.isUnassigned) return -1
+      // Otherwise sort by tooth number
+      return a.toothNumber - b.toothNumber
+    })
+
     setConsolidatedAnnotations(consolidatedArray)
   }
   // Fetch class categories
@@ -437,7 +645,7 @@ const TemporalityPage = (props) => {
 
     try {
       // Fetch annotations for ONLY the selected visit
-      const response = await axios.get(`${apiUrl}/visitid-images?visitID=${visitId}`,
+      const response = await axios.get(`${apiUrl}/visitid-annotations?visitID=${visitId}`,
         {
           headers: {
             Authorization: sessionStorage.getItem("token"),
@@ -494,7 +702,7 @@ const TemporalityPage = (props) => {
     try {
       // Fetch annotations for ONLY the selected visit
       const response = await axios.get(
-        `${apiUrl}/visitid-images?visitID=${visitId}`,
+        `${apiUrl}/visitid-annotations?visitID=${visitId}`,
         {
           headers: {
             Authorization: sessionStorage.getItem("token"),
@@ -563,16 +771,23 @@ const TemporalityPage = (props) => {
     <Card>
       <CardBody>
         <Row>
-          <Col md={12} className="d-flex align-items-center mb-3">
-            <Button color="primary" onClick={() => setRedirectToPatientVisitPage(true)} className="mr-3">
-              Patient Visits
-            </Button>
-            <FormGroup check className="ml-3 mb-0">
-              <Label check>
-                <Input type="checkbox" checked={isConsolidatedView} onChange={toggleConsolidatedView} /> Consolidated
-                View
-              </Label>
-            </FormGroup>
+          <Col md={12} className="d-flex justify-content-between align-items-center mb-3">
+            <div className="d-flex align-items-center">
+              <Button color="primary" onClick={() => setRedirectToPatientVisitPage(true)} className="mr-3">
+                Patient Visits
+              </Button>
+              <FormGroup check className="ml-3 mb-0">
+                <Label check>
+                  <Input type="checkbox" checked={isConsolidatedView} onChange={toggleConsolidatedView} /> Consolidated
+                  View
+                </Label>
+              </FormGroup>
+            </div>
+            <div>
+              <Button color="success" onClick={handlePrint}>
+                <i className="fa fa-print mr-1"></i> Print
+              </Button>
+            </div>
           </Col>
         </Row>
 
@@ -593,7 +808,7 @@ const TemporalityPage = (props) => {
                 visits={patientVisits}
                 selectedFirstVisitId={firstVisitId}
                 selectedSecondVisitId={secondVisitId}
-                onRangeChange={(firstVisitObj, secondVisitObj) => {
+                onRangeChange={() => {
                   // This is just for preview, no action needed
                 }}
                 onApplySelection={(firstVisitObj, secondVisitObj) => {
@@ -770,7 +985,7 @@ const TemporalityPage = (props) => {
         ) : message ? (
           <div className="alert alert-info mt-3">{message}</div>
         ) : (
-          <div>
+          <div ref={printRef}>
             {isConsolidatedView ? (
               // Consolidated view
               <Row>

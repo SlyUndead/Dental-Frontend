@@ -98,7 +98,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "add-associated-tooth": "node scripts/add-associated-tooth.js"
   },
   "eslintConfig": {
     "extends": [
@@ -124,6 +125,7 @@
   "devDependencies": {
     "eslint-config-standard-react": "^13.0.0",
     "eslint-plugin-react": "^7.33.2",
+    "jsdom": "^22.1.0",
     "prettier": "^3.1.0",
     "react-error-overlay": "^6.0.11"
   }
