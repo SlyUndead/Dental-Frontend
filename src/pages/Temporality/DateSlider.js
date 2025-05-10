@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Button } from "reactstrap";
+import { Button, UncontrolledTooltip } from "reactstrap";
 
 const DateSlider = ({
   visits = [],
@@ -11,7 +11,6 @@ const DateSlider = ({
   const [leftValue, setLeftValue] = useState(0);
   const [rightValue, setRightValue] = useState(1);
   const [dragging, setDragging] = useState(null);
-  const [hoveredDate, setHoveredDate] = useState(null);
   const [uniqueDates, setUniqueDates] = useState([]);
 
   useEffect(() => {
@@ -200,16 +199,8 @@ const DateSlider = ({
   };
 
   const formatDate = (visitObj) => {
-    // Return the date and time string
-    return `${visitObj.date} ${visitObj.time}`;
-  };
-
-  const handleDateHover = (index) => {
-    setHoveredDate(index);
-  };
-
-  const handleDateLeave = () => {
-    setHoveredDate(null);
+    // Return the date and time string with a more detailed format
+    return `${visitObj.date} at ${visitObj.time}`;
   };
 
   const handleApply = () => {
@@ -224,28 +215,7 @@ const DateSlider = ({
 
   return (
     <div className="date-slider-container mb-4">
-      <div className="slider-dates d-flex justify-content-between mb-2">
-        {uniqueDates.map((date, index) => (
-          <div
-            key={index}
-            className="date-marker"
-            style={{
-              left: `${(index / Math.max(uniqueDates.length - 1, 1)) * 100}%`,
-              transform: 'translateX(-50%)',
-              position: 'absolute'
-            }}
-            onMouseEnter={() => handleDateHover(index)}
-            onMouseLeave={handleDateLeave}
-          >
-            {hoveredDate === index && (
-              <div className="date-tooltip bg-dark text-white p-1 rounded"
-                   style={{ position: 'absolute', bottom: '100%', transform: 'translateX(-50%)', zIndex: 100, whiteSpace: 'nowrap' }}>
-                {formatDate(date)}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      {/* We're removing the slider-dates div since we now have tooltips on the tick marks */}
 
       <div
         className="slider-track position-relative"
@@ -253,7 +223,9 @@ const DateSlider = ({
           height: '8px',
           backgroundColor: '#e0e0e0',
           borderRadius: '4px',
-          cursor: 'pointer'
+          cursor: 'pointer',
+          marginTop: '30px', // Add margin to ensure space for tooltips
+          marginBottom: '30px' // Add margin to ensure space for tooltips
         }}
         onClick={handleTrackClick}
         onMouseMove={handleMouseMove}
@@ -314,6 +286,7 @@ const DateSlider = ({
             const result = (
               <div key={index}>
                 <div
+                  id={`tick-${index}`}
                   className="tick-mark"
                   style={{
                     position: 'absolute',
@@ -323,9 +296,16 @@ const DateSlider = ({
                     backgroundColor: isNewMonth ? '#333' : '#757575', // Make month start ticks darker
                     transform: 'translateX(-50%)',
                     top: '-2px',
-                    pointerEvents: 'none'
+                    pointerEvents: 'auto', // Enable hover events
+                    cursor: 'pointer'
                   }}
                 />
+                <UncontrolledTooltip
+                  placement={placeAbove ? "bottom" : "top"}
+                  target={`tick-${index}`}
+                >
+                  {formatDate(date)}
+                </UncontrolledTooltip>
                 {/* Month label - positioned above or below based on our logic */}
                 {isNewMonth && (
                   <div
@@ -360,6 +340,7 @@ const DateSlider = ({
 
         {/* Left knob */}
         <div
+          id="left-knob"
           className="knob left-knob"
           style={{
             position: 'absolute',
@@ -379,11 +360,19 @@ const DateSlider = ({
             transition: 'background-color 0.3s ease, box-shadow 0.3s ease'
           }}
           onMouseDown={handleMouseDown('left')}
-          title={leftValue === rightValue ? "Both knobs are at the same position" : "Drag to select older date"}
         />
+        <UncontrolledTooltip
+          placement="top"
+          target="left-knob"
+          delay={{ show: 200, hide: 100 }}
+          className="date-tooltip"
+        >
+          {uniqueDates.length > 0 ? formatDate(uniqueDates[leftValue]) : ""}
+        </UncontrolledTooltip>
 
         {/* Right knob */}
         <div
+          id="right-knob"
           className="knob right-knob"
           style={{
             position: 'absolute',
@@ -403,8 +392,15 @@ const DateSlider = ({
             transition: 'background-color 0.3s ease, box-shadow 0.3s ease'
           }}
           onMouseDown={handleMouseDown('right')}
-          title={leftValue === rightValue ? "Both knobs are at the same position" : "Drag to select newer date"}
         />
+        <UncontrolledTooltip
+          placement="top"
+          target="right-knob"
+          delay={{ show: 200, hide: 100 }}
+          className="date-tooltip"
+        >
+          {uniqueDates.length > 0 ? formatDate(uniqueDates[rightValue]) : ""}
+        </UncontrolledTooltip>
       </div>
 
       <div className="mt-5 d-flex justify-content-between align-items-center">

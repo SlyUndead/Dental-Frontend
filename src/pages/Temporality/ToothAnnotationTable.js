@@ -42,6 +42,18 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
     const newWindow = window.open('', '_blank');
 
     // Store data in sessionStorage for the new tab
+    if(anomaly.visitIndex === 0){
+      sessionStorage.setItem("last", true)
+    }
+    else{
+      sessionStorage.setItem("last", false)
+    }
+    if(anomaly.visitIndex === patientVisits.length - 1){
+      sessionStorage.setItem("first", true)
+    }
+    else{
+      sessionStorage.setItem("first", false)
+    }
     if (anomaly.imageName) {
       sessionStorage.setItem("selectedImageName", anomaly.imageName)
     } else if (anomaly.imageNumber) {
@@ -199,32 +211,159 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
                   })
                 }
               }
-              // If no associatedTooth field or it's null, fall back to overlap calculation
+              // If no associatedTooth field or it's null, we'll handle it differently
               else {
-                // Calculate overlap
-                console.log("Calculating overlap for", anno.label)
-                const overlap = calculateOverlap(anno.segmentation, selectedToothAnnotation.segmentation)
-                const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
-                const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
-
-                // Only include if overlap is at least 80%
-                if (overlapPercentage >= 0.8) {
-                  anomalies.push({
-                    toothNumber: selectedTooth,
-                    name: anno.label,
-                    category: classCategories[anno.label.toLowerCase()] || "Unknown",
-                    confidence: anno.confidence,
-                    overlapPercentage: Math.round(overlapPercentage * 100),
-                    imageNumber: anno.imageNumber,
-                    imageName: anno.imageName,
-                    visitId: anno.visitId
-                  })
-                }
+                // We'll collect all annotations without associatedTooth and find the one with maximum overlap
+                // This is handled in a separate loop below
               }
             } catch (error) {
               console.error("Error calculating overlap:", error)
             }
           })
+
+          // Process annotations without associatedTooth field using maximum overlap approach
+          annotations.forEach((anno) => {
+            // Skip tooth annotations (numeric labels) and annotations with associatedTooth
+            if (!isNaN(Number.parseInt(anno.label)) ||
+                (anno.associatedTooth !== undefined && anno.associatedTooth !== null) ||
+                !anno.segmentation || !selectedToothAnnotation.segmentation) {
+              return;
+            }
+
+            // Special handling for bone loss annotations
+            const isBoneLoss = anno.label.toLowerCase().includes("bone loss");
+
+            if (isBoneLoss) {
+              // For bone loss, we need to find all teeth that overlap with it
+              // But since we're already in the context of a selected tooth,
+              // we just need to check if this bone loss annotation overlaps with the selected tooth
+              try {
+                const overlap = calculateOverlap(anno.segmentation, selectedToothAnnotation.segmentation);
+                const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]));
+                const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0;
+
+                // For bone loss, include any tooth with even minimal overlap (2% or more)
+                if (overlapPercentage > 0.00) {
+                  // We need to find all teeth that overlap with this bone loss annotation
+                  // to create a proper range
+                  const overlappingTeeth = [];
+
+                  // First add the selected tooth
+                  overlappingTeeth.push(selectedTooth);
+
+                  // Then check other teeth
+                  toothAnnots.forEach((toothAnno) => {
+                    const toothNumber = Number.parseInt(toothAnno.label);
+                    if (toothNumber !== selectedTooth && // Skip the selected tooth (already added)
+                        !isNaN(toothNumber) && toothNumber >= 1 && toothNumber <= 32 &&
+                        toothAnno.segmentation) {
+                      try {
+                        const otherOverlap = calculateOverlap(anno.segmentation, toothAnno.segmentation);
+                        const otherOverlapPercentage = annoArea > 0 ? otherOverlap / annoArea : 0;
+
+                        if (otherOverlapPercentage >= 0.02) {
+                          overlappingTeeth.push(toothNumber);
+                        }
+                      } catch (error) {
+                        console.error("Error calculating overlap:", error);
+                      }
+                    }
+                  });
+
+                  // Sort teeth by number
+                  overlappingTeeth.sort((a, b) => a - b);
+
+                  // Find continuous ranges
+                  const ranges = [];
+                  let currentRange = [overlappingTeeth[0]];
+
+                  for (let i = 1; i < overlappingTeeth.length; i++) {
+                    const prevTooth = overlappingTeeth[i-1];
+                    const currentTooth = overlappingTeeth[i];
+
+                    // If teeth are consecutive or within 1 tooth apart, add to current range
+                    if (currentTooth - prevTooth <= 2) {
+                      currentRange.push(currentTooth);
+                    } else {
+                      // Start a new range
+                      ranges.push([...currentRange]);
+                      currentRange = [currentTooth];
+                    }
+                  }
+
+                  // Add the last range
+                  ranges.push(currentRange);
+
+                  // Find the range that contains the selected tooth
+                  const selectedToothRange = ranges.find(range => range.includes(selectedTooth));
+
+                  if (selectedToothRange) {
+                    // Format the range as "X-Y" if it's a range, or just "X" if it's a single tooth
+                    const rangeText = selectedToothRange.length > 1
+                      ? `${selectedToothRange[0]}-${selectedToothRange[selectedToothRange.length-1]}`
+                      : `${selectedToothRange[0]}`;
+
+                    // Check if this annotation is already in the anomalies array
+                    const isDuplicate = anomalies.some(a =>
+                      a.name === `${anno.label} (Teeth ${rangeText})` &&
+                      a.confidence === anno.confidence &&
+                      a.imageNumber === anno.imageNumber
+                    );
+
+                    if (!isDuplicate) {
+                      anomalies.push({
+                        toothNumber: selectedTooth,
+                        name: `${anno.label} (Teeth ${rangeText})`,
+                        category: classCategories[anno.label.toLowerCase()] || "Unknown",
+                        confidence: anno.confidence,
+                        overlapPercentage: Math.round(overlapPercentage * 100),
+                        imageNumber: anno.imageNumber,
+                        imageName: anno.imageName,
+                        visitId: anno.visitId,
+                        isRange: true,
+                        teethRange: rangeText
+                      });
+                    }
+                  }
+                }
+              } catch (error) {
+                console.error("Error calculating overlap:", error);
+              }
+            } else {
+              // For non-bone loss annotations, use the regular approach
+              try {
+                // Calculate overlap with the selected tooth
+                const overlap = calculateOverlap(anno.segmentation, selectedToothAnnotation.segmentation);
+                const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]));
+                const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0;
+
+                // Only include if overlap is at least 80%
+                if (overlapPercentage >= 0.8) {
+                  // Check if this annotation is already in the anomalies array
+                  const isDuplicate = anomalies.some(a =>
+                    a.name === anno.label &&
+                    a.confidence === anno.confidence &&
+                    a.imageNumber === anno.imageNumber
+                  );
+
+                  if (!isDuplicate) {
+                    anomalies.push({
+                      toothNumber: selectedTooth,
+                      name: anno.label,
+                      category: classCategories[anno.label.toLowerCase()] || "Unknown",
+                      confidence: anno.confidence,
+                      overlapPercentage: Math.round(overlapPercentage * 100),
+                      imageNumber: anno.imageNumber,
+                      imageName: anno.imageName,
+                      visitId: anno.visitId
+                    });
+                  }
+                }
+              } catch (error) {
+                console.error("Error calculating overlap:", error);
+              }
+            }
+          });
 
           // Create a single entry for the selected tooth
           setToothAnnotations([
@@ -276,28 +415,10 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
                 })
               }
             }
-            // If no associatedTooth field or it's null, fall back to overlap calculation
+            // If no associatedTooth field or it's null, we'll handle it later
+            // We'll collect all annotations without associatedTooth and process them after
             else {
-              try {
-                // Calculate overlap
-                const overlap = calculateOverlap(anno.segmentation, toothAnnotation.segmentation)
-                const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
-                const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
-                // Only include if overlap is at least 80%
-                if (overlapPercentage >= 0.8) {
-                  teethData[toothNumber].anomalies.push({
-                    name: anno.label,
-                    category: classCategories[anno.label.toLowerCase()] || "Unknown",
-                    confidence: anno.confidence,
-                    overlapPercentage: Math.round(overlapPercentage * 100),
-                    imageNumber: anno.imageNumber,
-                    imageName: anno.imageName,
-                    visitId: anno.visitId
-                  })
-                }
-              } catch (error) {
-                console.error("Error calculating overlap:", error)
-              }
+              // Do nothing here, we'll process these annotations later
             }
           })
 
@@ -307,6 +428,135 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
           }
         }
       })
+
+      // Process annotations without associatedTooth field using maximum overlap approach
+      annotations.forEach((anno) => {
+        // Skip tooth annotations (numeric labels) and annotations with associatedTooth
+        if (!isNaN(Number.parseInt(anno.label)) ||
+            (anno.associatedTooth !== undefined && anno.associatedTooth !== null)) {
+          return
+        }
+
+        // Special handling for bone loss annotations
+        const isBoneLoss = anno.label.toLowerCase().includes("bone loss");
+
+        if (isBoneLoss) {
+          // For bone loss, find all teeth that overlap with the annotation
+          const overlappingTeeth = [];
+
+          toothAnnots.forEach((toothAnno) => {
+            const toothNumber = Number.parseInt(toothAnno.label);
+            if (!isNaN(toothNumber) && toothNumber >= 1 && toothNumber <= 32 &&
+                anno.segmentation && toothAnno.segmentation) {
+              try {
+                const overlap = calculateOverlap(anno.segmentation, toothAnno.segmentation);
+                const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]));
+                const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0;
+
+                // For bone loss, include any tooth with even minimal overlap (2% or more)
+                if (overlapPercentage > 0.00) { // Very low threshold for bone loss to catch all affected teeth
+                  overlappingTeeth.push({
+                    toothNumber,
+                    overlap,
+                    overlapPercentage
+                  });
+                }
+              } catch (error) {
+                console.error("Error calculating overlap:", error);
+              }
+            }
+          });
+
+          // Sort teeth by number to create a range
+          overlappingTeeth.sort((a, b) => a.toothNumber - b.toothNumber);
+
+          if (overlappingTeeth.length > 0) {
+            // Find continuous ranges of teeth
+            const ranges = [];
+            let currentRange = [overlappingTeeth[0].toothNumber];
+
+            for (let i = 1; i < overlappingTeeth.length; i++) {
+              const prevTooth = overlappingTeeth[i-1].toothNumber;
+              const currentTooth = overlappingTeeth[i].toothNumber;
+
+              // If teeth are consecutive or within 1 tooth apart, add to current range
+              if (currentTooth - prevTooth <= 2) {
+                currentRange.push(currentTooth);
+              } else {
+                // Start a new range
+                ranges.push([...currentRange]);
+                currentRange = [currentTooth];
+              }
+            }
+
+            // Add the last range
+            ranges.push(currentRange);
+
+            // Create a modified name with the tooth range
+            ranges.forEach(range => {
+              // Format the range as "X-Y" if it's a range, or just "X" if it's a single tooth
+              const rangeText = range.length > 1
+                ? `${range[0]}-${range[range.length-1]}`
+                : `${range[0]}`;
+
+              // Add to the first tooth in the range
+              const firstToothNumber = range[0];
+              if (firstToothNumber in teethData) {
+                teethData[firstToothNumber].anomalies.push({
+                  name: `${anno.label} (Teeth ${rangeText})`,
+                  category: classCategories[anno.label.toLowerCase()] || "Unknown",
+                  confidence: anno.confidence,
+                  imageNumber: anno.imageNumber,
+                  imageName: anno.imageName,
+                  visitId: anno.visitId,
+                  isRange: true,
+                  teethRange: rangeText
+                });
+              }
+            });
+          }
+        } else {
+          // For non-bone loss annotations, use the maximum overlap approach
+          let maxOverlap = 0;
+          let maxOverlapToothNumber = null;
+          let maxOverlapPercentage = 0;
+
+          // Check overlap with each tooth
+          toothAnnots.forEach((toothAnno) => {
+            const toothNumber = Number.parseInt(toothAnno.label);
+            if (!isNaN(toothNumber) && toothNumber >= 1 && toothNumber <= 32 &&
+                anno.segmentation && toothAnno.segmentation) {
+              try {
+                const overlap = calculateOverlap(anno.segmentation, toothAnno.segmentation);
+                const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]));
+                const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0;
+
+                // If this overlap is greater than our current maximum and meets the threshold
+                if (overlapPercentage > 0.8 && overlap > maxOverlap) {
+                  maxOverlap = overlap;
+                  maxOverlapToothNumber = toothNumber;
+                  maxOverlapPercentage = overlapPercentage;
+                }
+              } catch (error) {
+                console.error("Error calculating overlap:", error);
+              }
+            }
+          });
+
+          // If we found a tooth with sufficient overlap, add the annotation to that tooth
+          if (maxOverlapToothNumber !== null && maxOverlapToothNumber in teethData) {
+            teethData[maxOverlapToothNumber].anomalies.push({
+              name: anno.label,
+              category: classCategories[anno.label.toLowerCase()] || "Unknown",
+              confidence: anno.confidence,
+              overlapPercentage: Math.round(maxOverlapPercentage * 100),
+              imageNumber: anno.imageNumber,
+              imageName: anno.imageName,
+              visitId: anno.visitId
+            });
+          }
+        }
+      });
 
       // Find unassigned anomalies (those that don't have an associatedTooth or don't overlap with any tooth by at least 80%)
       const unassignedAnomalies = []

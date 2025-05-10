@@ -36,7 +36,7 @@ import Tooth30 from '../../assets/SVG-1-to-32/1-32/30.svg'
 import Tooth31 from '../../assets/SVG-1-to-32/1-32/31.svg'
 import Tooth32 from '../../assets/SVG-1-to-32/1-32/32.svg'
 
-const DentalChart = ({ annotations, classCategories, confidenceLevels, setHiddenAnnotations, onToothSelect, externalSelectedTooth }) => {
+const DentalChart = ({ annotations, classCategories, confidenceLevels, setHiddenAnnotations, onToothSelect, externalSelectedTooth, isConsolidatedView = false }) => {
   // State to track which tooth is selected
   // If externalSelectedTooth is provided, use it as the initial value
   const [selectedTooth, setSelectedTooth] = useState(externalSelectedTooth || null)
@@ -93,80 +93,118 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
       hasAnnotations: false, // Track if tooth has any annotations
     }))
 
-    // First, identify all tooth annotations
-    const toothAnnotations = annotations.filter((anno) => {
-      const toothNumber = Number.parseInt(anno.label)
-      return !isNaN(toothNumber) && toothNumber >= 1 && toothNumber <= 32
-    })
+    // Handle consolidated view differently
+    if (isConsolidatedView && annotations) {
+      // In consolidated view, annotations is an array of tooth objects with anomalies
+      annotations.forEach(toothData => {
+        // Skip unassigned teeth
+        if (toothData.toothNumber === "Unassigned" || toothData.isUnassigned) {
+          return;
+        }
 
-    // Mark teeth that have their own annotation (tooth number)
-    toothAnnotations.forEach((anno) => {
-      const toothNumber = Number.parseInt(anno.label)
-      if (toothNumber >= 1 && toothNumber <= 32) {
-        teethData[toothNumber - 1].hasAnnotations = true
-      }
-    })
-
-    // Then, process non-tooth annotations to determine tooth status
-    annotations.forEach((anno) => {
-      // Skip annotations that don't meet confidence threshold
-      if (anno.confidence < (confidenceLevels[anno.label.toLowerCase()] || 0.001)) {
-        return
-      }
-
-      // Skip tooth annotations (we only want to process anomalies and procedures)
-      const annoNumber = Number.parseInt(anno.label)
-      if (!isNaN(annoNumber) && annoNumber >= 1 && annoNumber <= 32) {
-        return
-      }
-
-      // This is a non-tooth annotation (potential anomaly or procedure)
-      // Use the associatedTooth field if available, otherwise find which tooth it overlaps with
-      let associatedToothIndex = -1
-
-      // Check if the annotation has an associatedTooth field
-      if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
-        const toothNumber = Number.parseInt(anno.associatedTooth)
+        const toothNumber = Number.parseInt(toothData.toothNumber);
         if (!isNaN(toothNumber) && toothNumber >= 1 && toothNumber <= 32) {
-          associatedToothIndex = toothNumber - 1
-        }
-      }
-      // If no associatedTooth field or it's null, use "Unassigned"
-      else {
-        // Keep the old calculation logic as fallback
-        let maxOverlap = 0
+          const toothIndex = toothNumber - 1;
+          teethData[toothIndex].hasAnnotations = true;
 
-        toothAnnotations.forEach((toothAnno) => {
-          const toothNumber = Number.parseInt(toothAnno.label)
-          if (!isNaN(toothNumber) && toothNumber >= 1 && toothNumber <= 32) {
-            const overlap = calculateOverlap(anno.segmentation, toothAnno.segmentation)
+          // Check anomalies for this tooth
+          if (toothData.anomalies && toothData.anomalies.length > 0) {
+            toothData.anomalies.forEach(anomaly => {
+              // Skip "No anomalies detected" entries
+              if (anomaly.name === "No anomalies detected" || anomaly.name === "Not detected") {
+                return;
+              }
 
-            // We need to calculate the total area of the annotation to determine the percentage
-            const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
-            const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
-
-            if (overlapPercentage > 0.8 && overlap > maxOverlap) {
-              maxOverlap = overlap
-              associatedToothIndex = toothNumber - 1
-            }
+              const category = anomaly.category || classCategories[anomaly.name.toLowerCase()];
+              if (category === "Anomaly") {
+                teethData[toothIndex].hasAnomaly = true;
+              } else if (category === "Procedure") {
+                teethData[toothIndex].hasProcedure = true;
+              }
+            });
           }
-        })
-      }
-
-      // If we found an associated tooth, update its status
-      if (associatedToothIndex >= 0) {
-        const category = classCategories[anno.label.toLowerCase()]
-        if (category === "Anomaly") {
-          teethData[associatedToothIndex].hasAnomaly = true
-        } else if (category === "Procedure") {
-          teethData[associatedToothIndex].hasProcedure = true
         }
-        teethData[associatedToothIndex].hasAnnotations = true
-      }
-    })
+      });
+    } else {
+      // Standard view processing
+      // First, identify all tooth annotations
+      const toothAnnotations = annotations.filter((anno) => {
+        const toothNumber = Number.parseInt(anno.label)
+        return !isNaN(toothNumber) && toothNumber >= 1 && toothNumber <= 32
+      })
+
+      // Mark teeth that have their own annotation (tooth number)
+      toothAnnotations.forEach((anno) => {
+        const toothNumber = Number.parseInt(anno.label)
+        if (toothNumber >= 1 && toothNumber <= 32) {
+          teethData[toothNumber - 1].hasAnnotations = true
+        }
+      })
+
+      // Then, process non-tooth annotations to determine tooth status
+      annotations.forEach((anno) => {
+        // Skip annotations that don't meet confidence threshold
+        if (anno.label && anno.label.slice(0, 10) === "Bone Loss") {
+          anno.label = "Bone Loss"
+        }
+        if ((!anno.label || !anno.confidence) || anno.confidence < (confidenceLevels[anno.label.toLowerCase()] || 0.001)) {
+          return
+        }
+
+        // Skip tooth annotations (we only want to process anomalies and procedures)
+        const annoNumber = Number.parseInt(anno.label)
+        if (!isNaN(annoNumber) && annoNumber >= 1 && annoNumber <= 32) {
+          return
+        }
+
+        // This is a non-tooth annotation (potential anomaly or procedure)
+        // Use the associatedTooth field if available, otherwise find which tooth it overlaps with
+        let associatedToothIndex = -1
+
+        // Check if the annotation has an associatedTooth field
+        if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
+          const toothNumber = Number.parseInt(anno.associatedTooth)
+          if (!isNaN(toothNumber) && toothNumber >= 1 && toothNumber <= 32) {
+            associatedToothIndex = toothNumber - 1
+          }
+        }
+        // If no associatedTooth field or it's null, use "Unassigned"
+        else {
+          // Keep the old calculation logic as fallback
+          let maxOverlap = 0
+
+          toothAnnotations.forEach((toothAnno) => {
+            const toothNumber = Number.parseInt(toothAnno.label)
+            if (!isNaN(toothNumber) && toothNumber >= 1 && toothNumber <= 32) {
+              const overlap = calculateOverlap(anno.segmentation, toothAnno.segmentation)
+
+              // We need to calculate the total area of the annotation to determine the percentage
+              const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
+              const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
+
+              if (overlapPercentage > 0.8 && overlap > maxOverlap) {
+                maxOverlap = overlap
+                associatedToothIndex = toothNumber - 1
+              }
+            }
+          })
+        }
+
+        // If we found an associated tooth, update its status
+        if (associatedToothIndex >= 0) {
+          const category = classCategories[anno.label.toLowerCase()]
+          if (category === "Anomaly") {
+            teethData[associatedToothIndex].hasAnomaly = true
+          } else if (category === "Procedure") {
+            teethData[associatedToothIndex].hasProcedure = true
+          }
+          teethData[associatedToothIndex].hasAnnotations = true
+        }
+      })
+    }
 
     return teethData
-  }, [annotations, classCategories, confidenceLevels])
+  }, [annotations, classCategories, confidenceLevels, isConsolidatedView])
 
   // Get color based on tooth status
   const getToothColor = (tooth) => {
@@ -198,6 +236,13 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
       onToothSelect(toothNumber)
     }
 
+    // For consolidated view, we don't need to update hidden annotations
+    // as the filtering is handled by the ConsolidatedToothTable component
+    if (isConsolidatedView) {
+      return;
+    }
+
+    // Standard view processing
     // Find the annotation indices to keep visible (associated with this tooth)
     const visibleAnnotations = []
     const hiddenAnnotations = []

@@ -2379,8 +2379,7 @@ const AnnotationPage = () => {
     localStorage.removeItem('globalCheckedAnnotations')
     dispatch(changeMode(preLayoutMode));
     sessionStorage.removeItem('preLayoutMode');
-    window.history.back();
-    // return <Navigate to="/patientImagesList" />
+    return <Navigate to="/patientImagesList" />
   }
   if (redirectToLogin) {
     return <Navigate to="/login" />

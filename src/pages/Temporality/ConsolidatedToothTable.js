@@ -42,16 +42,29 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
     const handleAnnotationClick = (anomaly) => {
         if (anomaly.visitIndex !== undefined) {
             // Create a new window/tab
-            const newWindow = window.open('', '_blank');
 
             // Store data in sessionStorage
             sessionStorage.setItem("selectedImageIndex", (anomaly.imageNumber - 1).toString())
+            sessionStorage.setItem("xrayDate", anomaly.visitDate)
+            if(anomaly.visitIndex === 0){
+                sessionStorage.setItem("last", true)
+            }
+            else{
+                sessionStorage.setItem("last", false)
+            }
+            if(anomaly.visitIndex === patientVisits.length - 1){
+                sessionStorage.setItem("first", true)
+            }
+            else{
+                sessionStorage.setItem("first", false)
+            }
             if (anomaly.visitId) {
                 sessionStorage.setItem("visitId", anomaly.visitId)
             } else if (patientVisits && patientVisits.length > anomaly.visitIndex) {
                 const visitId = patientVisits[anomaly.visitIndex]._id
                 sessionStorage.setItem("visitId", visitId)
             }
+            const newWindow = window.open('', '_blank');
 
             // Set the URL for the new tab and navigate
             if (newWindow) {

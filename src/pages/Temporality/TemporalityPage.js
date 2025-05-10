@@ -81,12 +81,10 @@ const TemporalityPage = (props) => {
 
       // Use setTimeout to clear data after the UI has updated
       // This prevents the UI from freezing during the state update
-      setTimeout(() => {
-        if (!isConsolidatedView) { // Double-check we're still in non-consolidated mode
-          setAllVisitsAnnotations({})
-          setConsolidatedAnnotations([])
-        }
-      }, 100)
+      if (!isConsolidatedView) { // Double-check we're still in non-consolidated mode
+        setAllVisitsAnnotations({})
+        setConsolidatedAnnotations([])
+      }
     }
   }
 
@@ -263,59 +261,6 @@ const TemporalityPage = (props) => {
     }).format(date)
   }
 
-  // This function is no longer needed as we're not grouping visits by date
-  // Keeping an empty function to avoid breaking existing code references
-  function groupVisitsByDate(visits) {
-    // Instead of grouping, just return the visits with a consistent format
-    return visits.map(visit => ({
-      date: visit.formattedDate,
-      visits: [visit],
-      _id: visit._id,
-    }));
-  }
-
-  // Fetch annotations for a specific visit
-  const fetchVisitAnnotations = async (visitId) => {
-    try {
-      // Fetch images for the selected visit
-      const response = await axios.get(`${apiUrl}/visitid-annotations?visitID=${visitId}`, {
-        headers: {
-          Authorization: sessionStorage.getItem("token"),
-        },
-      })
-
-      if (response.status === 200) {
-        sessionStorage.setItem("token", response.headers["new-token"])
-        const imagesData = response.data.images
-
-        // Process visit annotations
-        let visitAnnots = []
-        if (imagesData && imagesData.length > 0) {
-          imagesData.forEach((image, index) => {
-            if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
-              // Add image ID to each annotation
-              const annotationsWithImageId = image.annotations.annotations.annotations.map((annotation) => ({
-                ...annotation,
-                imageId: image._id,
-                imageNumber: image.imageNumber || index + 1,
-                imageName: image.name,
-                visitId: visitId,
-              }))
-              visitAnnots = [...visitAnnots, ...annotationsWithImageId]
-            }
-          })
-          return visitAnnots
-        } else {
-          return []
-        }
-      }
-    } catch (error) {
-      logErrorToServer(error, "fetchVisitAnnotations")
-      console.error(`Error fetching annotations for visit ${visitId}:`, error)
-      return []
-    }
-  }
-
   // Fetch annotations for all visits
   const fetchAllVisitsAnnotations = async () => {
     if (Object.keys(allVisitsAnnotations).length > 0 && !isLoadingConsolidated) {
@@ -336,75 +281,74 @@ const TemporalityPage = (props) => {
       // Track which teeth still need to be found (teeth 1-32)
       const remainingTeeth = new Set(Array.from({ length: 32 }, (_, i) => i + 1))
 
-      // First, get the latest visit annotations (treatment plan)
-      const lastVisitResponse = await axios.get(
-        `${apiUrl}/get-annotations-for-treatment-plan?patientId=${sessionStorage.getItem("patientId")}`,
-        {
-          headers: {
-            Authorization: sessionStorage.getItem("token"),
-          },
-        },
-      )
-
-      if (lastVisitResponse.status === 200) {
-        sessionStorage.setItem("token", lastVisitResponse.headers["new-token"])
-        const lastVisitData = lastVisitResponse.data
-
-        // Process last visit annotations
-        let lastVisitAnnots = []
-        if (lastVisitData.images && lastVisitData.images.length > 0) {
-          lastVisitData.images.forEach((image, index) => {
-            if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
-              const annotationsWithImageId = image.annotations.annotations.annotations.map((annotation) => ({
-                ...annotation,
-                imageId: image._id,
-                imageNumber: image.imageNumber || index + 1,
-                imageName: image.name,
-                visitId: lastVisitData.visitId || patientVisits[0]?._id,
-              }))
-              lastVisitAnnots = [...lastVisitAnnots, ...annotationsWithImageId]
-            }
-          })
-
-          // Store the latest visit annotations
-          if (patientVisits.length > 0) {
-            visitAnnotations[patientVisits[0]._id] = lastVisitAnnots
-
-            // Check which teeth were found in this visit
-            lastVisitAnnots.forEach(anno => {
-              if (!isNaN(Number.parseInt(anno.label))) {
-                const toothNumber = Number.parseInt(anno.label)
-                if (toothNumber >= 1 && toothNumber <= 32) {
-                  foundTeeth.add(toothNumber)
-                  remainingTeeth.delete(toothNumber)
-                }
-              }
-            })
-          }
-        }
-      }
-
-      // Then fetch annotations for other visits only if needed
-      for (let i = 1; i < patientVisits.length; i++) {
+      // Process visits in order (newest to oldest)
+      for (let i = 0; i < patientVisits.length; i++) {
         // If we've found all teeth, stop fetching more visits
         if (remainingTeeth.size === 0) {
           break
         }
 
         const visitId = patientVisits[i]._id
-        const annotations = await fetchVisitAnnotations(visitId)
-        visitAnnotations[visitId] = annotations
 
-        // Check which teeth were found in this visit
-        annotations.forEach(anno => {
-          if (!isNaN(Number.parseInt(anno.label))) {
-            const toothNumber = Number.parseInt(anno.label)
-            if (toothNumber >= 1 && toothNumber <= 32 && !foundTeeth.has(toothNumber)) {
-              foundTeeth.add(toothNumber)
-              remainingTeeth.delete(toothNumber)
+        try {
+          // Use visitid-annotations API for all visits
+          const response = await axios.get(`${apiUrl}/visitid-annotations?visitID=${visitId}`, {
+            headers: {
+              Authorization: sessionStorage.getItem("token"),
+            },
+          })
+
+          if (response.status === 200) {
+            sessionStorage.setItem("token", response.headers["new-token"])
+            const imagesData = response.data.images
+
+            // Process visit annotations
+            let visitAnnots = []
+
+            // Skip this visit if there are no images
+            if (!imagesData || imagesData.length === 0) {
+              console.log(`No images found for visit ${visitId}, skipping...`)
+              continue
             }
+
+            imagesData.forEach((image, index) => {
+              if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
+                // Add image ID to each annotation
+                const annotationsWithImageId = image.annotations.annotations.annotations.map((annotation) => ({
+                  ...annotation,
+                  imageId: image._id,
+                  imageNumber: image.imageNumber || index + 1,
+                  imageName: image.name,
+                  visitId: visitId,
+                }))
+                visitAnnots = [...visitAnnots, ...annotationsWithImageId]
+              }
+            })
+
+            // Skip this visit if there are no annotations
+            if (visitAnnots.length === 0) {
+              continue
+            }
+
+            // Store the visit annotations
+            visitAnnotations[visitId] = visitAnnots
+
+            // Check which teeth were found in this visit
+            visitAnnots.forEach(anno => {
+              if (!isNaN(Number.parseInt(anno.label))) {
+                const toothNumber = Number.parseInt(anno.label)
+                if (toothNumber >= 1 && toothNumber <= 32 && !foundTeeth.has(toothNumber)) {
+                  foundTeeth.add(toothNumber)
+                  remainingTeeth.delete(toothNumber)
+                }
+              }
+            })
           }
-        })
+        } catch (error) {
+          console.error(`Error fetching annotations for visit ${visitId}:`, error)
+          // Continue to the next visit if there's an error with this one
+          continue
+        }
       }
 
       setAllVisitsAnnotations(visitAnnotations)
@@ -417,7 +361,78 @@ const TemporalityPage = (props) => {
       setIsLoadingConsolidated(false)
     }
   }
+  const calculateBoneLossRanges = (annotations) => {
+  if (!annotations || annotations.length === 0) return []
 
+  // First, filter out only the tooth annotations (numeric labels)
+  const toothAnnots = annotations.filter((anno) => !isNaN(Number.parseInt(anno.label)))
+
+  // Find all bone loss annotations
+  const boneLossAnnotations = annotations.filter(
+    (anno) => anno.label && anno.label.toLowerCase().includes("bone loss") && anno.segmentation,
+  )
+
+  // Process each bone loss annotation to find affected teeth
+  const boneLossRanges = []
+
+  boneLossAnnotations.forEach((boneLossAnno) => {
+    const overlappingTeeth = []
+
+    // Find all teeth that overlap with this bone loss annotation
+    toothAnnots.forEach((toothAnno) => {
+      const toothNumber = Number.parseInt(toothAnno.label)
+      if (!isNaN(toothNumber) && toothNumber >= 1 && toothNumber <= 32 && toothAnno.segmentation) {
+        try {
+          const overlap = calculateOverlap(boneLossAnno.segmentation, toothAnno.segmentation)
+          if (overlap > 0) {
+            overlappingTeeth.push(toothNumber)
+          }
+        } catch (error) {
+          console.error("Error calculating overlap:", error)
+        }
+      }
+    })
+
+    // Sort teeth by number
+    overlappingTeeth.sort((a, b) => a - b)
+
+    if (overlappingTeeth.length > 0) {
+      // Find continuous ranges
+      const ranges = []
+      let currentRange = [overlappingTeeth[0]]
+
+      for (let i = 1; i < overlappingTeeth.length; i++) {
+        const prevTooth = overlappingTeeth[i - 1]
+        const currentTooth = overlappingTeeth[i]
+
+        // If teeth are consecutive or within 1 tooth apart, add to current range
+        if (currentTooth - prevTooth <= 2) {
+          currentRange.push(currentTooth)
+        } else {
+          // Start a new range
+          ranges.push([...currentRange])
+          currentRange = [currentTooth]
+        }
+      }
+
+      // Add the last range
+      ranges.push(currentRange)
+
+      // Format each range and add to results
+      ranges.forEach((range) => {
+        const rangeText = range.length > 1 ? `${range[0]}-${range[range.length - 1]}` : `${range[0]}`
+
+        boneLossRanges.push({
+          teethRange: rangeText,
+          affectedTeeth: range,
+          annotation: boneLossAnno,
+        })
+      })
+    }
+  })
+
+  return boneLossRanges
+}
   // Generate consolidated view from all visits' annotations
   const generateConsolidatedView = (visitAnnots = null) => {
     const annotations = visitAnnots || allVisitsAnnotations
@@ -426,7 +441,6 @@ const TemporalityPage = (props) => {
     // Track which teeth we've already processed
     const processedTeeth = new Set()
     const consolidatedTeeth = {}
-
     // Track which teeth still need to be found
     const remainingTeeth = new Set(Array.from({ length: 32 }, (_, i) => i + 1))
 
@@ -479,6 +493,8 @@ const TemporalityPage = (props) => {
                 visitId: patientVisits[i]._id,
                 imageNumber: anno.imageNumber,
                 imageName: anno.imageName,
+                // Add original annotation data for reference
+                originalAnnotation: anno
               })
             }
           }
@@ -502,6 +518,8 @@ const TemporalityPage = (props) => {
                   visitId: patientVisits[i]._id,
                   imageNumber: anno.imageNumber,
                   imageName: anno.imageName,
+                  // Add original annotation data for reference
+                  originalAnnotation: anno
                 })
               }
             } catch (error) {
@@ -526,6 +544,8 @@ const TemporalityPage = (props) => {
               ],
           visitDate: patientVisits[i].formattedDate,
           visitIndex: i,
+          // Add the original tooth annotation for reference
+          originalAnnotation: toothAnno
         }
       })
     }
@@ -556,6 +576,8 @@ const TemporalityPage = (props) => {
             visitId: patientVisits[i]._id,
             imageNumber: anno.imageNumber,
             imageName: anno.imageName,
+            // Add original annotation data for reference
+            originalAnnotation: anno
           })
         }
       })
@@ -574,6 +596,23 @@ const TemporalityPage = (props) => {
         isUnassigned: true,
         visitDate: unassignedAnomalies[0].visitDate,
         visitIndex: unassignedAnomalies[0].visitIndex,
+      }
+    }
+
+    // Make sure all teeth are represented in the consolidated view
+    // This ensures the dental chart shows all teeth, even if they don't have annotations
+    for (let i = 1; i <= 32; i++) {
+      if (!consolidatedTeeth[i]) {
+        consolidatedTeeth[i] = {
+          toothNumber: i,
+          anomalies: [
+            {
+              name: "Not detected",
+              category: "Info",
+            },
+          ],
+          hasAnnotations: false,
+        }
       }
     }
 
@@ -677,6 +716,12 @@ const TemporalityPage = (props) => {
         if (visitAnnotations.length === 0) {
           setMessage("No annotations found for the selected visit.");
         }
+        if (visitAnnotations.length > 0) {
+          // Calculate bone loss ranges for the first visit
+          const boneLossRanges = calculateBoneLossRanges(visitAnnotations)
+          // Store bone loss ranges in state or pass to components that need it
+          sessionStorage.setItem("firstVisitBoneLossRanges", JSON.stringify(boneLossRanges))
+        }
       }
     } catch (error) {
       logErrorToServer(error, "handleFirstVisitSelect");
@@ -733,6 +778,12 @@ const TemporalityPage = (props) => {
         setSelectedVisitAnnotations(visitAnnotations);
         if (visitAnnotations.length === 0) {
           setMessage("No annotations found for the selected visit.");
+        }
+        if (visitAnnotations.length > 0) {
+          // Calculate bone loss ranges for the second visit
+          const boneLossRanges = calculateBoneLossRanges(visitAnnotations)
+          // Store bone loss ranges in state or pass to components that need it
+          sessionStorage.setItem("secondVisitBoneLossRanges", JSON.stringify(boneLossRanges))
         }
       }
     } catch (error) {
@@ -999,6 +1050,7 @@ const TemporalityPage = (props) => {
                         setHiddenAnnotations={setHiddenAnnotations}
                         onToothSelect={setSelectedTooth}
                         externalSelectedTooth={selectedTooth}
+                        isConsolidatedView={true}
                       />
                       <ConsolidatedToothTable
                         consolidatedAnnotations={consolidatedAnnotations}
