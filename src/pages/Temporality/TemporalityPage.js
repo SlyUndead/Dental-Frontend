@@ -716,12 +716,6 @@ const TemporalityPage = (props) => {
         if (visitAnnotations.length === 0) {
           setMessage("No annotations found for the selected visit.");
         }
-        if (visitAnnotations.length > 0) {
-          // Calculate bone loss ranges for the first visit
-          const boneLossRanges = calculateBoneLossRanges(visitAnnotations)
-          // Store bone loss ranges in state or pass to components that need it
-          sessionStorage.setItem("firstVisitBoneLossRanges", JSON.stringify(boneLossRanges))
-        }
       }
     } catch (error) {
       logErrorToServer(error, "handleFirstVisitSelect");
@@ -778,12 +772,6 @@ const TemporalityPage = (props) => {
         setSelectedVisitAnnotations(visitAnnotations);
         if (visitAnnotations.length === 0) {
           setMessage("No annotations found for the selected visit.");
-        }
-        if (visitAnnotations.length > 0) {
-          // Calculate bone loss ranges for the second visit
-          const boneLossRanges = calculateBoneLossRanges(visitAnnotations)
-          // Store bone loss ranges in state or pass to components that need it
-          sessionStorage.setItem("secondVisitBoneLossRanges", JSON.stringify(boneLossRanges))
         }
       }
     } catch (error) {
@@ -1057,6 +1045,7 @@ const TemporalityPage = (props) => {
                         classCategories={classCategories}
                         patientVisits={patientVisits}
                         selectedTooth={selectedTooth}
+                        confidenceLevels={confidenceLevels}
                       />
                     </CardBody>
                   </Card>
@@ -1117,6 +1106,7 @@ const TemporalityPage = (props) => {
                           otherSideAnnotations={lastVisitAnnotations}
                           visitId={secondVisitId}
                           patientVisits={patientVisits}
+                          confidenceLevels={confidenceLevels}
                         />
                       </CardBody>
                     </Card>
@@ -1135,6 +1125,7 @@ const TemporalityPage = (props) => {
                           otherSideAnnotations={selectedVisitAnnotations}
                           visitId={firstVisitId}
                           patientVisits={patientVisits}
+                          confidenceLevels={confidenceLevels}
                         />
                       </CardBody>
                     </Card>
@@ -1173,6 +1164,7 @@ const TemporalityPage = (props) => {
                           selectedTooth={selectedTooth}
                           visitId={firstVisitId}
                           patientVisits={patientVisits}
+                          confidenceLevels={confidenceLevels}
                         />
                       </CardBody>
                     </Card>

@@ -15,7 +15,7 @@ styleElement.textContent = `
 `
 document.head.appendChild(styleElement)
 
-const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, patientVisits, selectedTooth }) => {
+const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, patientVisits, selectedTooth, confidenceLevels = {} }) => {
     const [filteredAnnotations, setFilteredAnnotations] = useState([])
     const [selectedCategories, setSelectedCategories] = useState(["Procedure", "Anomaly"])
     const [availableCategories, setAvailableCategories] = useState([])
@@ -120,14 +120,15 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
 
         // Then, create a deep copy of filtered teeth and filter anomalies by category
         const filtered = teethToShow.map((tooth) => {
-            // Filter anomalies based on selected categories
+            // Filter anomalies based on selected categories and confidence threshold
             const filteredAnomalies = tooth.anomalies.filter(
                 (anomaly) =>
                     // Always include "No anomalies detected" entries
                     anomaly.name === "No anomalies detected" ||
                     anomaly.name === "Not detected" ||
-                    // Include anomalies with selected categories
-                    selectedCategories.includes(anomaly.category),
+                    // Include anomalies with selected categories and meeting confidence threshold
+                    (selectedCategories.includes(anomaly.category) &&
+                     anomaly.confidence >= (confidenceLevels[anomaly.name.toLowerCase()] || 0.001)),
             )
             // Return tooth with filtered anomalies
             return {
