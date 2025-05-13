@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Button, UncontrolledTooltip } from "reactstrap";
+import { useState, useEffect, useRef } from "react";
+import { UncontrolledTooltip } from "reactstrap";
 
 const DateSlider = ({
   visits = [],
@@ -12,6 +12,7 @@ const DateSlider = ({
   const [rightValue, setRightValue] = useState(1);
   const [dragging, setDragging] = useState(null);
   const [uniqueDates, setUniqueDates] = useState([]);
+  const debounceTimerRef = useRef(null); // For debouncing the apply selection
 
   useEffect(() => {
     // Process individual visits instead of grouping by date
@@ -119,7 +120,43 @@ const DateSlider = ({
     setDragging(knob);
   };
 
+  // Function to apply selection with debouncing
+  const debouncedApplySelection = (leftIdx, rightIdx) => {
+    // Clear any existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Only apply if knobs are at different positions
+    if (leftIdx !== rightIdx && uniqueDates.length > 0) {
+      // Set a new timer
+      debounceTimerRef.current = setTimeout(() => {
+        // Apply selection in the correct order (older visit first, newer visit second)
+        if (leftIdx <= rightIdx) {
+          onApplySelection(uniqueDates[leftIdx], uniqueDates[rightIdx]);
+        } else {
+          onApplySelection(uniqueDates[rightIdx], uniqueDates[leftIdx]);
+        }
+      }, 300); // 300ms debounce time - adjust as needed
+    }
+  };
+
   const handleMouseUp = () => {
+    // When mouse is released, apply the selection immediately
+    if (dragging && leftValue !== rightValue) {
+      // Clear any existing timer
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      // Apply selection immediately
+      if (leftValue <= rightValue) {
+        onApplySelection(uniqueDates[leftValue], uniqueDates[rightValue]);
+      } else {
+        onApplySelection(uniqueDates[rightValue], uniqueDates[leftValue]);
+      }
+    }
+
     setDragging(null);
   };
 
@@ -140,8 +177,12 @@ const DateSlider = ({
       // Pass dates in the correct order (older date first, newer date second)
       if (index <= rightValue) {
         onRangeChange(uniqueDates[index], uniqueDates[rightValue]);
+        // Debounce the apply selection while dragging
+        debouncedApplySelection(index, rightValue);
       } else {
         onRangeChange(uniqueDates[rightValue], uniqueDates[index]);
+        // Debounce the apply selection while dragging
+        debouncedApplySelection(rightValue, index);
       }
     } else {
       // Allow right knob to move anywhere, even past the left knob
@@ -150,8 +191,12 @@ const DateSlider = ({
       // Pass dates in the correct order (older date first, newer date second)
       if (leftValue <= index) {
         onRangeChange(uniqueDates[leftValue], uniqueDates[index]);
+        // Debounce the apply selection while dragging
+        debouncedApplySelection(leftValue, index);
       } else {
         onRangeChange(uniqueDates[index], uniqueDates[leftValue]);
+        // Debounce the apply selection while dragging
+        debouncedApplySelection(index, leftValue);
       }
     }
   };
@@ -168,15 +213,23 @@ const DateSlider = ({
     const leftDist = Math.abs(index - leftValue);
     const rightDist = Math.abs(index - rightValue);
 
-    // Move the closest knob to the clicked position, regardless of whether it crosses the other knob
+    // Move the closest knob to the clicked position
     if (leftDist <= rightDist) {
       setLeftValue(index);
 
       // Pass dates in the correct order (older date first, newer date second)
       if (index <= rightValue) {
         onRangeChange(uniqueDates[index], uniqueDates[rightValue]);
+        // Apply selection immediately on click
+        if (index !== rightValue) {
+          onApplySelection(uniqueDates[index], uniqueDates[rightValue]);
+        }
       } else {
         onRangeChange(uniqueDates[rightValue], uniqueDates[index]);
+        // Apply selection immediately on click
+        if (index !== rightValue) {
+          onApplySelection(uniqueDates[rightValue], uniqueDates[index]);
+        }
       }
     } else {
       setRightValue(index);
@@ -184,8 +237,16 @@ const DateSlider = ({
       // Pass dates in the correct order (older date first, newer date second)
       if (leftValue <= index) {
         onRangeChange(uniqueDates[leftValue], uniqueDates[index]);
+        // Apply selection immediately on click
+        if (leftValue !== index) {
+          onApplySelection(uniqueDates[leftValue], uniqueDates[index]);
+        }
       } else {
         onRangeChange(uniqueDates[index], uniqueDates[leftValue]);
+        // Apply selection immediately on click
+        if (leftValue !== index) {
+          onApplySelection(uniqueDates[index], uniqueDates[leftValue]);
+        }
       }
     }
   };
@@ -201,16 +262,6 @@ const DateSlider = ({
   const formatDate = (visitObj) => {
     // Return the date and time string with a more detailed format
     return `${visitObj.date} at ${visitObj.time}`;
-  };
-
-  const handleApply = () => {
-    // Call the onApplySelection prop with the selected visit objects
-    // If knobs have crossed, pass them in the correct order (older visit first, newer visit second)
-    if (leftValue <= rightValue) {
-      onApplySelection(uniqueDates[leftValue], uniqueDates[rightValue]);
-    } else {
-      onApplySelection(uniqueDates[rightValue], uniqueDates[leftValue]);
-    }
   };
 
   return (
@@ -292,7 +343,7 @@ const DateSlider = ({
                     position: 'absolute',
                     left: `${(index / Math.max(uniqueDates.length - 1, 1)) * 100}%`,
                     height: '12px',
-                    width: isNewMonth ? '3px' : '2px', // Make month start ticks slightly wider
+                    width: isNewMonth ? '6px' : '4px', // Make month start ticks slightly wider
                     backgroundColor: isNewMonth ? '#333' : '#757575', // Make month start ticks darker
                     transform: 'translateX(-50%)',
                     top: '-2px',
@@ -396,7 +447,6 @@ const DateSlider = ({
         <UncontrolledTooltip
           placement="top"
           target="right-knob"
-          delay={{ show: 200, hide: 100 }}
           className="date-tooltip"
         >
           {uniqueDates.length > 0 ? formatDate(uniqueDates[rightValue]) : ""}
@@ -405,16 +455,8 @@ const DateSlider = ({
 
       <div className="mt-5 d-flex justify-content-between align-items-center">
         <div className="position-relative">
-          <Button
-            color="primary"
-            onClick={handleApply}
-            disabled={leftValue === rightValue}
-            title={leftValue === rightValue ? "Please select different dates to compare" : "Apply the selected date range"}
-          >
-            Apply Selection
-          </Button>
           {leftValue === rightValue && (
-            <div className="text-danger small mt-1">
+            <div className="text-danger small">
               Please select different dates to compare
             </div>
           )}

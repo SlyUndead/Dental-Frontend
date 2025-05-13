@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo, useCallback } from "react"
 import { Table, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, FormGroup, Label, Input } from "reactstrap"
 import { calculateOverlap, polygonArea } from "../AnnotationTools/path-utils"
 import { useNavigate } from "react-router-dom"
@@ -24,64 +24,72 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
   const [balancedAnnotations, setBalancedAnnotations] = useState([])
   const navigate = useNavigate()
 
-  // Toggle dropdown
-  const toggleDropdown = () => setDropdownOpen((prevState) => !prevState)
+  // Toggle dropdown - optimized with useCallback
+  const toggleDropdown = useCallback(() => {
+    setDropdownOpen((prevState) => !prevState);
+  }, []);
 
-  // Handle category selection
-  const handleCategoryToggle = (category) => {
-    if (selectedCategories.includes(category)) {
-      setSelectedCategories(selectedCategories.filter((cat) => cat !== category))
-    } else {
-      setSelectedCategories([...selectedCategories, category])
-    }
-  }
+  // Handle category selection - optimized with useCallback
+  const handleCategoryToggle = useCallback((category) => {
+    setSelectedCategories(prevCategories => {
+      if (prevCategories.includes(category)) {
+        return prevCategories.filter((cat) => cat !== category);
+      } else {
+        return [...prevCategories, category];
+      }
+    });
+  }, []);
 
-  // Handle annotation click to open AnnotationPage in a new tab
-  const handleAnnotationClick = (anomaly) => {
+  // Handle annotation click to open AnnotationPage in a new tab - optimized with useCallback
+  const handleAnnotationClick = useCallback((anomaly) => {
+    console.time('handleAnnotationClick'); // Performance measurement
+
     // Create a new window/tab
-    const newWindow = window.open("", "_blank")
+    const newWindow = window.open("", "_blank");
 
-    // Store data in sessionStorage for the new tab
-    if (anomaly.visitIndex === 0) {
-      sessionStorage.setItem("last", true)
-    } else {
-      sessionStorage.setItem("last", false)
-    }
-    if (anomaly.visitIndex === patientVisits.length - 1) {
-      sessionStorage.setItem("first", true)
-    } else {
-      sessionStorage.setItem("first", false)
-    }
+    // Batch sessionStorage operations
+    const sessionData = {};
+
+    // Set first/last flags
+    sessionData.last = anomaly.visitIndex === 0;
+    sessionData.first = anomaly.visitIndex === patientVisits.length - 1;
+
+    // Set image information
     if (anomaly.imageName) {
-      sessionStorage.setItem("selectedImageName", anomaly.imageName)
+      sessionData.selectedImageName = anomaly.imageName;
     } else if (anomaly.imageNumber) {
-      // Fallback to image number for backward compatibility
-      sessionStorage.setItem("selectedImageIndex", (anomaly.imageNumber - 1).toString())
+      sessionData.selectedImageIndex = (anomaly.imageNumber - 1).toString();
     }
 
-    // Store the visitId in sessionStorage
-    // Use anomaly.visitId if available, otherwise use the visitId prop
-    const effectiveVisitId = anomaly.visitId || visitId
+    // Set visit ID
+    const effectiveVisitId = anomaly.visitId || visitId;
     if (effectiveVisitId) {
-      sessionStorage.setItem("visitId", effectiveVisitId)
+      sessionData.visitId = effectiveVisitId;
 
-      // Find the visit in patientVisits and set the date_of_xray in sessionStorage
+      // Find the visit in patientVisits and set the date_of_xray
       if (patientVisits && patientVisits.length > 0) {
-        const visit = patientVisits.find((v) => v._id === effectiveVisitId)
+        const visit = patientVisits.find((v) => v._id === effectiveVisitId);
         if (visit && visit.date_of_xray) {
-          sessionStorage.setItem("xrayDate", visit.date_of_xray)
+          sessionData.xrayDate = visit.date_of_xray;
         }
       }
     }
 
+    // Apply all sessionStorage updates at once
+    Object.entries(sessionData).forEach(([key, value]) => {
+      sessionStorage.setItem(key, value.toString());
+    });
+
     // Set the URL for the new tab and navigate
     if (newWindow) {
-      newWindow.location.href = `${window.location.origin}/annotationPage`
+      newWindow.location.href = `${window.location.origin}/annotationPage`;
     } else {
       // Fallback to regular navigation if popup is blocked
-      navigate("/annotationPage")
+      navigate("/annotationPage");
     }
-  }
+
+    console.timeEnd('handleAnnotationClick');
+  }, [patientVisits, visitId, navigate]);
 
   // Process annotations when they change or when a tooth is selected
   useEffect(() => {
@@ -940,12 +948,26 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
       }
       // If tooth exists on other side but not current side
       else if (!currentSideTooth && otherSideTooth) {
+        // Create an array with "Not detected" as the first row, and blank rows to match the other side's count
+        const otherSideAnomalyCount = otherSideTooth.anomalies.length;
+        const anomalies = [{ name: "Not detected", category: "Info" }];
+
+        // Add blank rows if needed to match the other side's count
+        if (otherSideAnomalyCount > 1) {
+          const blankRows = Array(otherSideAnomalyCount - 1).fill().map(() => ({
+            name: "",
+            category: "Blank",
+            confidence: null
+          }));
+          anomalies.push(...blankRows);
+        }
+
         balanced.push({
           toothNumber: otherSideTooth.toothNumber,
           isUnassigned: otherSideTooth.isUnassigned,
           isRange: otherSideTooth.isRange,
           teethRange: otherSideTooth.teethRange,
-          anomalies: [{ name: "Not detected", category: "Info" }]
+          anomalies: anomalies
         })
       }
       // If tooth exists on both sides

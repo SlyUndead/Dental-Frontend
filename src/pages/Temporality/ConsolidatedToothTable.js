@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo, useCallback } from "react"
 import { Table, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, FormGroup, Label, Input } from "reactstrap"
 import { useNavigate } from "react-router-dom"
 
@@ -22,103 +22,117 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
     const [dropdownOpen, setDropdownOpen] = useState(false)
     const navigate = useNavigate()
 
-    // Toggle dropdown
-    const toggleDropdown = () => setDropdownOpen((prevState) => !prevState)
+    // Toggle dropdown - optimized with useCallback
+    const toggleDropdown = useCallback(() => {
+        setDropdownOpen((prevState) => !prevState);
+    }, []);
 
-    // Handle category selection
-    const handleCategoryToggle = (e, category) => {
-        e.preventDefault()
-        e.stopPropagation()
-        if (selectedCategories.includes(category)) {
-            // Remove category if it's already selected
-            setSelectedCategories(selectedCategories.filter((cat) => cat !== category))
-        } else {
-            // Add category if it's not selected
-            setSelectedCategories([...selectedCategories, category])
-        }
-    }
-
-    // Handle annotation click to open AnnotationPage in a new tab
-    const handleAnnotationClick = (anomaly) => {
-        if (anomaly.visitIndex !== undefined) {
-            // Create a new window/tab
-
-            // Store data in sessionStorage
-            sessionStorage.setItem("selectedImageIndex", (anomaly.imageNumber - 1).toString())
-            sessionStorage.setItem("xrayDate", anomaly.visitDate)
-            if(anomaly.visitIndex === 0){
-                sessionStorage.setItem("last", true)
-            }
-            else{
-                sessionStorage.setItem("last", false)
-            }
-            if(anomaly.visitIndex === patientVisits.length - 1){
-                sessionStorage.setItem("first", true)
-            }
-            else{
-                sessionStorage.setItem("first", false)
-            }
-            if (anomaly.visitId) {
-                sessionStorage.setItem("visitId", anomaly.visitId)
-            } else if (patientVisits && patientVisits.length > anomaly.visitIndex) {
-                const visitId = patientVisits[anomaly.visitIndex]._id
-                sessionStorage.setItem("visitId", visitId)
-            }
-            const newWindow = window.open('', '_blank');
-
-            // Set the URL for the new tab and navigate
-            if (newWindow) {
-                newWindow.location.href = `${window.location.origin}/annotationPage`;
+    // Handle category selection - optimized with useCallback
+    const handleCategoryToggle = useCallback((e, category) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectedCategories(prevCategories => {
+            if (prevCategories.includes(category)) {
+                // Remove category if it's already selected
+                return prevCategories.filter((cat) => cat !== category);
             } else {
-                // Fallback to regular navigation if popup is blocked
-                navigate("/annotationPage");
+                // Add category if it's not selected
+                return [...prevCategories, category];
             }
-        }
-    }
+        });
+    }, []);
 
-    // Extract available categories from annotations
-    useEffect(() => {
+    // Handle annotation click to open AnnotationPage in a new tab - optimized with useCallback
+    const handleAnnotationClick = useCallback((anomaly) => {
+        if (anomaly.visitIndex === undefined) return;
+
+        // Batch sessionStorage operations
+        const sessionData = {
+            "selectedImageIndex": (anomaly.imageNumber - 1).toString(),
+            "xrayDate": anomaly.visitDate,
+            "last": anomaly.visitIndex === 0,
+            "first": anomaly.visitIndex === patientVisits.length - 1
+        };
+
+        // Set visitId
+        if (anomaly.visitId) {
+            sessionData.visitId = anomaly.visitId;
+        } else if (patientVisits && patientVisits.length > anomaly.visitIndex) {
+            sessionData.visitId = patientVisits[anomaly.visitIndex]._id;
+        }
+
+        // Apply all sessionStorage updates at once
+        Object.entries(sessionData).forEach(([key, value]) => {
+            sessionStorage.setItem(key, value.toString());
+        });
+
+        // Open new window
+        const newWindow = window.open('', '_blank');
+
+        // Set the URL for the new tab and navigate
+        if (newWindow) {
+            newWindow.location.href = `${window.location.origin}/annotationPage`;
+        } else {
+            // Fallback to regular navigation if popup is blocked
+            navigate("/annotationPage");
+        }
+    }, [patientVisits, navigate]);
+
+    // Extract available categories from annotations - optimized with useMemo
+    const availableCategoriesMemo = useMemo(() => {
+        console.time('availableCategories'); // Performance measurement
         if (!consolidatedAnnotations || consolidatedAnnotations.length === 0) {
-            setAvailableCategories([])
-            return
+            console.timeEnd('availableCategories');
+            return [];
         }
 
         // Collect all unique categories from annotations
-        const categories = new Set()
-        consolidatedAnnotations.forEach((tooth) => {
-            tooth.anomalies.forEach((anomaly) => {
-                if (anomaly.category && anomaly.category !== "Info") {
-                    categories.add(anomaly.category)
-                }
-            })
-        })
-        setAvailableCategories(Array.from(categories).sort())
-    }, [consolidatedAnnotations])
+        const categories = new Set();
 
-    // Filter annotations based on selected categories and selected tooth
+        // Use a more efficient loop
+        for (const tooth of consolidatedAnnotations) {
+            for (const anomaly of tooth.anomalies) {
+                if (anomaly.category && anomaly.category !== "Info") {
+                    categories.add(anomaly.category);
+                }
+            }
+        }
+
+        const result = Array.from(categories).sort();
+        console.timeEnd('availableCategories');
+        return result;
+    }, [consolidatedAnnotations]);
+
+    // Update availableCategories state when the memo changes
     useEffect(() => {
+        setAvailableCategories(availableCategoriesMemo);
+    }, [availableCategoriesMemo]);
+
+    // Filter annotations based on selected categories and selected tooth - optimized with useMemo
+    const filteredAnnotationsMemo = useMemo(() => {
+        console.time('filterAnnotations'); // Performance measurement
         if (!consolidatedAnnotations || consolidatedAnnotations.length === 0) {
-            setFilteredAnnotations([])
-            return
+            console.timeEnd('filterAnnotations');
+            return [];
         }
 
         // First, filter by selected tooth if one is selected
-        let teethToShow = consolidatedAnnotations
+        let teethToShow = consolidatedAnnotations;
         if (selectedTooth) {
             // If "Unassigned" is selected, only show unassigned teeth
             if (selectedTooth === "Unassigned") {
                 teethToShow = consolidatedAnnotations.filter(tooth =>
                     tooth.toothNumber === "Unassigned" || tooth.isUnassigned
-                )
+                );
             } else {
                 // Otherwise, only show the selected tooth
                 teethToShow = consolidatedAnnotations.filter(tooth =>
                     tooth.toothNumber === selectedTooth
-                )
+                );
             }
         }
 
-        // Then, create a deep copy of filtered teeth and filter anomalies by category
+        // Then, create a filtered version of teeth and filter anomalies by category
         const filtered = teethToShow.map((tooth) => {
             // Filter anomalies based on selected categories and confidence threshold
             const filteredAnomalies = tooth.anomalies.filter(
@@ -129,17 +143,24 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
                     // Include anomalies with selected categories and meeting confidence threshold
                     (selectedCategories.includes(anomaly.category) &&
                      anomaly.confidence >= (confidenceLevels[anomaly.name.toLowerCase()] || 0.001)),
-            )
+            );
+
             // Return tooth with filtered anomalies
             return {
                 ...tooth,
                 anomalies:
                     filteredAnomalies.length > 0 ? filteredAnomalies : [{ name: "No anomalies detected", category: "Info" }],
-            }
-        })
+            };
+        });
 
-        setFilteredAnnotations(filtered)
-    }, [consolidatedAnnotations, selectedCategories, selectedTooth])
+        console.timeEnd('filterAnnotations');
+        return filtered;
+    }, [consolidatedAnnotations, selectedCategories, selectedTooth, confidenceLevels]);
+
+    // Update filteredAnnotations state when the memo changes
+    useEffect(() => {
+        setFilteredAnnotations(filteredAnnotationsMemo);
+    }, [filteredAnnotationsMemo]);
 
     if (!consolidatedAnnotations || consolidatedAnnotations.length === 0) {
         return (

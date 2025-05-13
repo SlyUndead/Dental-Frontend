@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import {
   Card,
   CardBody,
@@ -48,12 +48,14 @@ const TemporalityPage = (props) => {
   const [secondDropdownOpen, setSecondDropdownOpen] = useState(false)
   const [firstVisitId, setFirstVisitId] = useState(null)
   const [secondVisitId, setSecondVisitId] = useState(null)
+  // Comparison mode is always true now as there's no single view
   const [isComparisonMode, setIsComparisonMode] = useState(true)
   const [redirectToPatientVisitPage, setRedirectToPatientVisitPage] = useState(false)
   const [isConsolidatedView, setIsConsolidatedView] = useState(false)
   const [consolidatedAnnotations, setConsolidatedAnnotations] = useState([])
   const [allVisitsAnnotations, setAllVisitsAnnotations] = useState({})
   const [isLoadingConsolidated, setIsLoadingConsolidated] = useState(false)
+  const [visitAnnotationsCache, setVisitAnnotationsCache] = useState({}) // Cache for visit annotations
 
   const breadcrumbItems = [
     { title: `${sessionStorage.getItem("firstName")} ${sessionStorage.getItem("lastName")}`, link: "/practiceList" },
@@ -81,7 +83,8 @@ const TemporalityPage = (props) => {
 
       // Use setTimeout to clear data after the UI has updated
       // This prevents the UI from freezing during the state update
-      if (!isConsolidatedView) { // Double-check we're still in non-consolidated mode
+      if (!isConsolidatedView) {
+        // Double-check we're still in non-consolidated mode
         setAllVisitsAnnotations({})
         setConsolidatedAnnotations([])
       }
@@ -90,31 +93,60 @@ const TemporalityPage = (props) => {
 
   // Handle print functionality
   const handlePrint = () => {
-    const patientName = sessionStorage.getItem('patientName')
-    const printWindow = window.open('', '_blank')
+    const patientName = sessionStorage.getItem("patientName")
+    const printWindow = window.open("", "_blank")
 
     // Collect all stylesheets
-    const styles = Array.from(document.styleSheets).map((styleSheet) => {
-      try {
-        const rules = Array.from(styleSheet.cssRules)
-          .filter(rule => {
-            // Ignore table hover styles
-            return !rule.selectorText || !rule.selectorText.includes(':hover')
-          })
-          .map(rule => rule.cssText)
-          .join('\n')
-        return `<style>${rules}</style>`
-      } catch (e) {
-        // Handle CORS issues if styleSheet is from another domain
-        return ''
+    const styles = Array.from(document.styleSheets)
+      .map((styleSheet) => {
+        try {
+          const rules = Array.from(styleSheet.cssRules)
+            .filter((rule) => {
+              // Ignore table hover styles
+              return !rule.selectorText || !rule.selectorText.includes(":hover")
+            })
+            .map((rule) => rule.cssText)
+            .join("\n")
+          return `<style>${rules}</style>`
+        } catch (e) {
+          // Handle CORS issues if styleSheet is from another domain
+          return ""
+        }
+      })
+      .join("\n")
+
+    // Get the dental chart HTML based on current view
+    let dentalChartHtml = ""
+
+    try {
+      if (isConsolidatedView) {
+        // Get consolidated view dental chart
+        const chartContainer = document.querySelector(".dental-chart-container")
+        if (chartContainer) {
+          dentalChartHtml = chartContainer.outerHTML
+        }
+      } else {
+        // In comparison mode, use the right side chart (newer visit)
+        const chartContainers = document.querySelectorAll(".dental-chart-container")
+        if (chartContainers && chartContainers.length > 1) {
+          dentalChartHtml = chartContainers[1].outerHTML // Second chart (right side)
+        } else if (chartContainers && chartContainers.length > 0) {
+          dentalChartHtml = chartContainers[0].outerHTML // Fallback to first chart
+        }
       }
-    }).join('\n')
+    } catch (error) {
+      console.error("Error getting dental chart for print:", error)
+    }
 
     // Get the content to print
     const contentToPrint = printRef.current.innerHTML
 
-    // Write to the new window
-    printWindow.document.write(`
+    // Create different HTML templates based on view mode
+    let htmlTemplate
+
+    if (isConsolidatedView) {
+      // Consolidated view with header and dental chart using the requested table structure
+      htmlTemplate = `
       <html>
         <head>
           <title>Temporality View - ${patientName}</title>
@@ -122,48 +154,384 @@ const TemporalityPage = (props) => {
           <style>
             body {
               font-family: Arial, sans-serif;
-              padding: 20px;
+              padding: 0;
+              margin: 0;
             }
+
+            /* Table structure for header and footer */
+            table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+
+            /* Header and footer spaces */
+            .header-space, .footer-space {
+              height: 180px;
+            }
+
+            /* Fixed header and footer */
+            .header, .footer {
+              position: fixed;
+              width: 100%;
+              left: 0;
+              right: 0;
+              background-color: white;
+              z-index: 1;
+            }
+
             .header {
-              text-align: center;
-              margin-bottom: 20px;
-              font-size: 24px;
-              font-weight: bold;
+              top: 0;
+              border-bottom: 1px solid #ddd;
             }
+
+            .footer {
+              bottom: 0;
+              border-top: 1px solid #ddd;
+            }
+
+            /* Header content styling */
+            .header-title {
+              text-align: center;
+              font-size: 16px;
+              font-weight: bold;
+              margin-bottom: 3px;
+            }
+
+            /* Content area */
+            .content {
+              position: relative;
+              z-index: 100;
+            }
+
+            /* Hide the original dental chart in the content */
+            .content .dental-chart-container {
+              display: none;
+            }
+
+            /* Dental chart in header */
+            .header-dental-chart {
+              max-width: 100%;
+              overflow: auto;
+              text-align: center;
+            }
+
+            .header-dental-chart .dental-chart-container {
+              transform: scale(0.8);
+              transform-origin: top center;
+              margin: 0 auto;
+            }
+
             @media print {
               @page {
-                margin: 10mm;
+                margin: 0;
+                size: portrait;
               }
+
               button, .no-print {
                 display: none !important;
+              }
+
+              .card {
+                page-break-inside: avoid;
+                border: none !important;
+                box-shadow: none !important;
+              }
+
+              .card-body {
+                padding: 0 !important;
+              }
+
+              /* Ensure the header and footer appear on every page */
+              .header, .footer {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                display: block !important;
+              }
+
+              /* Hide the dental charts in the content since we're adding them in the header */
+              .content .dental-chart-container {
+                display: none;
               }
             }
           </style>
         </head>
         <body>
+          <!-- Table structure for content with header and footer spaces -->
+          <table>
+            <thead>
+              <tr>
+                <td>
+                  <div class="header-space">&nbsp;</div>
+                </td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div class="content">
+                    ${contentToPrint}
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Fixed header with title and dental chart -->
           <div class="header">
-            Temporality View - ${patientName}
+            <div class="header-title">
+              Temporality View - ${patientName}
+            </div>
+            <div class="header-dental-chart">
+              ${dentalChartHtml}
+            </div>
           </div>
-          <div>
+
+          <!-- Fixed footer (empty for now) -->
+          <div class="footer">
+            <!-- Footer content can be added here if needed -->
+          </div>
+        </body>
+      </html>
+      `
+    } else {
+      // Comparison view - we'll put each dental chart on its own page
+      // First, extract the dental charts
+      let leftChartHtml = ""
+      let rightChartHtml = ""
+
+      try {
+        const chartContainers = document.querySelectorAll(".dental-chart-container")
+        if (chartContainers && chartContainers.length > 0) {
+          leftChartHtml = chartContainers[0].outerHTML
+        }
+        if (chartContainers && chartContainers.length > 1) {
+          rightChartHtml = chartContainers[1].outerHTML
+        }
+      } catch (error) {
+        console.error("Error extracting dental charts:", error)
+      }
+
+      // Get the tables
+      let leftTableHtml = ""
+      let rightTableHtml = ""
+
+      try {
+        const tables = document.querySelectorAll(".card-body h4 + div")
+        if (tables && tables.length > 0) {
+          leftTableHtml = tables[0].outerHTML
+        }
+        if (tables && tables.length > 1) {
+          rightTableHtml = tables[1].outerHTML
+        }
+      } catch (error) {
+        console.error("Error extracting tables:", error)
+      }
+
+      // Create a template with each chart and table on its own page
+      htmlTemplate = `
+      <html>
+        <head>
+          <title>Temporality View - ${patientName}</title>
+          ${styles}
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 0;
+              margin: 0;
+            }
+
+            /* Table structure for header and footer */
+            table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+
+            /* Header and footer spaces */
+            .header-space, .footer-space {
+              height: 60px;
+            }
+
+            /* Fixed header and footer */
+            .header, .footer {
+              position: fixed;
+              width: 100%;
+              left: 0;
+              right: 0;
+              background-color: white;
+              z-index: 1000;
+            }
+
+            .header {
+              top: 0;
+              border-bottom: 1px solid #ddd;
+            }
+
+            .footer {
+              bottom: 0;
+              border-top: 1px solid #ddd;
+            }
+
+            /* Header content styling */
+            .header-title {
+              text-align: center;
+              font-size: 20px;
+              font-weight: bold;
+              margin: 10px 0;
+            }
+
+            /* Content area */
+            .content {
+              position: relative;
+              z-index: 1;
+              padding: 20px;
+            }
+
+            .section-title {
+              text-align: center;
+              font-size: 20px;
+              font-weight: bold;
+              margin: 20px 0;
+            }
+
+            .chart-page, .table-page {
+              page-break-before: always;
+            }
+
+            .chart-page:first-of-type {
+              page-break-before: avoid;
+            }
+
+            @media print {
+              @page {
+                margin: 0;
+                size: portrait;
+              }
+
+              button, .no-print {
+                display: none !important;
+              }
+
+              .card {
+                page-break-inside: avoid;
+                border: none !important;
+                box-shadow: none !important;
+              }
+
+              .card-body {
+                padding: 0 !important;
+              }
+
+              /* Ensure the header and footer appear on every page */
+              .header, .footer {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                display: block !important;
+              }
+
+              /* Hide the original content */
+              .original-content {
+                display: none;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <!-- Table structure for content with header and footer spaces -->
+          <table>
+            <thead>
+              <tr>
+                <td>
+                  <div class="header-space">&nbsp;</div>
+                </td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div class="content">
+                    <!-- Left dental chart -->
+                    <div class="chart-page">
+                      <div class="section-title">
+                        ${patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "Second Visit"} - Dental Chart
+                      </div>
+                      ${leftChartHtml}
+                    </div>
+
+                    <!-- Right dental chart -->
+                    <div class="chart-page">
+                      <div class="section-title">
+                        ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "First Visit"} - Dental Chart
+                      </div>
+                      ${rightChartHtml}
+                    </div>
+
+                    <!-- Left table -->
+                    <div class="table-page">
+                      <div class="section-title">
+                        ${patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "Second Visit"} - Tooth Anomalies/Procedures
+                      </div>
+                      ${leftTableHtml}
+                    </div>
+
+                    <!-- Right table -->
+                    <div class="table-page">
+                      <div class="section-title">
+                        ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "First Visit"} - Tooth Anomalies/Procedures
+                      </div>
+                      ${rightTableHtml}
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>
+                  <div class="footer-space">&nbsp;</div>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <!-- Fixed header with title -->
+          <div class="header">
+            <div class="header-title">
+              Temporality View - ${patientName}
+            </div>
+          </div>
+
+          <!-- Fixed footer (empty for now) -->
+          <div class="footer">
+            <!-- Footer content can be added here if needed -->
+          </div>
+
+          <!-- Original content (hidden in print) -->
+          <div class="original-content" style="display: none;">
             ${contentToPrint}
           </div>
         </body>
       </html>
-    `)
+      `
+    }
 
+    // Write to the new window using a more modern approach
+    printWindow.document.open()
+    printWindow.document.write(htmlTemplate)
     printWindow.document.close()
 
     // Wait for styles to load then print
-    setTimeout(() => {
-      printWindow.print()
-      printWindow.close()
-    }, 500)
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print()
+        printWindow.close()
+      }, 1000) // Increased timeout to ensure everything loads properly
+    }
   }
 
   // Fetch all patient visits
   const fetchPatientVisits = async () => {
     try {
-      setPatientVisits([]);
+      setPatientVisits([])
       const response = await axios.get(
         `${apiUrl}/getPatientVisitsByID?patientId=${sessionStorage.getItem("patientId")}`,
         {
@@ -171,72 +539,72 @@ const TemporalityPage = (props) => {
             Authorization: sessionStorage.getItem("token"),
           },
         },
-      );
+      )
 
       if (response.status === 200) {
-        const visitData = response.data;
-        sessionStorage.setItem("token", response.headers["new-token"]);
+        const visitData = response.data
+        sessionStorage.setItem("token", response.headers["new-token"])
 
         // Format dates and set state
         if (visitData.patienVisits && visitData.patienVisits.length > 0) {
           const formattedVisits = visitData.patienVisits.map((visit) => {
-            const visitDate = new Date(visit.date_of_visit);
-            const creationDate = visit.created_on ? new Date(visit.created_on) : visitDate;
+            const visitDate = new Date(visit.date_of_visit)
+            const creationDate = visit.created_on ? new Date(visit.created_on) : visitDate
 
             // Format time as HH:MM AM/PM
-            const timeString = creationDate.toLocaleTimeString('en-US', {
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: true
-            });
+            const timeString = creationDate.toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            })
 
             return {
               ...visit,
               formattedDate: formatDate(visitDate),
               formattedDateTime: `${formatDate(visitDate)} ${timeString}`,
-              creationTime: timeString
-            };
-          });
+              creationTime: timeString,
+            }
+          })
 
           // Store all visits (ungrouped)
-          setPatientVisits(formattedVisits);
+          setPatientVisits(formattedVisits)
 
           // Sort visits by creation date (newest first)
           const sortedVisits = [...formattedVisits].sort((a, b) => {
-            const dateA = a.created_on ? new Date(a.created_on) : new Date(a.date_of_visit);
-            const dateB = b.created_on ? new Date(b.created_on) : new Date(b.date_of_visit);
-            return dateB - dateA;
-          });
+            const dateA = a.created_on ? new Date(a.created_on) : new Date(a.date_of_visit)
+            const dateB = b.created_on ? new Date(b.created_on) : new Date(b.date_of_visit)
+            return dateB - dateA
+          })
 
           // Set default visits for comparison (newest and second-newest)
           if (sortedVisits.length >= 2) {
             // First visit is the newest, second visit is the second newest
-            setFirstVisitId(sortedVisits[0]._id);
-            setSecondVisitId(sortedVisits[1]._id);
-            setIsComparisonMode(true);
+            setFirstVisitId(sortedVisits[0]._id)
+            setSecondVisitId(sortedVisits[1]._id)
+            setIsComparisonMode(true)
             // Fetch annotations for both visits
-            handleFirstVisitSelect(sortedVisits[0]._id, formattedVisits);
-            handleSecondVisitSelect(sortedVisits[1]._id, formattedVisits);
+            handleFirstVisitSelect(sortedVisits[0]._id, formattedVisits)
+            handleSecondVisitSelect(sortedVisits[1]._id, formattedVisits)
           } else if (sortedVisits.length === 1) {
-            setFirstVisitId(sortedVisits[0]._id);
-            handleFirstVisitSelect(sortedVisits[0]._id, formattedVisits);
+            setFirstVisitId(sortedVisits[0]._id)
+            handleFirstVisitSelect(sortedVisits[0]._id, formattedVisits)
           }
-          return formattedVisits;
+          return formattedVisits
         } else {
-          setMessage("No visits found for this patient.");
-          return [];
+          setMessage("No visits found for this patient.")
+          return []
         }
       }
     } catch (error) {
       if (error.status === 403 || error.status === 401) {
-        sessionStorage.removeItem("token");
-        setRedirectToLogin(true);
+        sessionStorage.removeItem("token")
+        setRedirectToLogin(true)
       } else {
-        logErrorToServer(error, "fetchPatientVisits");
-        setMessage("Error fetching patient visits");
-        console.error("Error fetching patient visits:", error);
+        logErrorToServer(error, "fetchPatientVisits")
+        setMessage("Error fetching patient visits")
+        console.error("Error fetching patient visits:", error)
       }
-      return [];
+      return []
     }
   }
 
@@ -249,20 +617,11 @@ const TemporalityPage = (props) => {
     }).format(date)
   }
 
-  // Format date with time for display
-  const formatDateWithTime = (date) => {
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true
-    }).format(date)
-  }
+  // Format date function is used above
 
-  // Fetch annotations for all visits
-  const fetchAllVisitsAnnotations = async () => {
+  // Fetch annotations for all visits - optimized with caching
+  const fetchAllVisitsAnnotations = useCallback(async () => {
+    // If we already have the data and we're not loading, just regenerate the view
     if (Object.keys(allVisitsAnnotations).length > 0 && !isLoadingConsolidated) {
       generateConsolidatedView()
       return
@@ -289,66 +648,82 @@ const TemporalityPage = (props) => {
         }
 
         const visitId = patientVisits[i]._id
+        let visitAnnots = []
 
-        try {
-          // Use visitid-annotations API for all visits
-          const response = await axios.get(`${apiUrl}/visitid-annotations?visitID=${visitId}`, {
-            headers: {
-              Authorization: sessionStorage.getItem("token"),
-            },
-          })
-
-          if (response.status === 200) {
-            sessionStorage.setItem("token", response.headers["new-token"])
-            const imagesData = response.data.images
-
-            // Process visit annotations
-            let visitAnnots = []
-
-            // Skip this visit if there are no images
-            if (!imagesData || imagesData.length === 0) {
-              console.log(`No images found for visit ${visitId}, skipping...`)
-              continue
-            }
-
-            imagesData.forEach((image, index) => {
-              if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
-                // Add image ID to each annotation
-                const annotationsWithImageId = image.annotations.annotations.annotations.map((annotation) => ({
-                  ...annotation,
-                  imageId: image._id,
-                  imageNumber: image.imageNumber || index + 1,
-                  imageName: image.name,
-                  visitId: visitId,
-                }))
-                visitAnnots = [...visitAnnots, ...annotationsWithImageId]
-              }
+        // Check if we have this visit's annotations in cache
+        if (visitAnnotationsCache[visitId]) {
+          visitAnnots = visitAnnotationsCache[visitId]
+        } else {
+          try {
+            // Use visitid-annotations API for all visits
+            const response = await axios.get(`${apiUrl}/visitid-annotations?visitID=${visitId}`, {
+              headers: {
+                Authorization: sessionStorage.getItem("token"),
+              },
             })
 
-            // Skip this visit if there are no annotations
-            if (visitAnnots.length === 0) {
-              continue
-            }
+            if (response.status === 200) {
+              sessionStorage.setItem("token", response.headers["new-token"])
+              const imagesData = response.data.images
 
-            // Store the visit annotations
-            visitAnnotations[visitId] = visitAnnots
+              // Skip this visit if there are no images
+              if (!imagesData || imagesData.length === 0) {
+                console.log(`No images found for visit ${visitId}, skipping...`)
+                continue
+              }
 
-            // Check which teeth were found in this visit
-            visitAnnots.forEach(anno => {
-              if (!isNaN(Number.parseInt(anno.label))) {
-                const toothNumber = Number.parseInt(anno.label)
-                if (toothNumber >= 1 && toothNumber <= 32 && !foundTeeth.has(toothNumber)) {
-                  foundTeeth.add(toothNumber)
-                  remainingTeeth.delete(toothNumber)
+              // Process visit annotations
+              imagesData.forEach((image, index) => {
+                if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
+                  // Add image ID to each annotation
+                  const annotationsWithImageId = image.annotations.annotations.annotations.map((annotation) => ({
+                    ...annotation,
+                    imageId: image._id,
+                    imageNumber: image.imageNumber || index + 1,
+                    imageName: image.name,
+                    visitId: visitId,
+                  }))
+                  visitAnnots = [...visitAnnots, ...annotationsWithImageId]
                 }
-              }
-            })
+              })
+
+              // Update cache with this visit's annotations
+              setVisitAnnotationsCache((prevCache) => ({
+                ...prevCache,
+                [visitId]: visitAnnots,
+              }))
+            }
+          } catch (error) {
+            console.error(`Error fetching annotations for visit ${visitId}:`, error)
+            // Continue to the next visit if there's an error with this one
+            continue
           }
-        } catch (error) {
-          console.error(`Error fetching annotations for visit ${visitId}:`, error)
-          // Continue to the next visit if there's an error with this one
+        }
+
+        // Skip this visit if there are no annotations
+        if (visitAnnots.length === 0) {
           continue
         }
+
+        // Store the visit annotations
+        visitAnnotations[visitId] = visitAnnots
+
+        // Check which teeth were found in this visit - use a more efficient approach
+        const toothNumbers = new Set()
+        visitAnnots.forEach((anno) => {
+          if (!isNaN(Number.parseInt(anno.label))) {
+            const toothNumber = Number.parseInt(anno.label)
+            if (toothNumber >= 1 && toothNumber <= 32 && !foundTeeth.has(toothNumber)) {
+              toothNumbers.add(toothNumber)
+            }
+          }
+        })
+
+        // Batch update the sets
+        toothNumbers.forEach((toothNumber) => {
+          foundTeeth.add(toothNumber)
+          remainingTeeth.delete(toothNumber)
+        })
       }
 
       setAllVisitsAnnotations(visitAnnotations)
@@ -360,273 +735,277 @@ const TemporalityPage = (props) => {
     } finally {
       setIsLoadingConsolidated(false)
     }
-  }
-  const calculateBoneLossRanges = (annotations) => {
-  if (!annotations || annotations.length === 0) return []
-
-  // First, filter out only the tooth annotations (numeric labels)
-  const toothAnnots = annotations.filter((anno) => !isNaN(Number.parseInt(anno.label)))
-
-  // Find all bone loss annotations
-  const boneLossAnnotations = annotations.filter(
-    (anno) => anno.label && anno.label.toLowerCase().includes("bone loss") && anno.segmentation,
-  )
-
-  // Process each bone loss annotation to find affected teeth
-  const boneLossRanges = []
-
-  boneLossAnnotations.forEach((boneLossAnno) => {
-    const overlappingTeeth = []
-
-    // Find all teeth that overlap with this bone loss annotation
-    toothAnnots.forEach((toothAnno) => {
-      const toothNumber = Number.parseInt(toothAnno.label)
-      if (!isNaN(toothNumber) && toothNumber >= 1 && toothNumber <= 32 && toothAnno.segmentation) {
-        try {
-          const overlap = calculateOverlap(boneLossAnno.segmentation, toothAnno.segmentation)
-          if (overlap > 0) {
-            overlappingTeeth.push(toothNumber)
-          }
-        } catch (error) {
-          console.error("Error calculating overlap:", error)
-        }
-      }
-    })
-
-    // Sort teeth by number
-    overlappingTeeth.sort((a, b) => a - b)
-
-    if (overlappingTeeth.length > 0) {
-      // Find continuous ranges
-      const ranges = []
-      let currentRange = [overlappingTeeth[0]]
-
-      for (let i = 1; i < overlappingTeeth.length; i++) {
-        const prevTooth = overlappingTeeth[i - 1]
-        const currentTooth = overlappingTeeth[i]
-
-        // If teeth are consecutive or within 1 tooth apart, add to current range
-        if (currentTooth - prevTooth <= 2) {
-          currentRange.push(currentTooth)
-        } else {
-          // Start a new range
-          ranges.push([...currentRange])
-          currentRange = [currentTooth]
-        }
+  }, [
+    patientVisits,
+    visitAnnotationsCache,
+    allVisitsAnnotations,
+    isLoadingConsolidated,
+    consolidatedAnnotations.length,
+    apiUrl,
+  ])
+  // Generate consolidated view from all visits' annotations - optimized with memoization
+  const generateConsolidatedView = useCallback(
+    (visitAnnots = null) => {
+      console.time("generateConsolidatedView") // Performance measurement
+      const annotations = visitAnnots || allVisitsAnnotations
+      if (!annotations || Object.keys(annotations).length === 0) {
+        console.timeEnd("generateConsolidatedView")
+        return
       }
 
-      // Add the last range
-      ranges.push(currentRange)
+      // Track which teeth we've already processed
+      const processedTeeth = new Set()
+      const consolidatedTeeth = {}
+      // Track which teeth still need to be found
+      const remainingTeeth = new Set(Array.from({ length: 32 }, (_, i) => i + 1))
 
-      // Format each range and add to results
-      ranges.forEach((range) => {
-        const rangeText = range.length > 1 ? `${range[0]}-${range[range.length - 1]}` : `${range[0]}`
+      // Create a map of tooth annotations for faster lookup
+      const toothAnnotsMap = {}
+      // Create a map of anomalies by tooth for faster lookup
+      const anomaliesByTooth = {}
 
-        boneLossRanges.push({
-          teethRange: rangeText,
-          affectedTeeth: range,
-          annotation: boneLossAnno,
-        })
-      })
-    }
-  })
+      // Pre-process all visits to build lookup maps
+      for (let i = 0; i < patientVisits.length; i++) {
+        const visitId = patientVisits[i]._id
+        const visitAnnotations = annotations[visitId] || []
 
-  return boneLossRanges
-}
-  // Generate consolidated view from all visits' annotations
-  const generateConsolidatedView = (visitAnnots = null) => {
-    const annotations = visitAnnots || allVisitsAnnotations
-    if (!annotations || Object.keys(annotations).length === 0) return
+        // Skip if no annotations
+        if (visitAnnotations.length === 0) continue
 
-    // Track which teeth we've already processed
-    const processedTeeth = new Set()
-    const consolidatedTeeth = {}
-    // Track which teeth still need to be found
-    const remainingTeeth = new Set(Array.from({ length: 32 }, (_, i) => i + 1))
-
-    // Process visits in order (newest to oldest)
-    for (let i = 0; i < patientVisits.length; i++) {
-      const visitId = patientVisits[i]._id
-      const visitAnnotations = annotations[visitId] || []
-
-      // Get tooth annotations for this visit
-      const toothAnnots = visitAnnotations.filter((anno) => !isNaN(Number.parseInt(anno.label)))
-
-      // If we've found all teeth, we can stop processing visits
-      if (remainingTeeth.size === 0) {
-        break
-      }
-
-      // For each tooth in this visit
-      toothAnnots.forEach((toothAnno) => {
-        const toothNumber = Number.parseInt(toothAnno.label)
-
-        // If we've already processed this tooth in a more recent visit, skip it
-        if (processedTeeth.has(toothNumber)) {
-          return
-        }
-
-        // Mark this tooth as processed
-        processedTeeth.add(toothNumber)
-        remainingTeeth.delete(toothNumber)
-
-        // Find all anomalies that are associated with this tooth
-        const anomalies = []
-
+        // Process tooth annotations
         visitAnnotations.forEach((anno) => {
-          // Skip tooth annotations
           if (!isNaN(Number.parseInt(anno.label))) {
+            const toothNumber = Number.parseInt(anno.label)
+            if (!toothAnnotsMap[toothNumber]) {
+              toothAnnotsMap[toothNumber] = {
+                visitIndex: i,
+                annotation: anno,
+                visitDate: patientVisits[i].formattedDate,
+                visitId: patientVisits[i]._id,
+              }
+            }
+          } else {
+            // Process anomalies with associatedTooth
+            if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
+              const toothNumber = Number.parseInt(anno.associatedTooth)
+              if (!isNaN(toothNumber)) {
+                if (!anomaliesByTooth[toothNumber]) {
+                  anomaliesByTooth[toothNumber] = []
+                }
+                anomaliesByTooth[toothNumber].push({
+                  visitIndex: i,
+                  annotation: anno,
+                  visitDate: patientVisits[i].formattedDate,
+                  visitId: patientVisits[i]._id,
+                  overlapPercentage: 100, // Perfect match for associatedTooth
+                })
+              }
+            }
+          }
+        })
+      }
+
+      // Process visits in order (newest to oldest)
+      for (let i = 0; i < patientVisits.length; i++) {
+        // If we've found all teeth, we can stop processing visits
+        if (remainingTeeth.size === 0) {
+          break
+        }
+
+        const visitId = patientVisits[i]._id
+        const visitAnnotations = annotations[visitId] || []
+
+        // Get tooth annotations for this visit
+        const toothAnnots = visitAnnotations.filter((anno) => !isNaN(Number.parseInt(anno.label)))
+
+        // For each tooth in this visit
+        toothAnnots.forEach((toothAnno) => {
+          const toothNumber = Number.parseInt(toothAnno.label)
+
+          // If we've already processed this tooth in a more recent visit, skip it
+          if (processedTeeth.has(toothNumber)) {
             return
           }
 
-          // First check if the annotation has an associatedTooth field
-          if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
-            // If the associatedTooth matches this tooth, add it to anomalies
-            if (Number.parseInt(anno.associatedTooth) === toothNumber) {
-              anomalies.push({
+          // Mark this tooth as processed
+          processedTeeth.add(toothNumber)
+          remainingTeeth.delete(toothNumber)
+
+          // Find all anomalies that are associated with this tooth
+          const anomalies = []
+
+          // First add anomalies with associatedTooth
+          if (anomaliesByTooth[toothNumber]) {
+            anomaliesByTooth[toothNumber].forEach((item) => {
+              if (item.visitIndex === i) {
+                // Only include anomalies from current visit
+                const anno = item.annotation
+                if (anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)) {
+                  anomalies.push({
+                    name: anno.label,
+                    category: classCategories[anno.label.toLowerCase()] || "Unknown",
+                    confidence: anno.confidence,
+                    overlapPercentage: item.overlapPercentage,
+                    visitDate: item.visitDate,
+                    visitIndex: item.visitIndex,
+                    visitId: item.visitId,
+                    imageNumber: anno.imageNumber,
+                    imageName: anno.imageName,
+                    originalAnnotation: anno,
+                  })
+                }
+              }
+            })
+          }
+
+          // Then process other anomalies using overlap calculation
+          visitAnnotations.forEach((anno) => {
+            // Skip tooth annotations and anomalies with associatedTooth
+            if (
+              !isNaN(Number.parseInt(anno.label)) ||
+              (anno.associatedTooth !== undefined && anno.associatedTooth !== null)
+            ) {
+              return
+            }
+
+            // Calculate overlap for remaining anomalies
+            if (anno.segmentation && toothAnno.segmentation) {
+              try {
+                // Calculate overlap
+                const overlap = calculateOverlap(anno.segmentation, toothAnno.segmentation)
+                const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
+                const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
+
+                // Only include if overlap is at least 80%
+                if (
+                  overlapPercentage >= 0.8 &&
+                  anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)
+                ) {
+                  anomalies.push({
+                    name: anno.label,
+                    category: classCategories[anno.label.toLowerCase()] || "Unknown",
+                    confidence: anno.confidence,
+                    overlapPercentage: Math.round(overlapPercentage * 100),
+                    visitDate: patientVisits[i].formattedDate,
+                    visitIndex: i,
+                    visitId: patientVisits[i]._id,
+                    imageNumber: anno.imageNumber,
+                    imageName: anno.imageName,
+                    originalAnnotation: anno,
+                  })
+                }
+              } catch (error) {
+                console.error("Error calculating overlap:", error)
+              }
+            }
+          })
+
+          // Store this tooth with its anomalies and visit info
+          consolidatedTeeth[toothNumber] = {
+            toothNumber,
+            anomalies:
+              anomalies.length > 0
+                ? anomalies
+                : [
+                    {
+                      name: "No anomalies detected",
+                      category: "Info",
+                      visitDate: patientVisits[i].formattedDate,
+                      visitIndex: i,
+                    },
+                  ],
+            visitDate: patientVisits[i].formattedDate,
+            visitIndex: i,
+            originalAnnotation: toothAnno,
+          }
+        })
+      }
+
+      // Process unassigned annotations more efficiently
+      const unassignedAnomalies = []
+      let unassignedVisitIndex = -1
+      let unassignedVisitDate = ""
+
+      // Find the newest visit with unassigned annotations
+      for (let i = 0; i < patientVisits.length; i++) {
+        const visitId = patientVisits[i]._id
+        const visitAnnotations = annotations[visitId] || []
+
+        // Check for unassigned annotations
+        const hasUnassigned = visitAnnotations.some(
+          (anno) =>
+            !isNaN(Number.parseInt(anno.label)) &&
+            (anno.associatedTooth === null || anno.associatedTooth === "Unassigned"),
+        )
+
+        if (hasUnassigned) {
+          unassignedVisitIndex = i
+          unassignedVisitDate = patientVisits[i].formattedDate
+          break
+        }
+      }
+
+      // If we found a visit with unassigned annotations, process them
+      if (unassignedVisitIndex !== -1) {
+        const visitId = patientVisits[unassignedVisitIndex]._id
+        const visitAnnotations = annotations[visitId] || []
+
+        // Filter unassigned annotations
+        visitAnnotations.forEach((anno) => {
+          if (!isNaN(Number.parseInt(anno.label))) return
+
+          if (anno.associatedTooth === null || anno.associatedTooth === "Unassigned") {
+            if (anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)) {
+              unassignedAnomalies.push({
                 name: anno.label,
                 category: classCategories[anno.label.toLowerCase()] || "Unknown",
                 confidence: anno.confidence,
-                overlapPercentage: 100, // We're using associatedTooth, so it's a perfect match
-                visitDate: patientVisits[i].formattedDate,
-                visitIndex: i,
-                visitId: patientVisits[i]._id,
+                visitDate: unassignedVisitDate,
+                visitIndex: unassignedVisitIndex,
+                visitId: patientVisits[unassignedVisitIndex]._id,
                 imageNumber: anno.imageNumber,
                 imageName: anno.imageName,
-                // Add original annotation data for reference
-                originalAnnotation: anno
+                originalAnnotation: anno,
               })
             }
           }
-          // If no associatedTooth field or it's null, fall back to overlap calculation
-          else if (anno.segmentation && toothAnno.segmentation) {
-            try {
-              // Calculate overlap
-              const overlap = calculateOverlap(anno.segmentation, toothAnno.segmentation)
-              const annoArea = polygonArea(anno.segmentation.map((point) => [point.x, point.y]))
-              const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
-
-              // Only include if overlap is at least 80%
-              if (overlapPercentage >= 0.8) {
-                anomalies.push({
-                  name: anno.label,
-                  category: classCategories[anno.label.toLowerCase()] || "Unknown",
-                  confidence: anno.confidence,
-                  overlapPercentage: Math.round(overlapPercentage * 100),
-                  visitDate: patientVisits[i].formattedDate,
-                  visitIndex: i,
-                  visitId: patientVisits[i]._id,
-                  imageNumber: anno.imageNumber,
-                  imageName: anno.imageName,
-                  // Add original annotation data for reference
-                  originalAnnotation: anno
-                })
-              }
-            } catch (error) {
-              console.error("Error calculating overlap:", error)
-            }
-          }
         })
+      }
 
-        // Store this tooth with its anomalies and visit info
-        consolidatedTeeth[toothNumber] = {
-          toothNumber,
-          anomalies:
-            anomalies.length > 0
-              ? anomalies
-              : [
-                {
-                  name: "No anomalies detected",
-                  category: "Info",
-                  visitDate: patientVisits[i].formattedDate,
-                  visitIndex: i,
-                },
-              ],
-          visitDate: patientVisits[i].formattedDate,
-          visitIndex: i,
-          // Add the original tooth annotation for reference
-          originalAnnotation: toothAnno
-        }
-      })
-    }
-
-    // Process unassigned annotations
-    const unassignedAnomalies = []
-
-    // Go through all visits to find unassigned annotations
-    for (let i = 0; i < patientVisits.length; i++) {
-      const visitId = patientVisits[i]._id
-      const visitAnnotations = annotations[visitId] || []
-
-      // Skip tooth annotations and look for unassigned anomalies
-      visitAnnotations.forEach((anno) => {
-        // Skip tooth annotations
-        if (!isNaN(Number.parseInt(anno.label))) {
-          return
-        }
-
-        // Check if this annotation has an associatedTooth field that's null or "Unassigned"
-        if (anno.associatedTooth === null || anno.associatedTooth === "Unassigned") {
-          unassignedAnomalies.push({
-            name: anno.label,
-            category: classCategories[anno.label.toLowerCase()] || "Unknown",
-            confidence: anno.confidence,
-            visitDate: patientVisits[i].formattedDate,
-            visitIndex: i,
-            visitId: patientVisits[i]._id,
-            imageNumber: anno.imageNumber,
-            imageName: anno.imageName,
-            // Add original annotation data for reference
-            originalAnnotation: anno
-          })
-        }
-      })
-
-      // If we've found unassigned anomalies, we can stop looking in older visits
+      // Add unassigned anomalies if any were found
       if (unassignedAnomalies.length > 0) {
-        break
-      }
-    }
-
-    // Add unassigned anomalies if any were found
-    if (unassignedAnomalies.length > 0) {
-      consolidatedTeeth["unassigned"] = {
-        toothNumber: "Unassigned",
-        anomalies: unassignedAnomalies,
-        isUnassigned: true,
-        visitDate: unassignedAnomalies[0].visitDate,
-        visitIndex: unassignedAnomalies[0].visitIndex,
-      }
-    }
-
-    // Make sure all teeth are represented in the consolidated view
-    // This ensures the dental chart shows all teeth, even if they don't have annotations
-    for (let i = 1; i <= 32; i++) {
-      if (!consolidatedTeeth[i]) {
-        consolidatedTeeth[i] = {
-          toothNumber: i,
-          anomalies: [
-            {
-              name: "Not detected",
-              category: "Info",
-            },
-          ],
-          hasAnnotations: false,
+        consolidatedTeeth["unassigned"] = {
+          toothNumber: "Unassigned",
+          anomalies: unassignedAnomalies,
+          isUnassigned: true,
+          visitDate: unassignedAnomalies[0].visitDate,
+          visitIndex: unassignedAnomalies[0].visitIndex,
         }
       }
-    }
 
-    // Convert to array and sort by tooth number, with "Unassigned" at the end
-    const consolidatedArray = Object.values(consolidatedTeeth).sort((a, b) => {
-      // Always put "Unassigned" at the end
-      if (a.toothNumber === "Unassigned" || a.isUnassigned) return 1
-      if (b.toothNumber === "Unassigned" || b.isUnassigned) return -1
-      // Otherwise sort by tooth number
-      return a.toothNumber - b.toothNumber
-    })
+      // Make sure all teeth are represented in the consolidated view
+      for (let i = 1; i <= 32; i++) {
+        if (!consolidatedTeeth[i]) {
+          consolidatedTeeth[i] = {
+            toothNumber: i,
+            anomalies: [{ name: "Not detected", category: "Info" }],
+            hasAnnotations: false,
+          }
+        }
+      }
 
-    setConsolidatedAnnotations(consolidatedArray)
-  }
+      // Convert to array and sort by tooth number, with "Unassigned" at the end
+      const consolidatedArray = Object.values(consolidatedTeeth).sort((a, b) => {
+        if (a.toothNumber === "Unassigned" || a.isUnassigned) return 1
+        if (b.toothNumber === "Unassigned" || b.isUnassigned) return -1
+        return a.toothNumber - b.toothNumber
+      })
+
+      setConsolidatedAnnotations(consolidatedArray)
+      console.timeEnd("generateConsolidatedView") // Performance measurement
+    },
+    [allVisitsAnnotations, patientVisits, classCategories, confidenceLevels],
+  )
   // Fetch class categories
   const fetchClassCategories = async () => {
     try {
@@ -670,132 +1049,188 @@ const TemporalityPage = (props) => {
     }
   }
 
-  // Handle first visit selection
-  const handleFirstVisitSelect = async (visitId, patientVisits) => {
-    setFirstVisitId(visitId)
-    setIsFirstLoading(true)
-    // Find the selected visit
-    const selectedVisit = patientVisits.find((v) => v._id === visitId)
-    if (!selectedVisit) {
-      setIsFirstLoading(false);
-      return;
-    }
+  // Handle first visit selection - optimized with caching
+  const handleFirstVisitSelect = useCallback(
+    async (visitId, patientVisits) => {
+      console.time("handleFirstVisitSelect") // Performance measurement
+      setFirstVisitId(visitId)
+      setIsFirstLoading(true)
 
-    try {
-      // Fetch annotations for ONLY the selected visit
-      const response = await axios.get(`${apiUrl}/visitid-annotations?visitID=${visitId}`,
-        {
+      // Find the selected visit
+      const selectedVisit = patientVisits.find((v) => v._id === visitId)
+      if (!selectedVisit) {
+        setIsFirstLoading(false)
+        console.timeEnd("handleFirstVisitSelect")
+        return
+      }
+
+      try {
+        // Check if we have this visit's annotations in cache
+        if (visitAnnotationsCache[visitId]) {
+          setLastVisitAnnotations(visitAnnotationsCache[visitId])
+          setIsFirstLoading(false)
+          console.timeEnd("handleFirstVisitSelect")
+          return
+        }
+
+        // Fetch annotations for the selected visit
+        const response = await axios.get(`${apiUrl}/visitid-annotations?visitID=${visitId}`, {
           headers: {
             Authorization: sessionStorage.getItem("token"),
           },
-        },
-      );
+        })
 
-      if (response.status === 200) {
-        sessionStorage.setItem("token", response.headers["new-token"]);
-        const imagesData = response.data.images;
-        let visitAnnotations = [];
+        if (response.status === 200) {
+          sessionStorage.setItem("token", response.headers["new-token"])
+          const imagesData = response.data.images
+          let visitAnnotations = []
 
-        // Process visit annotations
-        if (imagesData && imagesData.length > 0) {
-          imagesData.forEach((image, index) => {
-            if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
-              const annotationsWithImageId = image.annotations.annotations.annotations.map((annotation) => ({
-                ...annotation,
-                imageId: image._id,
-                imageNumber: image.imageNumber || index + 1,
-                imageName: image.name,
-                visitId: visitId, // Add visit ID to trace back which visit this annotation came from
-              }));
-              visitAnnotations = [...visitAnnotations, ...annotationsWithImageId];
-            }
-          });
+          // Process visit annotations
+          if (imagesData && imagesData.length > 0) {
+            // Use a more efficient approach to process annotations
+            const processedAnnotations = []
+
+            imagesData.forEach((image, index) => {
+              if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
+                image.annotations.annotations.annotations.forEach((annotation) => {
+                  processedAnnotations.push({
+                    ...annotation,
+                    imageId: image._id,
+                    imageNumber: image.imageNumber || index + 1,
+                    imageName: image.name,
+                    visitId: visitId,
+                  })
+                })
+              }
+            })
+
+            visitAnnotations = processedAnnotations
+          }
+
+          // Update cache with this visit's annotations
+          setVisitAnnotationsCache((prevCache) => ({
+            ...prevCache,
+            [visitId]: visitAnnotations,
+          }))
+
+          setLastVisitAnnotations(visitAnnotations)
+          if (visitAnnotations.length === 0) {
+            setMessage("No annotations found for the selected visit.")
+          }
         }
-
-        setLastVisitAnnotations(visitAnnotations);
-        if (visitAnnotations.length === 0) {
-          setMessage("No annotations found for the selected visit.");
-        }
+      } catch (error) {
+        logErrorToServer(error, "handleFirstVisitSelect")
+        setMessage("Error fetching annotations for the first visit")
+        console.error("Error fetching annotations:", error)
+        setLastVisitAnnotations([])
+      } finally {
+        setIsFirstLoading(false)
+        console.timeEnd("handleFirstVisitSelect")
       }
-    } catch (error) {
-      logErrorToServer(error, "handleFirstVisitSelect");
-      setMessage("Error fetching annotations for the first visit");
-      console.error("Error fetching annotations:", error);
-      setLastVisitAnnotations([]);
-    } finally {
-      setIsFirstLoading(false);
-    }
-  }
-  // Handle second visit selection
-  const handleSecondVisitSelect = async (visitId, patientVisits) => {
-    setSecondVisitId(visitId);
-    setIsSecondLoading(true);
-    // Find the selected visit
-    const selectedVisit = patientVisits.find((v) => v._id === visitId);
-    if (!selectedVisit) {
-      setIsSecondLoading(false);
-      return;
-    }
+    },
+    [apiUrl, visitAnnotationsCache],
+  )
+  // Handle second visit selection - optimized with caching
+  const handleSecondVisitSelect = useCallback(
+    async (visitId, patientVisits) => {
+      console.time("handleSecondVisitSelect") // Performance measurement
+      setSecondVisitId(visitId)
+      setIsSecondLoading(true)
 
-    try {
-      // Fetch annotations for ONLY the selected visit
-      const response = await axios.get(
-        `${apiUrl}/visitid-annotations?visitID=${visitId}`,
-        {
+      // Find the selected visit
+      const selectedVisit = patientVisits.find((v) => v._id === visitId)
+      if (!selectedVisit) {
+        setIsSecondLoading(false)
+        console.timeEnd("handleSecondVisitSelect")
+        return
+      }
+
+      try {
+        // Check if we have this visit's annotations in cache
+        if (visitAnnotationsCache[visitId]) {
+          setSelectedVisitAnnotations(visitAnnotationsCache[visitId])
+          setIsSecondLoading(false)
+          console.timeEnd("handleSecondVisitSelect")
+          return
+        }
+
+        // Fetch annotations for the selected visit
+        const response = await axios.get(`${apiUrl}/visitid-annotations?visitID=${visitId}`, {
           headers: {
             Authorization: sessionStorage.getItem("token"),
           },
-        },
-      );
+        })
 
-      if (response.status === 200) {
-        sessionStorage.setItem("token", response.headers["new-token"]);
-        const imagesData = response.data.images;
-        let visitAnnotations = [];
+        if (response.status === 200) {
+          sessionStorage.setItem("token", response.headers["new-token"])
+          const imagesData = response.data.images
+          let visitAnnotations = []
 
-        // Process visit annotations
-        if (imagesData && imagesData.length > 0) {
-          imagesData.forEach((image, index) => {
-            if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
-              const annotationsWithImageId = image.annotations.annotations.annotations.map((annotation) => ({
-                ...annotation,
-                imageId: image._id,
-                imageNumber: image.imageNumber || index + 1,
-                imageName: image.name,
-                visitId: visitId, // Add visit ID to trace back which visit this annotation came from
-              }));
-              visitAnnotations = [...visitAnnotations, ...annotationsWithImageId];
-            }
-          });
+          // Process visit annotations
+          if (imagesData && imagesData.length > 0) {
+            // Use a more efficient approach to process annotations
+            const processedAnnotations = []
+
+            imagesData.forEach((image, index) => {
+              if (image.annotations && image.annotations.annotations && image.annotations.annotations.annotations) {
+                image.annotations.annotations.annotations.forEach((annotation) => {
+                  processedAnnotations.push({
+                    ...annotation,
+                    imageId: image._id,
+                    imageNumber: image.imageNumber || index + 1,
+                    imageName: image.name,
+                    visitId: visitId,
+                  })
+                })
+              }
+            })
+
+            visitAnnotations = processedAnnotations
+          }
+
+          // Update cache with this visit's annotations
+          setVisitAnnotationsCache((prevCache) => ({
+            ...prevCache,
+            [visitId]: visitAnnotations,
+          }))
+
+          setSelectedVisitAnnotations(visitAnnotations)
+          if (visitAnnotations.length === 0) {
+            setMessage("No annotations found for the selected visit.")
+          }
         }
-
-        setSelectedVisitAnnotations(visitAnnotations);
-        if (visitAnnotations.length === 0) {
-          setMessage("No annotations found for the selected visit.");
-        }
+      } catch (error) {
+        logErrorToServer(error, "handleSecondVisitSelect")
+        setMessage("Error fetching annotations for the second visit")
+        console.error("Error fetching annotations:", error)
+        setSelectedVisitAnnotations([])
+      } finally {
+        setIsSecondLoading(false)
+        console.timeEnd("handleSecondVisitSelect")
       }
-    } catch (error) {
-      logErrorToServer(error, "handleSecondVisitSelect");
-      setMessage("Error fetching annotations for the second visit");
-      console.error("Error fetching annotations:", error);
-      setSelectedVisitAnnotations([]);
-    } finally {
-      setIsSecondLoading(false);
-    }
-  }
+    },
+    [apiUrl, visitAnnotationsCache],
+  )
 
-  // Initialize on component mount
+  // Initialize on component mount - optimized
   useEffect(() => {
+    console.time("initialLoad") // Performance measurement
     props.setBreadcrumbItems("Temporality View", breadcrumbItems)
-    try {
-      fetchClassCategories()
-      fetchPatientVisits()
-      // fetchLastVisitAnnotations is now called from handleFirstVisitSelect
-    } catch (error) {
-      logErrorToServer(error, "temporalityPageInit")
-      console.error("Error initializing TemporalityPage:", error)
-      setMessage("Unable to load annotations. Please contact admin.")
+
+    const initializeData = async () => {
+      try {
+        // Load class categories and patient visits in parallel
+        await Promise.all([fetchClassCategories(), fetchPatientVisits()])
+        console.timeEnd("initialLoad")
+      } catch (error) {
+        logErrorToServer(error, "temporalityPageInit")
+        console.error("Error initializing TemporalityPage:", error)
+        setMessage("Unable to load annotations. Please contact admin.")
+        console.timeEnd("initialLoad")
+      }
     }
+
+    initializeData()
   }, [])
 
   if (redirectToLogin) {
@@ -829,195 +1264,200 @@ const TemporalityPage = (props) => {
           </Col>
         </Row>
 
-        {!isConsolidatedView && (<>
-          <Row>
-            <Col md={12}>
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <p className="text-muted mb-0">
-                  {isComparisonMode
-                    ? `Comparing visits from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "first visit"} and ${patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "second visit"}`
-                    : `Viewing dental chart from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "selected visit"}`}
-                </p>
-              </div>
-            </Col>
-            <Col md={12}>
-              {/* Date range slider component */}
-              <DateSlider
-                visits={patientVisits}
-                selectedFirstVisitId={firstVisitId}
-                selectedSecondVisitId={secondVisitId}
-                onRangeChange={() => {
-                  // This is just for preview, no action needed
-                }}
-                onApplySelection={(firstVisitObj, secondVisitObj) => {
-                  // Make sure the newer visit is always the first visit (right side)
-                  // and the older visit is always the second visit (left side)
-                  const firstCreationDate = firstVisitObj.visitObj.created_on
-                    ? new Date(firstVisitObj.visitObj.created_on)
-                    : new Date(firstVisitObj.visitObj.date_of_visit);
+        {!isConsolidatedView && (
+          <>
+            <Row>
+              <Col md={12}>
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <p className="text-muted mb-0">
+                    {isComparisonMode
+                      ? `Comparing visits from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "first visit"} and ${patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "second visit"}`
+                      : `Viewing dental chart from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "selected visit"}`}
+                  </p>
+                </div>
+              </Col>
+              <Col md={12}>
+                {/* Date range slider component */}
+                <DateSlider
+                  visits={patientVisits}
+                  selectedFirstVisitId={firstVisitId}
+                  selectedSecondVisitId={secondVisitId}
+                  onRangeChange={() => {
+                    // This is just for preview, no action needed
+                  }}
+                  onApplySelection={(firstVisitObj, secondVisitObj) => {
+                    // Make sure the newer visit is always the first visit (right side)
+                    // and the older visit is always the second visit (left side)
+                    const firstCreationDate = firstVisitObj.visitObj.created_on
+                      ? new Date(firstVisitObj.visitObj.created_on)
+                      : new Date(firstVisitObj.visitObj.date_of_visit)
 
-                  const secondCreationDate = secondVisitObj.visitObj.created_on
-                    ? new Date(secondVisitObj.visitObj.created_on)
-                    : new Date(secondVisitObj.visitObj.date_of_visit);
+                    const secondCreationDate = secondVisitObj.visitObj.created_on
+                      ? new Date(secondVisitObj.visitObj.created_on)
+                      : new Date(secondVisitObj.visitObj.date_of_visit)
 
-                  // If the second visit is more recent than the first visit, swap them
-                  if (secondCreationDate > firstCreationDate) {
-                    // Swap the visit objects
-                    const tempVisitObj = firstVisitObj;
-                    firstVisitObj = secondVisitObj;
-                    secondVisitObj = tempVisitObj;
-                  }
+                    // If the second visit is more recent than the first visit, swap them
+                    if (secondCreationDate > firstCreationDate) {
+                      // Swap the visit objects
+                      const tempVisitObj = firstVisitObj
+                      firstVisitObj = secondVisitObj
+                      secondVisitObj = tempVisitObj
+                    }
 
-                  // Get the first visit ID (newer visit)
-                  if (firstVisitObj && firstVisitObj.id) {
-                    handleFirstVisitSelect(firstVisitObj.id, patientVisits);
-                  }
+                    // Get the first visit ID (newer visit)
+                    if (firstVisitObj && firstVisitObj.id) {
+                      handleFirstVisitSelect(firstVisitObj.id, patientVisits)
+                    }
 
-                  // Get the second visit ID (older visit)
-                  if (secondVisitObj && secondVisitObj.id) {
-                    handleSecondVisitSelect(secondVisitObj.id, patientVisits);
-                  }
+                    // Get the second visit ID (older visit)
+                    if (secondVisitObj && secondVisitObj.id) {
+                      handleSecondVisitSelect(secondVisitObj.id, patientVisits)
+                    }
 
-                  // Update comparison mode flag if needed
-                  setIsComparisonMode(firstVisitObj.id !== secondVisitObj.id);
-                }}
-              />
-            </Col>
-          </Row>
-          <Row>
-            <Col md={12}>
-              <div className="d-flex justify-content-between align-items-center">
-                <p className="text-muted mb-0">
-                  {isComparisonMode
-                    ? `Comparing visits from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "first visit"} and ${patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "second visit"}`
-                    : `Viewing dental chart from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "selected visit"}`}
-                </p>
-                <div className="d-flex align-items-center">
-                  <div className="mr-4">
-                    <span className="mr-2">Left Visit:</span>
-                    <Dropdown
-                      isOpen={secondDropdownOpen}
-                      toggle={toggleSecondDropdown}
-                      direction="down"
-                      className="d-inline-block"
-                    >
-                      <DropdownToggle color="primary" className="btn-sm">
-                        {patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "Select Visit"}
-                      </DropdownToggle>
-                      <DropdownMenu className="overflow-auto">
-                        {patientVisits.sort((a, b) => {
-                          // Sort by creation date (newest first)
-                          const dateA = a.created_on ? new Date(a.created_on) : new Date(a.date_of_visit);
-                          const dateB = b.created_on ? new Date(b.created_on) : new Date(b.date_of_visit);
-                          return dateB - dateA;
-                        }).map((visit, index) => (
-                          <DropdownItem
-                            key={visit._id}
-                            onClick={() => {
-                              // Check if we need to swap visits based on creation dates
-                              const firstVisitObj = patientVisits.find((v) => v._id === firstVisitId);
+                    // Update comparison mode flag if needed
+                    setIsComparisonMode(firstVisitObj.id !== secondVisitObj.id)
+                  }}
+                />
+              </Col>
+            </Row>
+            <Row>
+              <Col md={12}>
+                <div className="d-flex justify-content-between align-items-center">
+                  <p className="text-muted mb-0">
+                    {isComparisonMode
+                      ? `Comparing visits from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "first visit"} and ${patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "second visit"}`
+                      : `Viewing dental chart from ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "selected visit"}`}
+                  </p>
+                  <div className="d-flex align-items-center">
+                    <div className="mr-4">
+                      <span className="mr-2">Left Visit:</span>
+                      <Dropdown
+                        isOpen={secondDropdownOpen}
+                        toggle={toggleSecondDropdown}
+                        direction="down"
+                        className="d-inline-block"
+                      >
+                        <DropdownToggle color="primary" className="btn-sm">
+                          {patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "Select Visit"}
+                        </DropdownToggle>
+                        <DropdownMenu className="overflow-auto">
+                          {patientVisits
+                            .sort((a, b) => {
+                              // Sort by creation date (newest first)
+                              const dateA = a.created_on ? new Date(a.created_on) : new Date(a.date_of_visit)
+                              const dateB = b.created_on ? new Date(b.created_on) : new Date(b.date_of_visit)
+                              return dateB - dateA
+                            })
+                            .map((visit, index) => (
+                              <DropdownItem
+                                key={visit._id}
+                                onClick={() => {
+                                  // Check if we need to swap visits based on creation dates
+                                  const firstVisitObj = patientVisits.find((v) => v._id === firstVisitId)
 
-                              if (visit && firstVisitObj) {
-                                const selectedCreationDate = visit.created_on
-                                  ? new Date(visit.created_on)
-                                  : new Date(visit.date_of_visit);
+                                  if (visit && firstVisitObj) {
+                                    const selectedCreationDate = visit.created_on
+                                      ? new Date(visit.created_on)
+                                      : new Date(visit.date_of_visit)
 
-                                const firstCreationDate = firstVisitObj.created_on
-                                  ? new Date(firstVisitObj.created_on)
-                                  : new Date(firstVisitObj.date_of_visit);
+                                    const firstCreationDate = firstVisitObj.created_on
+                                      ? new Date(firstVisitObj.created_on)
+                                      : new Date(firstVisitObj.date_of_visit)
 
-                                // If the selected visit is more recent than the first visit, swap them
-                                if (selectedCreationDate > firstCreationDate) {
-                                  handleFirstVisitSelect(visit._id, patientVisits);
-                                  handleSecondVisitSelect(firstVisitId, patientVisits);
-                                  return;
-                                }
-                              }
+                                    // If the selected visit is more recent than the first visit, swap them
+                                    if (selectedCreationDate > firstCreationDate) {
+                                      handleFirstVisitSelect(visit._id, patientVisits)
+                                      handleSecondVisitSelect(firstVisitId, patientVisits)
+                                      return
+                                    }
+                                  }
 
-                              // Normal case - no swap needed
-                              handleSecondVisitSelect(visit._id, patientVisits);
-                            }}
-                            active={secondVisitId === visit._id}
-                            disabled={visit._id === firstVisitId}
-                          >
-                            {visit.formattedDateTime}
-                            {index === 0 && <span className="ml-2 badge badge-info">Latest</span>}
-                          </DropdownItem>
-                        ))}
-                        {patientVisits.length === 0 && <DropdownItem disabled>No visits available</DropdownItem>}
-                      </DropdownMenu>
-                    </Dropdown>
-                  </div>
+                                  // Normal case - no swap needed
+                                  handleSecondVisitSelect(visit._id, patientVisits)
+                                }}
+                                active={secondVisitId === visit._id}
+                                disabled={visit._id === firstVisitId}
+                              >
+                                {visit.formattedDateTime}
+                                {index === 0 && <span className="ml-2 badge badge-info">Latest</span>}
+                              </DropdownItem>
+                            ))}
+                          {patientVisits.length === 0 && <DropdownItem disabled>No visits available</DropdownItem>}
+                        </DropdownMenu>
+                      </Dropdown>
+                    </div>
 
-                  <div>
-                    <span className="mr-2">Right Visit:</span>
-                    <Dropdown
-                      isOpen={firstDropdownOpen}
-                      toggle={toggleFirstDropdown}
-                      direction="down"
-                      className="d-inline-block"
-                    >
-                      <DropdownToggle color="primary" className="btn-sm">
-                        {patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "Select Visit"}
-                      </DropdownToggle>
-                      <DropdownMenu className="overflow-auto">
-                        {patientVisits.sort((a, b) => {
-                          // Sort by creation date (newest first)
-                          const dateA = a.created_on ? new Date(a.created_on) : new Date(a.date_of_visit);
-                          const dateB = b.created_on ? new Date(b.created_on) : new Date(b.date_of_visit);
-                          return dateB - dateA;
-                        }).map((visit, index) => (
-                          <DropdownItem
-                            key={visit._id}
-                            onClick={() => {
-                              // Check if we need to swap visits based on creation dates
-                              const secondVisitObj = patientVisits.find((v) => v._id === secondVisitId);
+                    <div>
+                      <span className="mr-2">Right Visit:</span>
+                      <Dropdown
+                        isOpen={firstDropdownOpen}
+                        toggle={toggleFirstDropdown}
+                        direction="down"
+                        className="d-inline-block"
+                      >
+                        <DropdownToggle color="primary" className="btn-sm">
+                          {patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "Select Visit"}
+                        </DropdownToggle>
+                        <DropdownMenu className="overflow-auto">
+                          {patientVisits
+                            .sort((a, b) => {
+                              // Sort by creation date (newest first)
+                              const dateA = a.created_on ? new Date(a.created_on) : new Date(a.date_of_visit)
+                              const dateB = b.created_on ? new Date(b.created_on) : new Date(b.date_of_visit)
+                              return dateB - dateA
+                            })
+                            .map((visit, index) => (
+                              <DropdownItem
+                                key={visit._id}
+                                onClick={() => {
+                                  // Check if we need to swap visits based on creation dates
+                                  const secondVisitObj = patientVisits.find((v) => v._id === secondVisitId)
 
-                              if (visit && secondVisitObj) {
-                                const selectedCreationDate = visit.created_on
-                                  ? new Date(visit.created_on)
-                                  : new Date(visit.date_of_visit);
+                                  if (visit && secondVisitObj) {
+                                    const selectedCreationDate = visit.created_on
+                                      ? new Date(visit.created_on)
+                                      : new Date(visit.date_of_visit)
 
-                                const secondCreationDate = secondVisitObj.created_on
-                                  ? new Date(secondVisitObj.created_on)
-                                  : new Date(secondVisitObj.date_of_visit);
+                                    const secondCreationDate = secondVisitObj.created_on
+                                      ? new Date(secondVisitObj.created_on)
+                                      : new Date(secondVisitObj.date_of_visit)
 
-                                // If the selected visit is older than the second visit, swap them
-                                if (selectedCreationDate < secondCreationDate) {
-                                  handleSecondVisitSelect(visit._id, patientVisits);
-                                  handleFirstVisitSelect(secondVisitId, patientVisits);
-                                  return;
-                                }
-                              }
+                                    // If the selected visit is older than the second visit, swap them
+                                    if (selectedCreationDate < secondCreationDate) {
+                                      handleSecondVisitSelect(visit._id, patientVisits)
+                                      handleFirstVisitSelect(secondVisitId, patientVisits)
+                                      return
+                                    }
+                                  }
 
-                              // Normal case - no swap needed
-                              handleFirstVisitSelect(visit._id, patientVisits);
-                            }}
-                            active={firstVisitId === visit._id}
-                            disabled={visit._id === secondVisitId}
-                          >
-                            {visit.formattedDateTime}
-                            {index === 0 && <span className="ml-2 badge badge-info">Latest</span>}
-                          </DropdownItem>
-                        ))}
-                        {patientVisits.length === 0 && <DropdownItem disabled>No visits available</DropdownItem>}
-                      </DropdownMenu>
-                    </Dropdown>
+                                  // Normal case - no swap needed
+                                  handleFirstVisitSelect(visit._id, patientVisits)
+                                }}
+                                active={firstVisitId === visit._id}
+                                disabled={visit._id === secondVisitId}
+                              >
+                                {visit.formattedDateTime}
+                                {index === 0 && <span className="ml-2 badge badge-info">Latest</span>}
+                              </DropdownItem>
+                            ))}
+                          {patientVisits.length === 0 && <DropdownItem disabled>No visits available</DropdownItem>}
+                        </DropdownMenu>
+                      </Dropdown>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Col>
-            <br />
-            <br />
-          </Row>
-        </>
+              </Col>
+              <br />
+              <br />
+            </Row>
+          </>
         )}
 
         {isFirstLoading || isSecondLoading || (isConsolidatedView && isLoadingConsolidated) ? (
           <div className="text-center mt-5">
             <Spinner color="primary" />
             <p className="mt-2">
-              {isConsolidatedView ? "Loading consolidated dental chart..." : "Loading dental chart..."}
+              {isConsolidatedView ? "Loading consolidated dental chart..." : "Loading dental charts..."}
             </p>
           </div>
         ) : message ? (
@@ -1051,7 +1491,7 @@ const TemporalityPage = (props) => {
                   </Card>
                 </Col>
               </Row>
-            ) : isComparisonMode ? (
+            ) : (
               // Side-by-side comparison view
               <>
                 <Row className="mb-4">
@@ -1096,8 +1536,8 @@ const TemporalityPage = (props) => {
                     <Card>
                       <CardBody>
                         <h4>
-                          {patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "Second Visit"} - Tooth
-                          Anomalies/Procedures
+                          {patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "Second Visit"} -
+                          Tooth Anomalies/Procedures
                         </h4>
                         <ToothAnnotationTable
                           annotations={selectedVisitAnnotations}
@@ -1115,53 +1555,14 @@ const TemporalityPage = (props) => {
                     <Card>
                       <CardBody>
                         <h4>
-                          {patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "First Visit"} - Tooth
-                          Anomalies/Procedures
+                          {patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "First Visit"} -
+                          Tooth Anomalies/Procedures
                         </h4>
                         <ToothAnnotationTable
                           annotations={lastVisitAnnotations}
                           classCategories={classCategories}
                           selectedTooth={selectedTooth}
                           otherSideAnnotations={selectedVisitAnnotations}
-                          visitId={firstVisitId}
-                          patientVisits={patientVisits}
-                          confidenceLevels={confidenceLevels}
-                        />
-                      </CardBody>
-                    </Card>
-                  </Col>
-                </Row>
-              </>
-            ) : (
-              // Single view (last visit only)
-              <>
-                <Row className="mb-4">
-                  <Col md={12}>
-                    <Card>
-                      <CardBody>
-                        <h5 className="mb-3">Dental Chart</h5>
-                        <DentalChart
-                          annotations={lastVisitAnnotations}
-                          classCategories={classCategories}
-                          confidenceLevels={confidenceLevels}
-                          setHiddenAnnotations={setHiddenAnnotations}
-                          onToothSelect={setSelectedTooth}
-                          externalSelectedTooth={selectedTooth}
-                        />
-                      </CardBody>
-                    </Card>
-                  </Col>
-                </Row>
-
-                <Row>
-                  <Col md={6} className="mx-auto">
-                    <Card>
-                      <CardBody>
-                        <h4>Tooth Anomalies/Procedures</h4>
-                        <ToothAnnotationTable
-                          annotations={lastVisitAnnotations}
-                          classCategories={classCategories}
-                          selectedTooth={selectedTooth}
                           visitId={firstVisitId}
                           patientVisits={patientVisits}
                           confidenceLevels={confidenceLevels}
