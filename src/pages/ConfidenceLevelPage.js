@@ -92,7 +92,7 @@ const ConfidenceLevelPage = () => {
                             Name
                         </th>
                         <th>
-                            Confidence Level
+                            Confidence Level % (1-100)
                         </th>
                     </tr>
                 </thead>

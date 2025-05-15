@@ -2917,14 +2917,14 @@ const AnnotationPage = () => {
                             </FormGroup>
                             <FormGroup>
                               <InputGroup className="mb-2">
-                                <InputGroupText style={{ marginLeft: '-5%', marginRight: '5%' }}>Negative Image</InputGroupText>
                                 <Input
                                   type="switch"
                                   id="negative-toggle"
                                   checked={isNegative}
-                                  onChange={(e) => setIsNegative(!isNegative)}
-                                  style={{ width: '10%', paddingRight: '0', height: '30px' }}
+                                  onChange={() => setIsNegative(!isNegative)}
+                                  style={{ marginRight: '5px', height: '30px' }}
                                 />
+                                <InputGroupText style={{ marginLeft: '0', marginRight: '5%' }}>Negative Image</InputGroupText>
                               </InputGroup>
                             </FormGroup>
                           </PopoverBody>
@@ -2939,42 +2939,42 @@ const AnnotationPage = () => {
                         >
                           <i id="icnScale" class="fas fa-redo"></i>
                         </Button>
-                        <InputGroupText>Area</InputGroupText>
                         <Input
                           type="switch"
                           id="area-toggle"
                           checked={isArea}
-                          onChange={(e) => setIsShowArea(!isArea)}
-                          style={{ width: '2%', paddingRight: '0', height: '30px' }}
+                          onChange={() => setIsShowArea(!isArea)}
+                          style={{ height: '33.7px', marginTop:'0px', width:'20px' }}
                         />
-                        <InputGroupText>Labels</InputGroupText>
+                        <InputGroupText style={{ marginRight: '5px' }}>Area</InputGroupText>
                         <Input
                           type="switch"
                           id="labels-toggle"
                           checked={showLabel}
-                          onChange={(e) => setShowLabel(!showLabel)}
-                          style={{ width: '2%', paddingRight: '0', height: '30px' }}
+                          onChange={() => setShowLabel(!showLabel)}
+                          style={{ height: '33.7px', marginTop:'0px', width:'20px' }}
                         />
+                        <InputGroupText style={{ marginRight: '5px' }}>Labels</InputGroupText>
                         <UncontrolledTooltip placement="bottom" target="btnRedo">Redo</UncontrolledTooltip>
-                        <InputGroupText>Confidence Levels</InputGroupText>
-                          <Input
-                              type="checkbox"
-                              color="primary"
-                              id="confidence-toggle"
-                              checked={showConfidence}
-                              onClick={() => { setShowConfidence(!showConfidence) }}
-                              style={{ width: '2%', paddingRight: '0', height: '30px' }}/>
-                          <UncontrolledTooltip placement="bottom" target="confidence-toggle">Show Confidence Levels</UncontrolledTooltip>
+                        <Input
+                            type="checkbox"
+                            color="primary"
+                            id="confidence-toggle"
+                            checked={showConfidence}
+                            onChange={() => { setShowConfidence(!showConfidence) }}
+                            style={{ height: '33.7px', marginTop:'0px', width:'20px' }}/>
+                        <InputGroupText style={{ marginRight: '5px' }}>Confidence Levels</InputGroupText>
+                        <UncontrolledTooltip placement="bottom" target="confidence-toggle">Show Confidence Levels</UncontrolledTooltip>
                         {sessionStorage.getItem('clientId') === "67161fcbadd1249d59085f9a" && (
                           <>
-                          <InputGroupText>Original Labels</InputGroupText>
                           <Input
                               type="checkbox"
                               color="primary"
                               id="original-labels-toggle"
                               checked={showOriginalLabels}
-                              onClick={() => { setShowOriginalLabels(!showOriginalLabels) }}
-                              style={{ width: '2%', paddingRight: '0', height: '30px' }}/>
+                              onChange={() => { setShowOriginalLabels(!showOriginalLabels) }}
+                              style={{ height: '33.7px', marginTop:'0px', width:'20px' }}/>
+                          <InputGroupText style={{ marginRight: '5px' }}>Original Labels</InputGroupText>
                           <UncontrolledTooltip placement="bottom" target="original-labels-toggle">Show Original Labels</UncontrolledTooltip>
                           </>
                         )}

@@ -15,6 +15,8 @@ import {
   FormGroup,
   Label,
   Input,
+  InputGroupText,
+  InputGroup,
 } from "reactstrap"
 import { Navigate } from "react-router-dom"
 import "bootstrap/dist/css/bootstrap.min.css"
@@ -1244,17 +1246,13 @@ const TemporalityPage = (props) => {
     <Card>
       <CardBody>
         <Row>
-          <Col md={12} className="d-flex justify-content-between align-items-center mb-3">
+          <Col md={12} className="d-flex justify-content-between align-items-center mb-3 inline-flex">
             <div className="d-flex align-items-center">
               <Button color="primary" onClick={() => setRedirectToPatientVisitPage(true)} className="mr-3">
                 Patient Visits
               </Button>
-              <FormGroup check className="ml-3 mb-0">
-                <Label check>
-                  <Input type="checkbox" checked={isConsolidatedView} onChange={toggleConsolidatedView} /> Consolidated
-                  View
-                </Label>
-              </FormGroup>
+                  <Input type="checkbox" checked={isConsolidatedView} onChange={toggleConsolidatedView} style={{height: '33.7px', marginTop:'0px', width:'20px', marginLeft:'5px', borderWidth:'1px'}}/> 
+                  <InputGroupText>Consolidated View</InputGroupText>
             </div>
             <div>
               <Button color="success" onClick={handlePrint}>

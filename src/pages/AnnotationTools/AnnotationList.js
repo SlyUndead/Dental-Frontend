@@ -22,7 +22,7 @@ import "bootstrap/dist/css/bootstrap.min.css"
 import "../../assets/scss/custom/components/_popover.scss"
 import { logErrorToServer } from "utils/logError"
 import { desiredOrder } from "./constants"
-import { calculateOverlap } from "./path-utils"
+import { calculateOverlap, polygonArea } from "./path-utils"
 import DentalChart from "./DentalChart"
 const AnnotationList = ({
   annotations,
@@ -77,10 +77,10 @@ const AnnotationList = ({
     };
   });
   const [expandedGroups, setExpandedGroups] = useState(() => {
-    // Initially collapse 'Dental Chart' and 'Landmark' groups
+    // Initially collapse all groups
     const initialState = {}
     desiredOrder.forEach(category => {
-      initialState[category] = category !== 'Dental Chart' && category !== 'Landmark'
+      initialState[category] = false
     })
     return initialState
   })
@@ -658,6 +658,47 @@ const AnnotationList = ({
 
     generateTreatmentPlan()
   }
+  const findToothRangeForBoneLoss = (anomaly, toothAnnotations) => {
+    // For bone loss, find all teeth that overlap with the annotation
+    const overlappingTeeth = []
+
+    toothAnnotations.forEach((toothAnno) => {
+      const toothNumber = Number.parseInt(toothAnno.label)
+      if (
+        !isNaN(toothNumber) &&
+        toothNumber >= 1 &&
+        toothNumber <= 32 &&
+        anomaly.segmentation &&
+        toothAnno.segmentation
+      ) {
+        try {
+          const overlap = calculateOverlap(anomaly.segmentation, toothAnno.segmentation)
+          const annoArea = polygonArea(anomaly.segmentation.map((point) => [point.x, point.y]))
+          const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
+
+          // For bone loss, include any tooth with even minimal overlap
+          if (overlapPercentage > 0) {
+            overlappingTeeth.push(toothNumber)
+          }
+        } catch (error) {
+          console.error("Error calculating overlap:", error)
+        }
+      }
+    })
+
+    // Sort teeth by number to create a range
+    overlappingTeeth.sort((a, b) => a - b)
+
+    if (overlappingTeeth.length > 0) {
+      // Format the range as "X-Y" if it's a range, or just "X" if it's a single tooth
+      return overlappingTeeth.length > 1
+        ? `${overlappingTeeth[0]}-${overlappingTeeth[overlappingTeeth.length - 1]}`
+        : `${overlappingTeeth[0]}`
+    }
+
+    return null
+  }
+
   const findToothForStoredAnomaly = (anomaly, toothAnnotations) => {
     // First check if the annotation has an associatedTooth field
     if (anomaly.associatedTooth !== undefined && anomaly.associatedTooth !== null) {
@@ -772,10 +813,17 @@ const AnnotationList = ({
 
       // Initialize hide states for tooth groups
       const toothHideGroups = {}
+      // Initialize expanded states for tooth groups
+      const toothExpandedGroups = {...expandedGroups}
+
       Object.keys(byTooth).forEach(tooth => {
         toothHideGroups[tooth] = false
+        // All tooth groups should be collapsed by default
+        toothExpandedGroups[tooth] = false
       })
+
       setHideGroup(toothHideGroups)
+      setExpandedGroups(toothExpandedGroups)
 
     } else {
       // Original grouping by category
@@ -863,7 +911,7 @@ const AnnotationList = ({
         flexDirection: "column",
       }}
     >
-      <CardBody style={{ paddingTop: "0", paddingBottom: "0" }}>
+      <CardBody style={{ paddingTop: "0", paddingBottom: "0", paddingLeft: "0px", marginLeft:'0px' }}>
         <DentalChart
           annotations={annotations}
           classCategories={classCategories}
@@ -877,22 +925,25 @@ const AnnotationList = ({
           <Col md={5}>
             <h5>Annotations ({annotations.length})</h5>
           </Col>
-          <Col md={4} style={{ paddingRight: 0 }}>
-            <div className="custom-control custom-switch">
+          <Col md={5} style={{ paddingRight: 0 }}>
+            <div className="d-flex align-items-center">
               <Input
                 type="checkbox"
-                className="custom-control-input"
                 id="groupByToothToggle"
                 checked={groupByTooth}
                 onChange={() => setGroupByTooth(!groupByTooth)}
-                style={{transform:"scale(1.3)", marginRight:'4%'}}
+                style={{
+                  transform: "scale(1.3)",
+                  marginRight: '10px',
+                  cursor: 'pointer'
+                }}
               />
-              <label className="custom-control-label" htmlFor="groupByToothToggle">
+              <label htmlFor="groupByToothToggle" style={{ marginBottom: '0', cursor: 'pointer' }}>
                 Sort By Tooth
               </label>
             </div>
           </Col>
-          <Col md={3} style={{ justifyContent: "right", alignItems: "right", textAlign: "right" }}>
+          <Col md={2} style={{ justifyContent: "right", alignItems: "right", textAlign: "right" }}>
             <button
               id="btnHideShowAll"
               type="button"
@@ -938,41 +989,43 @@ const AnnotationList = ({
                 if (groupedAnnotations[group]) {
                   return (
                     <div key={group}>
-                      {/* Display the group name with toggle button */}
-                      <h5>
-                        {group}
-                        {/* Group Expansion Toggle */}
-                        <button
-                          id={`btnToggleGroup${group}`}
-                          type="button"
-                          className="btn noti-icon mr-2"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            toggleGroupExpansion(group)
-                          }}
-                        >
-                          <i className={`ion ${expandedGroups[group] ? "ion-md-arrow-dropdown" : "ion-md-arrow-dropright"}`}></i>
-                        </button>
+                      {/* Always show header for all groups */}
+                      {(
+                        <h5>
+                          {group}
+                          {/* Group Expansion Toggle */}
+                          <button
+                            id={`btnToggleGroup${group}`}
+                            type="button"
+                            className="btn noti-icon mr-2"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              toggleGroupExpansion(group)
+                            }}
+                          >
+                            <i className={`ion ${expandedGroups[group] ? "ion-md-arrow-dropdown" : "ion-md-arrow-dropright"}`}></i>
+                          </button>
 
-                        {/* Existing Hide/Show Button */}
-                        <button
-                          id={`btnHide${group}`}
-                          type="button"
-                          className="btn noti-icon"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleCategoryVisibilityToggle(group)
-                          }}
-                        >
-                          <i className={`ion ${hideGroup[group] ? "ion-md-eye-off" : "ion-md-eye"}`}></i>
-                        </button>
-                      </h5>
+                          {/* Existing Hide/Show Button */}
+                          <button
+                            id={`btnHide${group}`}
+                            type="button"
+                            className="btn noti-icon"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleCategoryVisibilityToggle(group)
+                            }}
+                          >
+                            <i className={`ion ${hideGroup[group] ? "ion-md-eye-off" : "ion-md-eye"}`}></i>
+                          </button>
+                        </h5>
+                      )}
 
                       {/* Collapsible Group Content */}
                       <Collapse isOpen={expandedGroups[group]}>
                         <ListGroup flush>
                           {/* Existing annotation rendering logic */}
-                          {groupedAnnotations[group].map((anno, index) => {
+                          {groupedAnnotations[group].map((anno) => {
                             const globalIndex = annotations.findIndex((a) => a === anno)
                             if (globalIndex !== -1) {
                               return (
@@ -994,8 +1047,9 @@ const AnnotationList = ({
                                   onMouseEnter={() => handleHover(globalIndex)}
                                   onMouseLeave={() => handleHover(null)}
                                 >
-                                  {/* Checkbox */}
-                                  <div className="pl-2 pr-2 d-flex align-items-center" style={{ marginRight: "5px" }}>
+                                  {/* Combined checkbox and label */}
+                                  <div className="pl-2 pr-2 d-flex align-items-center" style={{ flexGrow: 1 }}>
+                                    {/* Checkbox */}
                                     <Input
                                       type="checkbox"
                                       checked={checkedAnnotations.includes(globalIndex)}
@@ -1007,12 +1061,15 @@ const AnnotationList = ({
                                       disabled={lockedAnnotations.includes(globalIndex)}
                                       style={{
                                         cursor: lockedAnnotations.includes(globalIndex) ? "not-allowed" : "pointer",
+                                        marginRight: "10px"
                                       }}
                                     />
+
+                                    {/* Lock icon if needed */}
                                     {lockedAnnotations.includes(globalIndex) && (
                                       <>
                                         <span
-                                          className="ml-1 text-muted"
+                                          className="mr-2 text-muted"
                                           style={{ fontSize: "12px" }}
                                           id={`locked-${globalIndex}`}
                                         >
@@ -1024,35 +1081,44 @@ const AnnotationList = ({
                                         </UncontrolledTooltip>
                                       </>
                                     )}
-                                  </div>
 
-                                  {/* Show dropdown if this annotation is selected and has a numeric label */}
-                                  {selectedAnnotation === anno && !isNaN(Number.parseInt(anno.label)) ? (
-                                    <div style={{ flexGrow: 1 }} onClick={(e) => e.stopPropagation()}>
-                                      <InputGroup size="sm">
-                                        <Input
-                                          type="select"
-                                          value={newLabel || anno.label}
-                                          onChange={(e) => {
-                                            setNewLabel(e.target.value)
-                                            handleLabelChange(e.target.value)
-                                          }}
-                                        >
-                                          {Array.from({ length: 32 }, (_, i) => i + 1).map((num) => (
-                                            <option key={num} value={num.toString()}>
-                                              {num}
-                                            </option>
-                                          ))}
-                                        </Input>
-                                      </InputGroup>
-                                    </div>
-                                  ) : (
-                                    <span style={{ flexGrow: 1 }}>
-                                      {anno.label}
-                                      {anno.created_by ? (anno.created_by.startsWith("Model v") ? "" : (anno.created_by.startsWith("Auto Update Labelling") ? "(A)" : " (M)")) : ""}
-                                      {showConfidence && (` (${anno.confidence.toFixed(2).toString().slice(1)})`)}
-                                    </span>
-                                  )}
+                                    {/* Show dropdown if this annotation is selected and has a numeric label */}
+                                    {selectedAnnotation === anno && !isNaN(Number.parseInt(anno.label)) ? (
+                                      <div style={{ flexGrow: 1 }} onClick={(e) => e.stopPropagation()}>
+                                        <InputGroup size="sm">
+                                          <Input
+                                            type="select"
+                                            value={newLabel || anno.label}
+                                            onChange={(e) => {
+                                              setNewLabel(e.target.value)
+                                              handleLabelChange(e.target.value)
+                                            }}
+                                          >
+                                            {Array.from({ length: 32 }, (_, i) => i + 1).map((num) => (
+                                              <option key={num} value={num.toString()}>
+                                                Tooth [{num}]
+                                              </option>
+                                            ))}
+                                          </Input>
+                                        </InputGroup>
+                                      </div>
+                                    ) : (
+                                      <span>
+                                        {!isNaN(Number.parseInt(anno.label)) ? `Tooth [${anno.label}]` : anno.label}
+                                        {isNaN(Number.parseInt(anno.label)) &&
+                                          (anno.label.toLowerCase().includes("bone loss") ?
+                                            (() => {
+                                              const toothRange = findToothRangeForBoneLoss(anno, annotations.filter(a => !isNaN(Number.parseInt(a.label))));
+                                              return toothRange ? ` [${toothRange}]` : (anno.associatedTooth ? ` [${anno.associatedTooth}]` : "");
+                                            })() :
+                                            (anno.associatedTooth ? ` [${anno.associatedTooth}]` : "")
+                                          )
+                                        }
+                                        {anno.created_by ? (anno.created_by.startsWith("Model v") ? "" : (anno.created_by.startsWith("Auto Update Labelling") ? "(A)" : " (M)")) : ""}
+                                        {showConfidence && (` (${anno.confidence.toFixed(2).toString().slice(1)})`)}
+                                      </span>
+                                    )}
+                                  </div>
 
                                   <div className="d-flex">
                                     {/* Delete Button */}
