@@ -12,11 +12,8 @@ import {
   DropdownMenu,
   DropdownItem,
   Button,
-  FormGroup,
-  Label,
   Input,
   InputGroupText,
-  InputGroup,
 } from "reactstrap"
 import { Navigate } from "react-router-dom"
 import "bootstrap/dist/css/bootstrap.min.css"
@@ -117,7 +114,11 @@ const TemporalityPage = (props) => {
       })
       .join("\n")
 
-    // Get the dental chart HTML based on current view
+    // Extract dental charts and tables from the DOM
+    let leftChartHtml = ""
+    let rightChartHtml = ""
+    let leftTableHtml = ""
+    let rightTableHtml = ""
     let dentalChartHtml = ""
 
     try {
@@ -128,16 +129,26 @@ const TemporalityPage = (props) => {
           dentalChartHtml = chartContainer.outerHTML
         }
       } else {
-        // In comparison mode, use the right side chart (newer visit)
+        // In comparison mode, get both charts
         const chartContainers = document.querySelectorAll(".dental-chart-container")
+        if (chartContainers && chartContainers.length > 0) {
+          leftChartHtml = chartContainers[0].outerHTML // First chart (left side)
+        }
         if (chartContainers && chartContainers.length > 1) {
-          dentalChartHtml = chartContainers[1].outerHTML // Second chart (right side)
-        } else if (chartContainers && chartContainers.length > 0) {
-          dentalChartHtml = chartContainers[0].outerHTML // Fallback to first chart
+          rightChartHtml = chartContainers[1].outerHTML // Second chart (right side)
+        }
+
+        // Get both tables
+        const tables = document.querySelectorAll(".card-body h4 + div")
+        if (tables && tables.length > 0) {
+          leftTableHtml = tables[0].outerHTML
+        }
+        if (tables && tables.length > 1) {
+          rightTableHtml = tables[1].outerHTML
         }
       }
     } catch (error) {
-      console.error("Error getting dental chart for print:", error)
+      console.error("Error extracting elements for print:", error)
     }
 
     // Get the content to print
@@ -149,371 +160,361 @@ const TemporalityPage = (props) => {
     if (isConsolidatedView) {
       // Consolidated view with header and dental chart using the requested table structure
       htmlTemplate = `
-      <html>
-        <head>
-          <title>Temporality View - ${patientName}</title>
-          ${styles}
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 0;
+    <html>
+      <head>
+        <title>Temporality View - ${patientName}</title>
+        ${styles}
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 0;
+            margin: 0;
+          }
+
+          /* Table structure for header and footer */
+          table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+
+          /* Header and footer spaces */
+          .header-space, .footer-space {
+            height: 180px;
+          }
+
+          /* Fixed header and footer */
+          .header, .footer {
+            position: fixed;
+            width: 100%;
+            left: 0;
+            right: 0;
+            background-color: white;
+            z-index: 1;
+          }
+
+          .header {
+            top: 0;
+            border-bottom: 1px solid #ddd;
+          }
+
+          .footer {
+            bottom: 0;
+            border-top: 1px solid #ddd;
+          }
+
+          /* Header content styling */
+          .header-title {
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 3px;
+          }
+
+          /* Content area */
+          .content {
+            position: relative;
+            z-index: 100;
+          }
+
+          /* Hide the original dental chart in the content */
+          .content .dental-chart-container {
+            display: none;
+          }
+
+          /* Dental chart in header */
+          .header-dental-chart {
+            max-width: 100%;
+            overflow: auto;
+            text-align: center;
+          }
+
+          .header-dental-chart .dental-chart-container {
+            transform: scale(0.8);
+            transform-origin: top center;
+            margin: 0 auto;
+          }
+
+          @media print {
+            @page {
               margin: 0;
+              size: portrait;
             }
 
-            /* Table structure for header and footer */
-            table {
-              width: 100%;
-              border-collapse: collapse;
+            button, .no-print {
+              display: none !important;
             }
 
-            /* Header and footer spaces */
-            .header-space, .footer-space {
-              height: 180px;
+            .card {
+              page-break-inside: avoid;
+              border: none !important;
+              box-shadow: none !important;
             }
 
-            /* Fixed header and footer */
+            .card-body {
+              padding: 0 !important;
+            }
+
+            /* Ensure the header and footer appear on every page */
             .header, .footer {
-              position: fixed;
-              width: 100%;
-              left: 0;
-              right: 0;
-              background-color: white;
-              z-index: 1;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+              display: block !important;
             }
 
-            .header {
-              top: 0;
-              border-bottom: 1px solid #ddd;
-            }
-
-            .footer {
-              bottom: 0;
-              border-top: 1px solid #ddd;
-            }
-
-            /* Header content styling */
-            .header-title {
-              text-align: center;
-              font-size: 16px;
-              font-weight: bold;
-              margin-bottom: 3px;
-            }
-
-            /* Content area */
-            .content {
-              position: relative;
-              z-index: 100;
-            }
-
-            /* Hide the original dental chart in the content */
+            /* Hide the dental charts in the content since we're adding them in the header */
             .content .dental-chart-container {
               display: none;
             }
+          }
+        </style>
+      </head>
+      <body>
+        <!-- Table structure for content with header and footer spaces -->
+        <table>
+          <thead>
+            <tr>
+              <td>
+                <div class="header-space">&nbsp;</div>
+              </td>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="content">
+                  ${contentToPrint}
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
-            /* Dental chart in header */
-            .header-dental-chart {
-              max-width: 100%;
-              overflow: auto;
-              text-align: center;
-            }
-
-            .header-dental-chart .dental-chart-container {
-              transform: scale(0.8);
-              transform-origin: top center;
-              margin: 0 auto;
-            }
-
-            @media print {
-              @page {
-                margin: 0;
-                size: portrait;
-              }
-
-              button, .no-print {
-                display: none !important;
-              }
-
-              .card {
-                page-break-inside: avoid;
-                border: none !important;
-                box-shadow: none !important;
-              }
-
-              .card-body {
-                padding: 0 !important;
-              }
-
-              /* Ensure the header and footer appear on every page */
-              .header, .footer {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-                display: block !important;
-              }
-
-              /* Hide the dental charts in the content since we're adding them in the header */
-              .content .dental-chart-container {
-                display: none;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <!-- Table structure for content with header and footer spaces -->
-          <table>
-            <thead>
-              <tr>
-                <td>
-                  <div class="header-space">&nbsp;</div>
-                </td>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>
-                  <div class="content">
-                    ${contentToPrint}
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <!-- Fixed header with title and dental chart -->
-          <div class="header">
-            <div class="header-title">
-              Temporality View - ${patientName}
-            </div>
-            <div class="header-dental-chart">
-              ${dentalChartHtml}
-            </div>
+        <!-- Fixed header with title and dental chart -->
+        <div class="header">
+          <div class="header-title">
+            Temporality View - ${patientName}
           </div>
-
-          <!-- Fixed footer (empty for now) -->
-          <div class="footer">
-            <!-- Footer content can be added here if needed -->
+          <div class="header-dental-chart">
+            ${dentalChartHtml}
           </div>
-        </body>
-      </html>
-      `
+        </div>
+
+        <!-- Fixed footer (empty for now) -->
+        <div class="footer">
+          <!-- Footer content can be added here if needed -->
+        </div>
+      </body>
+    </html>
+    `
     } else {
-      // Comparison view - we'll put each dental chart on its own page
-      // First, extract the dental charts
-      let leftChartHtml = ""
-      let rightChartHtml = ""
-
-      try {
-        const chartContainers = document.querySelectorAll(".dental-chart-container")
-        if (chartContainers && chartContainers.length > 0) {
-          leftChartHtml = chartContainers[0].outerHTML
-        }
-        if (chartContainers && chartContainers.length > 1) {
-          rightChartHtml = chartContainers[1].outerHTML
-        }
-      } catch (error) {
-        console.error("Error extracting dental charts:", error)
-      }
-
-      // Get the tables
-      let leftTableHtml = ""
-      let rightTableHtml = ""
-
-      try {
-        const tables = document.querySelectorAll(".card-body h4 + div")
-        if (tables && tables.length > 0) {
-          leftTableHtml = tables[0].outerHTML
-        }
-        if (tables && tables.length > 1) {
-          rightTableHtml = tables[1].outerHTML
-        }
-      } catch (error) {
-        console.error("Error extracting tables:", error)
-      }
-
-      // Create a template with each chart and table on its own page
+      // Side-by-side comparison view with both dental charts as headers
       htmlTemplate = `
-      <html>
-        <head>
-          <title>Temporality View - ${patientName}</title>
-          ${styles}
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 0;
-              margin: 0;
-            }
+<html>
+  <head>
+    <title>Temporality View - ${patientName}</title>
+    ${styles}
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 0;
+        margin: 0;
+      }
 
-            /* Table structure for header and footer */
-            table {
-              width: 100%;
-              border-collapse: collapse;
-            }
+      /* Table structure for header and footer */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
 
-            /* Header and footer spaces */
-            .header-space, .footer-space {
-              height: 60px;
-            }
+      /* Header and footer spaces */
+      .header-space {
+        height: 180px;
+      }
 
-            /* Fixed header and footer */
-            .header, .footer {
-              position: fixed;
-              width: 100%;
-              left: 0;
-              right: 0;
-              background-color: white;
-              z-index: 1000;
-            }
+      .footer-space {
+        height: 60px;
+      }
 
-            .header {
-              top: 0;
-              border-bottom: 1px solid #ddd;
-            }
+      /* Fixed header and footer */
+      .header, .footer {
+        position: fixed;
+        width: 100%;
+        left: 0;
+        right: 0;
+        background-color: white;
+        z-index: 1;
+      }
 
-            .footer {
-              bottom: 0;
-              border-top: 1px solid #ddd;
-            }
+      .header {
+        top: 0;
+        border-bottom: 1px solid #ddd;
+      }
 
-            /* Header content styling */
-            .header-title {
-              text-align: center;
-              font-size: 20px;
-              font-weight: bold;
-              margin: 10px 0;
-            }
+      .footer {
+        bottom: 0;
+        border-top: 1px solid #ddd;
+      }
 
-            /* Content area */
-            .content {
-              position: relative;
-              z-index: 1;
-              padding: 20px;
-            }
+      /* Header content styling */
+      .header-title {
+        text-align: center;
+        font-size: 16px;
+        font-weight: bold;
+        margin-bottom: 3px;
+      }
 
-            .section-title {
-              text-align: center;
-              font-size: 20px;
-              font-weight: bold;
-              margin: 20px 0;
-            }
+      /* Content area */
+      .content {
+        position: relative;
+        z-index: 100;
+        display: flex;
+        flex-direction: row;
+        background-color: white;
+      }
 
-            .chart-page, .table-page {
-              page-break-before: always;
-            }
+      .content-column {
+        width: 50%;
+        padding: 10px;
+      }
 
-            .chart-page:first-of-type {
-              page-break-before: avoid;
-            }
+      /* Hide the original dental charts in the content */
+      .content .dental-chart-container {
+        display: none;
+      }
 
-            @media print {
-              @page {
-                margin: 0;
-                size: portrait;
-              }
+      /* Dental charts in header */
+      .header-dental-charts {
+        display: flex;
+        width: 100%;
+      }
 
-              button, .no-print {
-                display: none !important;
-              }
+      .header-chart {
+        width: 50%;
+        text-align: center;
+      }
 
-              .card {
-                page-break-inside: avoid;
-                border: none !important;
-                box-shadow: none !important;
-              }
+      .header-chart .dental-chart-container {
+        transform: scale(0.7);
+        transform-origin: top center;
+        margin: 0 auto;
+      }
 
-              .card-body {
-                padding: 0 !important;
-              }
+      .chart-title {
+        font-size: 14px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 5px;
+      }
 
-              /* Ensure the header and footer appear on every page */
-              .header, .footer {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-                display: block !important;
-              }
+      @media print {
+        @page {
+          margin: 0;
+          size: portrait;
+        }
 
-              /* Hide the original content */
-              .original-content {
-                display: none;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <!-- Table structure for content with header and footer spaces -->
-          <table>
-            <thead>
-              <tr>
-                <td>
-                  <div class="header-space">&nbsp;</div>
-                </td>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>
-                  <div class="content">
-                    <!-- Left dental chart -->
-                    <div class="chart-page">
-                      <div class="section-title">
-                        ${patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "Second Visit"} - Dental Chart
-                      </div>
-                      ${leftChartHtml}
-                    </div>
+        button, .no-print {
+          display: none !important;
+        }
 
-                    <!-- Right dental chart -->
-                    <div class="chart-page">
-                      <div class="section-title">
-                        ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "First Visit"} - Dental Chart
-                      </div>
-                      ${rightChartHtml}
-                    </div>
+        .card {
+          page-break-inside: avoid;
+          border: none !important;
+          box-shadow: none !important;
+        }
 
-                    <!-- Left table -->
-                    <div class="table-page">
-                      <div class="section-title">
-                        ${patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "Second Visit"} - Tooth Anomalies/Procedures
-                      </div>
-                      ${leftTableHtml}
-                    </div>
+        .card-body {
+          padding: 0 !important;
+        }
 
-                    <!-- Right table -->
-                    <div class="table-page">
-                      <div class="section-title">
-                        ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "First Visit"} - Tooth Anomalies/Procedures
-                      </div>
-                      ${rightTableHtml}
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr>
-                <td>
-                  <div class="footer-space">&nbsp;</div>
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+        /* Ensure the header and footer appear on every page */
+        .header, .footer {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+          display: block !important;
+        }
 
-          <!-- Fixed header with title -->
-          <div class="header">
-            <div class="header-title">
-              Temporality View - ${patientName}
+        /* Hide the dental charts in the content since we're adding them in the header */
+        .content .dental-chart-container {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Table structure for content with header and footer spaces -->
+    <table>
+      <thead>
+        <tr>
+          <td>
+            <div class="header-space">&nbsp;</div>
+          </td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <div class="content">
+              <!-- Left side content -->
+              <div class="content-column">
+                <h4>
+                  ${patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "Second Visit"} -
+                  Tooth Anomalies/Procedures
+                </h4>
+                ${leftTableHtml}
+              </div>
+              
+              <!-- Right side content -->
+              <div class="content-column">
+                <h4>
+                  ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "First Visit"} -
+                  Tooth Anomalies/Procedures
+                </h4>
+                ${rightTableHtml}
+              </div>
             </div>
-          </div>
+          </td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td>
+            <div class="footer-space">&nbsp;</div>
+          </td>
+        </tr>
+      </tfoot>
+    </table>
 
-          <!-- Fixed footer (empty for now) -->
-          <div class="footer">
-            <!-- Footer content can be added here if needed -->
+    <!-- Fixed header with title and dental charts -->
+    <div class="header">
+      <div class="header-title">
+        Temporality View - ${patientName}
+      </div>
+      <div class="header-dental-charts">
+        <!-- Left dental chart -->
+        <div class="header-chart">
+          <div class="chart-title">
+            ${patientVisits.find((v) => v._id === secondVisitId)?.formattedDateTime || "Second Visit"}
           </div>
+          ${leftChartHtml}
+        </div>
+        
+        <!-- Right dental chart -->
+        <div class="header-chart">
+          <div class="chart-title">
+            ${patientVisits.find((v) => v._id === firstVisitId)?.formattedDateTime || "First Visit"}
+          </div>
+          ${rightChartHtml}
+        </div>
+      </div>
+    </div>
 
-          <!-- Original content (hidden in print) -->
-          <div class="original-content" style="display: none;">
-            ${contentToPrint}
-          </div>
-        </body>
-      </html>
-      `
+    <!-- Fixed footer (empty for now) -->
+    <div class="footer">
+      <!-- Footer content can be added here if needed -->
+    </div>
+  </body>
+</html>
+`
     }
 
     // Write to the new window using a more modern approach
@@ -842,7 +843,14 @@ const TemporalityPage = (props) => {
               if (item.visitIndex === i) {
                 // Only include anomalies from current visit
                 const anno = item.annotation
-                if (anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)) {
+                // Get the image group from the annotation's image
+                const imageGroup = anno.image?.annotations?.annotations?.group || "pano"
+                const confidenceField = `${imageGroup}_confidence`
+                const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()]
+                  ? confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001
+                  : 0.001
+
+                if (anno.confidence >= confidenceThreshold) {
                   anomalies.push({
                     name: anno.label,
                     category: classCategories[anno.label.toLowerCase()] || "Unknown",
@@ -879,10 +887,14 @@ const TemporalityPage = (props) => {
                 const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
 
                 // Only include if overlap is at least 80%
-                if (
-                  overlapPercentage >= 0.8 &&
-                  anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)
-                ) {
+                // Get the image group from the annotation's image
+                const imageGroup = anno.image?.annotations?.annotations?.group || "pano"
+                const confidenceField = `${imageGroup}_confidence`
+                const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()]
+                  ? confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001
+                  : 0.001
+
+                if (overlapPercentage >= 0.8 && anno.confidence >= confidenceThreshold) {
                   anomalies.push({
                     name: anno.label,
                     category: classCategories[anno.label.toLowerCase()] || "Unknown",
@@ -957,7 +969,14 @@ const TemporalityPage = (props) => {
           if (!isNaN(Number.parseInt(anno.label))) return
 
           if (anno.associatedTooth === null || anno.associatedTooth === "Unassigned") {
-            if (anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)) {
+            // Get the image group from the annotation's image
+            const imageGroup = anno.image?.annotations?.annotations?.group || "pano"
+            const confidenceField = `${imageGroup}_confidence`
+            const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()]
+              ? confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001
+              : 0.001
+
+            if (anno.confidence >= confidenceThreshold) {
               unassignedAnomalies.push({
                 name: anno.label,
                 category: classCategories[anno.label.toLowerCase()] || "Unknown",
@@ -1032,9 +1051,14 @@ const TemporalityPage = (props) => {
           updatedClassCategories[element.className.toLowerCase()] = element.category
         }
         if (updatedConfidenceLevels[element.className.toLowerCase()] === undefined) {
-          element.confidence
-            ? (updatedConfidenceLevels[element.className.toLowerCase()] = element.confidence)
-            : (updatedConfidenceLevels[element.className.toLowerCase()] = 0.01)
+          // Create an object with all group-specific confidence levels
+          updatedConfidenceLevels[element.className.toLowerCase()] = {
+            pano_confidence: element.pano_confidence || 0.01,
+            bitewing_confidence: element.bitewing_confidence || 0.01,
+            pariapical_confidence: element.pariapical_confidence || 0.01,
+            ceph_confidence: element.ceph_confidence || 0.01,
+            intraoral_confidence: element.intraoral_confidence || 0.01,
+          }
         }
       })
 
@@ -1251,8 +1275,13 @@ const TemporalityPage = (props) => {
               <Button color="primary" onClick={() => setRedirectToPatientVisitPage(true)} className="mr-3">
                 Patient Visits
               </Button>
-                  <Input type="checkbox" checked={isConsolidatedView} onChange={toggleConsolidatedView} style={{height: '33.7px', marginTop:'0px', width:'20px', marginLeft:'5px', borderWidth:'1px'}}/> 
-                  <InputGroupText>Consolidated View</InputGroupText>
+              <Input
+                type="checkbox"
+                checked={isConsolidatedView}
+                onChange={toggleConsolidatedView}
+                style={{ height: "33.7px", marginTop: "0px", width: "20px", marginLeft: "5px", borderWidth: "1px" }}
+              />
+              <InputGroupText>Consolidated View</InputGroupText>
             </div>
             <div>
               <Button color="success" onClick={handlePrint}>

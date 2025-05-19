@@ -129,9 +129,16 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
           }
 
           // Check if this annotation has an associatedTooth field that's null or "Unassigned"
+          // Get the image group from the annotation's image
+          const imageGroup = anno.image?.annotations?.annotations?.group || 'pano';
+          const confidenceField = `${imageGroup}_confidence`;
+          const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()] ?
+            confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001 :
+            0.001;
+
           if (
             (anno.associatedTooth === null || anno.associatedTooth === "Unassigned") &&
-            anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)
+            anno.confidence >= confidenceThreshold
           ) {
             unassignedAnomalies.push({
               name: anno.label,
@@ -170,8 +177,15 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
             }
           })
 
+          // Get the image group from the annotation's image
+          const imageGroup2 = anno.image?.annotations?.annotations?.group || 'pano';
+          const confidenceField2 = `${imageGroup2}_confidence`;
+          const confidenceThreshold2 = confidenceLevels[anno.label.toLowerCase()] ?
+            confidenceLevels[anno.label.toLowerCase()][confidenceField2] || 0.001 :
+            0.001;
+
           // If not assigned to any tooth, add to unassigned
-          if (!isAssigned && anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)) {
+          if (!isAssigned && anno.confidence >= confidenceThreshold2) {
             unassignedAnomalies.push({
               name: anno.label,
               category: classCategories[anno.label.toLowerCase()] || "Unknown",
@@ -213,7 +227,15 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
                 const associatedToothNumber = Number.parseInt(anno.associatedTooth)
                 if (
                   associatedToothNumber === selectedTooth &&
-                  anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)
+                  (() => {
+                    // Get the image group from the annotation's image
+                    const imageGroup = anno.image?.annotations?.annotations?.group || 'pano';
+                    const confidenceField = `${imageGroup}_confidence`;
+                    const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()] ?
+                      confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001 :
+                      0.001;
+                    return anno.confidence >= confidenceThreshold;
+                  })()
                 ) {
                   anomalies.push({
                     toothNumber: selectedTooth,
@@ -326,7 +348,14 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
                         ? `${selectedToothRange[0]}-${selectedToothRange[selectedToothRange.length - 1]}`
                         : `${selectedToothRange[0]}`
 
-                    if (anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)) {
+                    // Get the image group from the annotation's image
+                    const imageGroup = anno.image?.annotations?.annotations?.group || 'pano';
+                    const confidenceField = `${imageGroup}_confidence`;
+                    const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()] ?
+                      confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001 :
+                      0.001;
+
+                    if (anno.confidence >= confidenceThreshold) {
                       anomalies.push({
                         toothNumber: rangeText,
                         name: `${anno.label}`,
@@ -361,7 +390,14 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
                       a.name === anno.label && a.confidence === anno.confidence && a.imageNumber === anno.imageNumber,
                   )
 
-                  if (!isDuplicate && anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)) {
+                  // Get the image group from the annotation's image
+                  const imageGroup = anno.image?.annotations?.annotations?.group || 'pano';
+                  const confidenceField = `${imageGroup}_confidence`;
+                  const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()] ?
+                    confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001 :
+                    0.001;
+
+                  if (!isDuplicate && anno.confidence >= confidenceThreshold) {
                     anomalies.push({
                       toothNumber: selectedTooth,
                       name: anno.label,
@@ -419,9 +455,16 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
             // First check if the annotation has an associatedTooth field
             if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
               const associatedToothNumber = Number.parseInt(anno.associatedTooth)
+              // Get the image group from the annotation's image
+              const imageGroup = anno.image?.annotations?.annotations?.group || 'pano';
+              const confidenceField = `${imageGroup}_confidence`;
+              const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()] ?
+                confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001 :
+                0.001;
+
               if (
                 associatedToothNumber === Number.parseInt(toothNumber) &&
-                anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)
+                anno.confidence >= confidenceThreshold
               ) {
                 teethData[toothNumber].anomalies.push({
                   name: anno.label,
@@ -529,7 +572,14 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
                 }
               }
               // Add to the first tooth in the range
-              if (anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)) {
+              // Get the image group from the annotation's image
+              const imageGroup = anno.image?.annotations?.annotations?.group || 'pano';
+              const confidenceField = `${imageGroup}_confidence`;
+              const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()] ?
+                confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001 :
+                0.001;
+
+              if (anno.confidence >= confidenceThreshold) {
                 teethData[rangeText].anomalies.push({
                   name: `${anno.label}`,
                   category: classCategories[anno.label.toLowerCase()] || "Unknown",
@@ -577,10 +627,17 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
           })
 
           // If we found a tooth with sufficient overlap, add the annotation to that tooth
+          // Get the image group from the annotation's image
+          const imageGroup = anno.image?.annotations?.annotations?.group || 'pano';
+          const confidenceField = `${imageGroup}_confidence`;
+          const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()] ?
+            confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001 :
+            0.001;
+
           if (
             maxOverlapToothNumber !== null &&
             maxOverlapToothNumber in teethData &&
-            anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)
+            anno.confidence >= confidenceThreshold
           ) {
             teethData[maxOverlapToothNumber].anomalies.push({
               name: anno.label,
@@ -606,7 +663,14 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
         // Check if this annotation has an associatedTooth field that's null or "Unassigned"
         if (anno.associatedTooth === null || anno.associatedTooth === "Unassigned") {
           // Only add if it meets the confidence threshold
-          if (anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)) {
+          // Get the image group from the annotation's image
+          const imageGroup = anno.image?.annotations?.annotations?.group || 'pano';
+          const confidenceField = `${imageGroup}_confidence`;
+          const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()] ?
+            confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001 :
+            0.001;
+
+          if (anno.confidence >= confidenceThreshold) {
             unassignedAnomalies.push({
               name: anno.label,
               category: classCategories[anno.label.toLowerCase()] || "Unknown",
@@ -637,8 +701,15 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
           }
         })
 
+        // Get the image group from the annotation's image
+        const imageGroup3 = anno.image?.annotations?.annotations?.group || 'pano';
+        const confidenceField3 = `${imageGroup3}_confidence`;
+        const confidenceThreshold3 = confidenceLevels[anno.label.toLowerCase()] ?
+          confidenceLevels[anno.label.toLowerCase()][confidenceField3] || 0.001 :
+          0.001;
+
         // If not assigned to any tooth, add to unassigned
-        if (!isAssigned && anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)) {
+        if (!isAssigned && anno.confidence >= confidenceThreshold3) {
           unassignedAnomalies.push({
             name: anno.label,
             category: classCategories[anno.label.toLowerCase()] || "Unknown",
@@ -745,7 +816,12 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
         return true
       }
       // Filter out anomalies that don't meet confidence threshold
-      return anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)
+      const imageGroup = anno.image?.annotations?.annotations?.group || 'pano';
+      const confidenceField = `${imageGroup}_confidence`;
+      const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()] ?
+        confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001 :
+        0.001;
+      return anno.confidence >= confidenceThreshold
     })
 
     // Process anomalies on the other side

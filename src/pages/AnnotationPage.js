@@ -207,7 +207,14 @@ const AnnotationPage = () => {
           updatedLabelColors[element.className.toLowerCase()] = element.color
         }
         if (updatedConfidenceLevels[element.className.toLowerCase()] === undefined) {
-          element.confidence ? updatedConfidenceLevels[element.className.toLowerCase()] = element.confidence : updatedConfidenceLevels[element.className.toLowerCase()] = (0.01)
+          // Create an object with all group-specific confidence levels
+          updatedConfidenceLevels[element.className.toLowerCase()] = {
+            pano_confidence: element.pano_confidence || 0.01,
+            bitewing_confidence: element.bitewing_confidence || 0.01,
+            pariapical_confidence: element.pariapical_confidence || 0.01,
+            ceph_confidence: element.ceph_confidence || 0.01,
+            intraoral_confidence: element.intraoral_confidence || 0.01
+          }
         }
       });
       setLabelColors(updatedLabelColors)
@@ -365,7 +372,13 @@ const AnnotationPage = () => {
 
     if (model === "segmentation") {
       annotations.forEach((anno, index) => {
-        if (!hiddenAnnotations.includes(index) && anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)) {
+        // Get the appropriate confidence level based on image group
+        const confidenceField = `${imageGroup}_confidence`;
+        const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()] ?
+          confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001 :
+          0.001;
+
+        if (!hiddenAnnotations.includes(index) && anno.confidence >= confidenceThreshold) {
           if (selectedAnnotation === null || selectedAnnotation === anno) {
             if (anno.label === 'Line') {
               // Draw line
@@ -504,7 +517,13 @@ const AnnotationPage = () => {
     }
     else {
       annotations.forEach((anno, index) => {
-        if (!hiddenAnnotations.includes(index)) {
+        // Get the appropriate confidence level based on image group
+        const confidenceField = `${imageGroup}_confidence`;
+        const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()] ?
+          confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001 :
+          0.001;
+
+        if (!hiddenAnnotations.includes(index) && anno.confidence >= confidenceThreshold) {
           if (anno.label === 'Line') {
             // Draw line
             ctx.beginPath();
@@ -1741,7 +1760,32 @@ const AnnotationPage = () => {
         sessionStorage.removeItem("selectedImageIndex")
 
         setAnnotations(mainImageData.annotations.annotations.annotations)
-        setImageGroup(mainImageData.annotations.annotations.group)
+
+        // Determine image group based on the image name or existing group
+        let group = mainImageData.annotations.annotations.group;
+
+        // Always determine the group from the image name to ensure it's set correctly
+        const imageName = mainImageData.name.toLowerCase();
+
+        if (imageName.includes('pano') || imageName.includes('panoramic')) {
+          group = 'pano';
+        } else if (imageName.includes('bitewing')) {
+          group = 'bitewing';
+        } else if (imageName.includes('pariapical') || imageName.includes('pa')) {
+          group = 'pariapical';
+        } else if (imageName.includes('ceph') || imageName.includes('cephalometric')) {
+          group = 'ceph';
+        } else if (imageName.includes('intraoral')) {
+          group = 'intraoral';
+        } else {
+          // Default to 'pano' if we can't determine the group
+          group = 'pano';
+        }
+
+        // Update the annotations object with the determined group
+        mainImageData.annotations.annotations.group = group;
+
+        setImageGroup(group)
 
         // Initialize smallCanvasRefs with dynamic refs based on the number of images
         const refsArray = imagesData.map(() => React.createRef())
@@ -2094,7 +2138,8 @@ const AnnotationPage = () => {
         annotations: {
           model: model,
           status: "OPEN",
-          annotations: newAnnotations
+          annotations: newAnnotations,
+          group: imageGroup // Save the image group with the annotations
         },
         status: "OPEN"
       }
@@ -2738,14 +2783,7 @@ const AnnotationPage = () => {
                         localStorage.removeItem('globalCheckedAnnotations');
                         dispatch(changeMode(preLayoutMode));
                         sessionStorage.removeItem('preLayoutMode');
-
-                        // Use browser history to go back if possible
-                        if (window.history.length > 1) {
-                          window.history.back();
-                        } else {
-                          // Fallback to direct navigation if no history
-                          setExitClick(true);
-                        }
+                        setExitClick(true);
                       }} style={{ background: 'none', border: 'none', padding: '0' }}>
                         <img src={imgExit} alt="Exit" style={{ width: '30px', height: '30px' }} />
                       </button> &nbsp;
@@ -3228,6 +3266,7 @@ const AnnotationPage = () => {
                           mainImageIndex={mainImageIndex}
                           confidenceLevels={confidenceLevels}
                           showConfidence={showConfidence}
+                          smallCanvasData={smallCanvasData}
                         />
                       </div>
 

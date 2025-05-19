@@ -147,7 +147,15 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
         if (anno.label && anno.label.slice(0, 10) === "Bone Loss") {
           anno.label = "Bone Loss"
         }
-        if ((!anno.label || !anno.confidence) || anno.confidence < (confidenceLevels[anno.label.toLowerCase()] || 0.001)) {
+
+        // Get the image group from the annotation's image
+        const imageGroup = anno.image?.annotations?.annotations?.group || 'pano';
+        const confidenceField = `${imageGroup}_confidence`;
+        const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()] ?
+          confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001 :
+          0.001;
+
+        if ((!anno.label || !anno.confidence) || anno.confidence < confidenceThreshold) {
           return
         }
 

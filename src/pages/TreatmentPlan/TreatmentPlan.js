@@ -6,7 +6,6 @@ import {
   CardTitle,
   Table,
   Button,
-  ButtonGroup,
   Input,
   InputGroup,
   InputGroupText,
@@ -25,6 +24,7 @@ import { connect } from "react-redux";
 import { calculateOverlap } from 'pages/AnnotationTools/path-utils';
 import { Navigate } from 'react-router-dom';
 import { logErrorToServer } from 'utils/logError';
+import DentalChart from 'pages/AnnotationTools/DentalChart';
 
 const DentalTreatmentPlan = (props) => {
   const [selectedTeeth, setSelectedTeeth] = useState([]);
@@ -38,7 +38,11 @@ const DentalTreatmentPlan = (props) => {
   const [openGroups, setOpenGroups] = useState({});
   const [redirectToLogin, setRedirectToLogin] = useState(false);
   const [redirectToAnnotationPage, setRedirectToAnnotationPage] = useState(false);
-  const [treatmentCodes, setTreatmentCodes] = useState([])
+  const [treatmentCodes, setTreatmentCodes] = useState([]);
+  const [classCategories, setClassCategories] = useState({});
+  const [confidenceLevels, setConfidenceLevels] = useState({});
+  const [hiddenAnnotations, setHiddenAnnotations] = useState([]);
+  const [annotations, setAnnotations] = useState([]);
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   document.title = "Treatment Plan | AGP Dental Tool";
   const breadcrumbItems = [
@@ -221,10 +225,22 @@ const DentalTreatmentPlan = (props) => {
   };
 
   const handleToothClick = (toothNumber) => {
+    // If tooth is already selected, clear selection
+    if (selectedTooth === toothNumber) {
+      setSelectedTooth(null);
+      setHiddenAnnotations([]);
+      return;
+    }
+
+    // Add tooth to selectedTeeth if not already included
     if (!selectedTeeth.includes(toothNumber)) {
       setSelectedTeeth([...selectedTeeth, toothNumber]);
     }
+
+    // Set the selected tooth
     setSelectedTooth(toothNumber);
+
+    // Open the modal for treatment selection
     setModalOpen(true);
   };
 
@@ -434,11 +450,101 @@ const DentalTreatmentPlan = (props) => {
     setIsLoading(false);
   };
 
+  // Fetch class categories
+  const fetchClassCategories = async () => {
+    try {
+      const response = await fetch(`${apiUrl}/get-classCategories?clientId=${sessionStorage.getItem("clientId")}`, {
+        method: "GET",
+        headers: {
+          Authorization: sessionStorage.getItem("token"),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      const updatedClassCategories = {};
+      const updatedConfidenceLevels = {};
+
+      data.forEach((element) => {
+        if (updatedClassCategories[element.className.toLowerCase()] === undefined) {
+          updatedClassCategories[element.className.toLowerCase()] = element.category;
+        }
+        if (updatedConfidenceLevels[element.className.toLowerCase()] === undefined) {
+          // Create an object with all group-specific confidence levels
+          updatedConfidenceLevels[element.className.toLowerCase()] = {
+            pano_confidence: element.pano_confidence || 0.01,
+            bitewing_confidence: element.bitewing_confidence || 0.01,
+            periapical_confidence: element.periapical_confidence || 0.01,
+            ceph_confidence: element.ceph_confidence || 0.01,
+            intraoral_confidence: element.intraoral_confidence || 0.01,
+          };
+        }
+      });
+
+      setClassCategories(updatedClassCategories);
+      setConfidenceLevels(updatedConfidenceLevels);
+    } catch (error) {
+      if (error.status === 403 || error.status === 401) {
+        sessionStorage.removeItem('token');
+        setRedirectToLogin(true);
+      } else {
+        logErrorToServer(error, "fetchClassCategories");
+        console.error('Error fetching class categories:', error);
+      }
+    }
+  };
+
+  // Fetch annotations for dental chart
+  const fetchAnnotations = async () => {
+    try {
+      const response = await fetch(`${apiUrl}/get-annotations-for-treatment-plan?patientId=${sessionStorage.getItem('patientId')}`, {
+        method: "GET",
+        headers: {
+          Authorization: sessionStorage.getItem("token"),
+        },
+      });
+
+      const jsonFiles = await response.json();
+      if (jsonFiles.images && jsonFiles.images.length > 0) {
+        // Extract all annotations from all images
+        const allAnnotations = [];
+        jsonFiles.images.forEach(image => {
+          if (image.annotations && image.annotations.annotations) {
+            image.annotations.annotations.forEach(annotation => {
+              // Add image reference to each annotation
+              annotation.image = image;
+              allAnnotations.push(annotation);
+            });
+          }
+        });
+        setAnnotations(allAnnotations);
+      }
+    } catch (error) {
+      if (error.status === 403 || error.status === 401) {
+        sessionStorage.removeItem('token');
+        setRedirectToLogin(true);
+      } else {
+        logErrorToServer(error, "fetchAnnotations");
+        console.error('Error fetching annotations:', error);
+      }
+    }
+  };
+
   useEffect(() => {
     props.setBreadcrumbItems('Treatment Plan', breadcrumbItems);
     const fetchData = async () => {
       // First check if there's an existing treatment plan
-      const treatmentPlanExists = await fetchExistingTreatmentPlan();
+      await fetchExistingTreatmentPlan();
+
+      // Fetch class categories and confidence levels
+      await fetchClassCategories();
+
+      // Fetch annotations for dental chart
+      await fetchAnnotations();
 
       // Then fetch the DCT codes
       try {
@@ -621,27 +727,88 @@ const DentalTreatmentPlan = (props) => {
     }
   };
 
-  const renderToothButton = (number) => {
-    const toothTreatments = getToothTreatments(number);
+  // Custom DentalChart component with treatment count badges
+  const TreatmentDentalChart = () => {
     return (
-      <div key={number} className="d-inline-block text-center m-1">
-        <Button
-          color={toothTreatments.length > 0 ? "primary" : "secondary"}
-          onClick={() => handleToothClick(number)}
-          className="mb-1"
-          size="sm"
-        >
-          {number}
-        </Button>
-        {toothTreatments.length > 0 && (
-          <Badge
-            color="info"
-            className="d-block"
-            pill
-          >
-            {toothTreatments.length}
-          </Badge>
-        )}
+      <div className="position-relative">
+        <DentalChart
+          annotations={annotations}
+          classCategories={classCategories}
+          confidenceLevels={confidenceLevels}
+          setHiddenAnnotations={setHiddenAnnotations}
+          onToothSelect={handleToothClick}
+          externalSelectedTooth={selectedTooth}
+        />
+
+        {/* Treatment count badges - Upper teeth (positioned ABOVE the teeth) */}
+        <div className='justify-content-center align-items-center' style={{
+          position: "absolute",
+          top: "0px", /* Positioned at the very top, above the teeth */
+          left: 0,
+          right: 0,
+          display: "grid",
+          gridTemplateColumns: "repeat(16, 1fr)",
+          gap: "2px",
+          zIndex: 10, /* Ensure badges appear above teeth */
+        }}>
+          {[...Array(16)].map((_, i) => {
+            const toothNumber = i + 1;
+            const toothTreatments = getToothTreatments(toothNumber);
+            return toothTreatments.length > 0 ? (
+              <div key={toothNumber} className="d-flex justify-content-center">
+                <Badge
+                  color="info"
+                  pill
+                  style={{
+                    fontSize: "10px",
+                    minWidth: "18px",
+                    height: "18px",
+                    padding: "2px 6px",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)" /* Added shadow for better visibility */
+                  }}
+                  className="d-flex justify-content-center align-items-center"
+                >
+                  {toothTreatments.length}
+                </Badge>
+              </div>
+            ) : <div key={toothNumber}></div>;
+          })}
+        </div>
+
+        {/* Treatment count badges - Lower teeth (positioned BELOW the teeth) */}
+        <div className='justify-content-center align-items-center' style={{
+          position: "absolute",
+          bottom: "0px", /* Positioned at the very bottom, below the teeth */
+          left: 0,
+          right: 0,
+          display: "grid",
+          gridTemplateColumns: "repeat(16, 1fr)",
+          gap: "2px",
+          zIndex: 10, /* Ensure badges appear above teeth */
+        }}>
+          {[...Array(16)].map((_, i) => {
+            const toothNumber = 32 - i;
+            const toothTreatments = getToothTreatments(toothNumber);
+            return toothTreatments.length > 0 ? (
+              <div key={toothNumber} className="d-flex justify-content-center">
+                <Badge
+                  color="info"
+                  pill
+                  style={{
+                    fontSize: "10px",
+                    minWidth: "18px",
+                    height: "18px",
+                    padding: "2px 6px",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)" /* Added shadow for better visibility */
+                  }}
+                  className="d-flex justify-content-center align-items-center"
+                >
+                  {toothTreatments.length}
+                </Badge>
+              </div>
+            ) : <div key={toothNumber}></div>;
+          })}
+        </div>
       </div>
     );
   };
@@ -799,15 +966,8 @@ const DentalTreatmentPlan = (props) => {
           <CardTitle tag="h4">Dental Treatment Plan</CardTitle>
         </CardHeader>
         <CardBody>
-          {/* Upper teeth */}
-          <div className="d-flex flex-wrap justify-content-center mb-4">
-            {[...Array(16)].map((_, i) => renderToothButton(i + 1))}
-          </div>
-
-          {/* Lower teeth */}
-          <div className="d-flex flex-wrap justify-content-center mb-4">
-            {[...Array(16)].map((_, i) => renderToothButton(32 - i))}
-          </div>
+          {/* Dental Chart with Treatment Counts */}
+          <TreatmentDentalChart />
 
           {/* Full Mouth Treatments */}
           {organizedTreatments.fullmouth.length > 0 && (

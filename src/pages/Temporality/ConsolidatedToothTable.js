@@ -142,7 +142,15 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
                     anomaly.name === "Not detected" ||
                     // Include anomalies with selected categories and meeting confidence threshold
                     (selectedCategories.includes(anomaly.category) &&
-                     anomaly.confidence >= (confidenceLevels[anomaly.name.toLowerCase()] || 0.001)),
+                     (() => {
+                        // Get the image group from the annotation's image
+                        const imageGroup = anomaly.originalAnnotation?.image?.annotations?.annotations?.group || 'pano';
+                        const confidenceField = `${imageGroup}_confidence`;
+                        const confidenceThreshold = confidenceLevels[anomaly.name.toLowerCase()] ?
+                          confidenceLevels[anomaly.name.toLowerCase()][confidenceField] || 0.001 :
+                          0.001;
+                        return anomaly.confidence >= confidenceThreshold;
+                     })()),
             );
 
             // Return tooth with filtered anomalies

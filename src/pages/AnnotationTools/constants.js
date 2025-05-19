@@ -14,7 +14,7 @@ export const labelColors = {
   'Malaligned': 'maroon',
   'Mandibular Canal': 'cyan',
   'Missing teeth': 'light green',
-  'Periapical lesion': 'orange',
+  'Pariapical lesion': 'orange',
   'Retained root': 'brown',
   'Root Canal Treatment': 'magenta',
   'Root Piece': 'teal',

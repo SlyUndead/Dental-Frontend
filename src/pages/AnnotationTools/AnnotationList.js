@@ -428,7 +428,6 @@ const AnnotationList = ({
     await checkAnomaliesWithServer(annotationsList)
     let finalResult = treatments
     for (const [_, annotation] of Object.entries(annotationsList)) {
-      // console.log(annotation, annotationsList)
       const cdtCodes = await fetchCdtCodesFromRAG(annotation.label, convertedCdtCode)
       if (cdtCodes.length > 0) {
         // Use the associatedTooth field directly if available
@@ -436,8 +435,9 @@ const AnnotationList = ({
         if (annotation.associatedTooth !== undefined && annotation.associatedTooth !== null) {
           toothNumber = annotation.associatedTooth
         } else {
-          // Fall back to the associatedTooth from the global checked annotations
-          toothNumber = annotation.associatedTooth
+          // Fall back to overlap method if associatedTooth is not available
+          const toothAnnotations = annotations.filter(a => !isNaN(Number.parseInt(a.label)))
+          toothNumber = findToothForStoredAnomaly(annotation, toothAnnotations)
         }
 
         // Only proceed if we have a valid tooth number
@@ -609,14 +609,14 @@ const AnnotationList = ({
     if (updatedGlobalChecked[uniqueKey]) {
       delete updatedGlobalChecked[uniqueKey]
     } else {
-      // Use the associatedTooth field if available, otherwise calculate it
+      // Use the associatedTooth field if available, otherwise calculate it using overlap method
       let associatedTooth = null
       if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
         associatedTooth = anno.associatedTooth
       } else {
         // Get tooth annotations from current image
         const toothAnnotations = annotations.filter((a) => !isNaN(Number.parseInt(a.label)))
-        // Find the associated tooth for this anomaly
+        // Find the associated tooth for this anomaly using overlap calculation
         associatedTooth = findToothForStoredAnomaly(anno, toothAnnotations)
       }
 
@@ -709,13 +709,19 @@ const AnnotationList = ({
     let maxOverlap = 0
     let associatedTooth = null
 
-    toothAnnotations.forEach((tooth) => {
-      const overlapArea = calculateOverlap(anomaly.segmentation, tooth.segmentation)
-      if (overlapArea > maxOverlap) {
-        maxOverlap = overlapArea
-        associatedTooth = tooth.label
-      }
-    })
+    // Only proceed with overlap calculation if we have valid segmentation data
+    if (anomaly.segmentation && toothAnnotations.length > 0) {
+      toothAnnotations.forEach((tooth) => {
+        if (tooth.segmentation) {
+          const overlapArea = calculateOverlap(anomaly.segmentation, tooth.segmentation)
+          if (overlapArea > maxOverlap) {
+            maxOverlap = overlapArea
+            associatedTooth = tooth.label
+          }
+        }
+      })
+    }
+
     return associatedTooth
   }
   const dispatch = useDispatch()
@@ -833,7 +839,14 @@ const AnnotationList = ({
 
       annotations.forEach((anno, index) => {
         const category = classCategories[anno.label.toLowerCase()]
-        if (category && anno.confidence >= (confidenceLevels[anno.label.toLowerCase()] || 0.001)) {
+        // Get the image group from the annotation's image
+        const imageGroup = smallCanvasData[mainImageIndex]?.annotations?.annotations?.group || 'pano';
+        const confidenceField = `${imageGroup}_confidence`;
+        const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()] ?
+          confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001 :
+          0.001;
+
+        if (category && anno.confidence >= confidenceThreshold) {
           if (updatedGroupedAnnotations[category] === undefined) {
             updatedGroupedAnnotations[category] = []
 
@@ -1104,17 +1117,46 @@ const AnnotationList = ({
                                       </div>
                                     ) : (
                                       <span>
-                                        {!isNaN(Number.parseInt(anno.label)) ? `Tooth [${anno.label}]` : anno.label}
-                                        {isNaN(Number.parseInt(anno.label)) &&
-                                          (anno.label.toLowerCase().includes("bone loss") ?
-                                            (() => {
+                                        {/* For tooth annotations, display as "Tooth [number]" */}
+                                        {!isNaN(Number.parseInt(anno.label)) ?
+                                          `Tooth [${anno.label}]` :
+                                          /* For non-tooth annotations, display label and associated tooth */
+                                          (() => {
+                                            // Get associated tooth for display
+                                            let displayToothInfo = "";
+
+                                            // Special handling for bone loss annotations
+                                            if (anno.label.toLowerCase().includes("bone loss")) {
                                               const toothRange = findToothRangeForBoneLoss(anno, annotations.filter(a => !isNaN(Number.parseInt(a.label))));
-                                              return toothRange ? ` [${toothRange}]` : (anno.associatedTooth ? ` [${anno.associatedTooth}]` : "");
-                                            })() :
-                                            (anno.associatedTooth ? ` [${anno.associatedTooth}]` : "")
-                                          )
+                                              displayToothInfo = toothRange ? ` [${toothRange}]` : (anno.associatedTooth ? ` [${anno.associatedTooth}]` : "");
+                                            }
+                                            // For all other non-tooth annotations
+                                            else {
+                                              // First try to use the associatedTooth field
+                                              if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
+                                                displayToothInfo = ` [${anno.associatedTooth}]`;
+                                              }
+                                              // If no associatedTooth, try to find it using overlap
+                                              else {
+                                                const toothAnnotations = annotations.filter(a => !isNaN(Number.parseInt(a.label)));
+                                                const associatedTooth = findToothForStoredAnomaly(anno, toothAnnotations);
+                                                if (associatedTooth) {
+                                                  displayToothInfo = ` [${associatedTooth}]`;
+                                                }
+                                              }
+                                            }
+
+                                            return (
+                                              <>
+                                                {anno.label}
+                                                {displayToothInfo}
+                                              </>
+                                            );
+                                          })()
                                         }
+                                        {/* Display annotation source indicator */}
                                         {anno.created_by ? (anno.created_by.startsWith("Model v") ? "" : (anno.created_by.startsWith("Auto Update Labelling") ? "(A)" : " (M)")) : ""}
+                                        {/* Display confidence if enabled */}
                                         {showConfidence && (` (${anno.confidence.toFixed(2).toString().slice(1)})`)}
                                       </span>
                                     )}
