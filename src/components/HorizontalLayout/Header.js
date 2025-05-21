@@ -19,8 +19,8 @@ import ProfileMenu from "../CommonForBoth/TopbarDropdown/ProfileMenu"
 import logo from "../../assets/images/logo-sm.png"
 import logoLight from "../../assets/images/logo-light.png"
 import logoDark from "../../assets/images/logo-dark.png"
-import logo9 from "../../assets/images/9-removebg-preview.png"
-import logo10 from "../../assets/images/12.png"
+import logo9 from "../../assets/images/OralWisdom-NewLogo-01.png"
+import logo10 from "../../assets/images/OralWisdom-NewLogo-01.png"
 
 //i18n
 import { withTranslation } from "react-i18next"
@@ -61,21 +61,12 @@ const Header = props => {
         <Container fluid>
           <div className="float-start">
             <div className="navbar-brand-box">
-              <Link to="/practiceList" className="logo logo-dark">
+              <Link to="/practiceList" className="logo logo-light" style={{ height: '100%', display: 'flex', alignItems: 'center' }}>
                 <span className="logo-sm">
-                  <img src={logo} alt="" height="45" />
+                  <img src={logo} alt="" style={{ maxHeight: '60px', width: 'auto'}}/>
                 </span>
                 <span className="logo-lg">
-                  <img src={logo9} alt="" height="45" />
-                </span>
-              </Link>
-
-              <Link to="/practiceList" className="logo logo-light">
-                <span className="logo-sm">
-                  <img src={logo} alt="" height="45" />
-                </span>
-                <span className="logo-lg">
-                  <img src={logo10} alt="" height="45" />
+                  <img src={logo10} alt="" style={{ width: '100%', height: 'auto', maxHeight: '60px'}} />
                 </span>
               </Link>
             </div>

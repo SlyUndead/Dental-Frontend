@@ -21,7 +21,7 @@ import { useDispatch } from "react-redux"
 import "bootstrap/dist/css/bootstrap.min.css"
 import "../../assets/scss/custom/components/_popover.scss"
 import { logErrorToServer } from "utils/logError"
-import { desiredOrder } from "./constants"
+import { desiredOrder, groupNames } from "./constants"
 import { calculateOverlap, polygonArea } from "./path-utils"
 import DentalChart from "./DentalChart"
 const AnnotationList = ({
@@ -820,7 +820,7 @@ const AnnotationList = ({
       // Initialize hide states for tooth groups
       const toothHideGroups = {}
       // Initialize expanded states for tooth groups
-      const toothExpandedGroups = {...expandedGroups}
+      const toothExpandedGroups = { ...expandedGroups }
 
       Object.keys(byTooth).forEach(tooth => {
         toothHideGroups[tooth] = false
@@ -919,12 +919,11 @@ const AnnotationList = ({
       style={{
         maxHeight: "90vh",
         maxWidth: "100%",
-        borderRight: "1px solid #ccc",
         display: "flex",
         flexDirection: "column",
       }}
     >
-      <CardBody style={{ paddingTop: "0", paddingBottom: "0", paddingLeft: "0px", marginLeft:'0px' }}>
+      <CardBody style={{ paddingTop: "0", paddingBottom: "0", paddingLeft: "0px", marginLeft: '0px', marginTop: '15px' }}>
         <DentalChart
           annotations={annotations}
           classCategories={classCategories}
@@ -936,7 +935,7 @@ const AnnotationList = ({
       <CardBody style={{ paddingBottom: "0" }}>
         <Row>
           <Col md={5}>
-            <h5>Annotations ({annotations.length})</h5>
+            <h5>Findings ({annotations.length})</h5>
           </Col>
           <Col md={5} style={{ paddingRight: 0 }}>
             <div className="d-flex align-items-center">
@@ -989,245 +988,265 @@ const AnnotationList = ({
         <Row>
           <Col md={12}>
             <div>
-              {/* Loop over each category or tooth */}
-              {Object.keys(groupedAnnotations).sort((a, b) => {
-                // Sort numerically for teeth or alphabetically for categories
-                const numA = parseInt(a)
-                const numB = parseInt(b)
-                if (!isNaN(numA) && !isNaN(numB)) {
-                  return numA - numB
-                }
-                return a.localeCompare(b)
-              }).map((group) => {
-                if (groupedAnnotations[group]) {
-                  return (
-                    <div key={group}>
-                      {/* Always show header for all groups */}
-                      {(
-                        <h5>
-                          {group}
-                          {/* Group Expansion Toggle */}
-                          <button
-                            id={`btnToggleGroup${group}`}
-                            type="button"
-                            className="btn noti-icon mr-2"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              toggleGroupExpansion(group)
-                            }}
-                          >
-                            <i className={`ion ${expandedGroups[group] ? "ion-md-arrow-dropdown" : "ion-md-arrow-dropright"}`}></i>
-                          </button>
+              {/* Loop over each category or tooth according to desiredOrder */}
+              {Object.keys(groupedAnnotations)
+                .sort((a, b) => {
+                  // First check if both are numeric (teeth)
+                  const numA = parseInt(a);
+                  const numB = parseInt(b);
 
-                          {/* Existing Hide/Show Button */}
-                          <button
-                            id={`btnHide${group}`}
-                            type="button"
-                            className="btn noti-icon"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleCategoryVisibilityToggle(group)
-                            }}
-                          >
-                            <i className={`ion ${hideGroup[group] ? "ion-md-eye-off" : "ion-md-eye"}`}></i>
-                          </button>
-                        </h5>
-                      )}
+                  // If both are numbers (teeth), sort numerically
+                  if (!isNaN(numA) && !isNaN(numB)) {
+                    return numA - numB;
+                  }
 
-                      {/* Collapsible Group Content */}
-                      <Collapse isOpen={expandedGroups[group]}>
-                        <ListGroup flush>
-                          {/* Existing annotation rendering logic */}
-                          {groupedAnnotations[group].map((anno) => {
-                            const globalIndex = annotations.findIndex((a) => a === anno)
-                            if (globalIndex !== -1) {
-                              return (
-                                <ListGroupItem
-                                  key={globalIndex}
-                                  id={`annotation-${globalIndex}`}
-                                  className="d-flex align-items-center justify-content-between list-group-item-hover"
-                                  style={{
-                                    cursor: "pointer",
-                                    paddingRight: "0",
-                                    paddingLeft: "0",
-                                    paddingTop: "0",
-                                    paddingBottom: "0",
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleAnnotationClick(anno, globalIndex)
-                                  }}
-                                  onMouseEnter={() => handleHover(globalIndex)}
-                                  onMouseLeave={() => handleHover(null)}
-                                >
-                                  {/* Combined checkbox and label */}
-                                  <div className="pl-2 pr-2 d-flex align-items-center" style={{ flexGrow: 1 }}>
-                                    {/* Checkbox */}
-                                    <Input
-                                      type="checkbox"
-                                      checked={checkedAnnotations.includes(globalIndex)}
-                                      onChange={(e) => {
-                                        e.stopPropagation()
-                                        handleCheckboxChange(globalIndex)
-                                      }}
-                                      onClick={(e) => e.stopPropagation()}
-                                      disabled={lockedAnnotations.includes(globalIndex)}
-                                      style={{
-                                        cursor: lockedAnnotations.includes(globalIndex) ? "not-allowed" : "pointer",
-                                        marginRight: "10px"
-                                      }}
-                                    />
+                  // If either or both are non-numeric (categories)
+                  // Check if they are in the desiredOrder array
+                  const indexA = desiredOrder.indexOf(a);
+                  const indexB = desiredOrder.indexOf(b);
 
-                                    {/* Lock icon if needed */}
-                                    {lockedAnnotations.includes(globalIndex) && (
-                                      <>
-                                        <span
-                                          className="mr-2 text-muted"
-                                          style={{ fontSize: "12px" }}
-                                          id={`locked-${globalIndex}`}
-                                        >
-                                          <i className="mdi mdi-lock-outline"></i>
-                                        </span>
+                  // If both are in desiredOrder, sort by their position in desiredOrder
+                  if (indexA !== -1 && indexB !== -1) {
+                    return indexA - indexB;
+                  }
 
-                                        <UncontrolledTooltip placement="top" target={`locked-${globalIndex}`}>
-                                          This anomaly is included in the treatment plan and cannot be unchecked
-                                        </UncontrolledTooltip>
-                                      </>
-                                    )}
+                  // If only one is in desiredOrder, prioritize the one in desiredOrder
+                  if (indexA !== -1) return -1;
+                  if (indexB !== -1) return 1;
 
-                                    {/* Show dropdown if this annotation is selected and has a numeric label */}
-                                    {selectedAnnotation === anno && !isNaN(Number.parseInt(anno.label)) ? (
-                                      <div style={{ flexGrow: 1 }} onClick={(e) => e.stopPropagation()}>
-                                        <InputGroup size="sm">
-                                          <Input
-                                            type="select"
-                                            value={newLabel || anno.label}
-                                            onChange={(e) => {
-                                              setNewLabel(e.target.value)
-                                              handleLabelChange(e.target.value)
-                                            }}
+                  // If neither is in desiredOrder, sort alphabetically
+                  return a.localeCompare(b);
+                })
+                .map((group) => {
+                  if (groupedAnnotations[group]) {
+                    return (
+                      <div key={group}>
+                        {/* Always show header for all groups */}
+                        {(
+                          <h5>
+                            {groupNames[group]} ({groupedAnnotations[group].length})
+                            {/* Group Expansion Toggle */}
+                            <button
+                              id={`btnToggleGroup${group}`}
+                              type="button"
+                              className="btn noti-icon mr-2"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                toggleGroupExpansion(group)
+                              }}
+                            >
+                              <i className={`ion ${expandedGroups[group] ? "ion-md-arrow-dropdown" : "ion-md-arrow-dropright"}`}></i>
+                            </button>
+
+                            {/* Existing Hide/Show Button */}
+                            <button
+                              id={`btnHide${group}`}
+                              type="button"
+                              className="btn noti-icon"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleCategoryVisibilityToggle(group)
+                              }}
+                            >
+                              <i className={`ion ${hideGroup[group] ? "ion-md-eye-off" : "ion-md-eye"}`}></i>
+                            </button>
+                          </h5>
+                        )}
+
+                        {/* Collapsible Group Content */}
+                        <Collapse isOpen={expandedGroups[group]}>
+                          <ListGroup flush>
+                            {/* Existing annotation rendering logic */}
+                            {groupedAnnotations[group].map((anno) => {
+                              const globalIndex = annotations.findIndex((a) => a === anno)
+                              if (globalIndex !== -1) {
+                                return (
+                                  <ListGroupItem
+                                    key={globalIndex}
+                                    id={`annotation-${globalIndex}`}
+                                    className="d-flex align-items-center justify-content-between list-group-item-hover"
+                                    style={{
+                                      cursor: "pointer",
+                                      paddingRight: "0",
+                                      paddingLeft: "0",
+                                      paddingTop: "0",
+                                      paddingBottom: "0",
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleAnnotationClick(anno, globalIndex)
+                                    }}
+                                    onMouseEnter={() => handleHover(globalIndex)}
+                                    onMouseLeave={() => handleHover(null)}
+                                  >
+                                    {/* Combined checkbox and label */}
+                                    <div className="pl-2 pr-2 d-flex align-items-center" style={{ flexGrow: 1 }}>
+                                      {/* Checkbox */}
+                                      <Input
+                                        type="checkbox"
+                                        checked={checkedAnnotations.includes(globalIndex)}
+                                        onChange={(e) => {
+                                          e.stopPropagation()
+                                          handleCheckboxChange(globalIndex)
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                        disabled={lockedAnnotations.includes(globalIndex)}
+                                        style={{
+                                          cursor: lockedAnnotations.includes(globalIndex) ? "not-allowed" : "pointer",
+                                          marginRight: "10px"
+                                        }}
+                                      />
+
+                                      {/* Lock icon if needed */}
+                                      {lockedAnnotations.includes(globalIndex) && (
+                                        <>
+                                          <span
+                                            className="mr-2 text-muted"
+                                            style={{ fontSize: "12px" }}
+                                            id={`locked-${globalIndex}`}
                                           >
-                                            {Array.from({ length: 32 }, (_, i) => i + 1).map((num) => (
-                                              <option key={num} value={num.toString()}>
-                                                Tooth [{num}]
-                                              </option>
-                                            ))}
-                                          </Input>
-                                        </InputGroup>
-                                      </div>
-                                    ) : (
-                                      <span>
-                                        {/* For tooth annotations, display as "Tooth [number]" */}
-                                        {!isNaN(Number.parseInt(anno.label)) ?
-                                          `Tooth [${anno.label}]` :
-                                          /* For non-tooth annotations, display label and associated tooth */
-                                          (() => {
-                                            // Get associated tooth for display
-                                            let displayToothInfo = "";
+                                            <i className="mdi mdi-lock-outline"></i>
+                                          </span>
 
-                                            // Special handling for bone loss annotations
-                                            if (anno.label.toLowerCase().includes("bone loss")) {
-                                              const toothRange = findToothRangeForBoneLoss(anno, annotations.filter(a => !isNaN(Number.parseInt(a.label))));
-                                              displayToothInfo = toothRange ? ` [${toothRange}]` : (anno.associatedTooth ? ` [${anno.associatedTooth}]` : "");
-                                            }
-                                            // For all other non-tooth annotations
-                                            else {
-                                              // First try to use the associatedTooth field
-                                              if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
-                                                displayToothInfo = ` [${anno.associatedTooth}]`;
+                                          <UncontrolledTooltip placement="top" target={`locked-${globalIndex}`}>
+                                            This anomaly is included in the treatment plan and cannot be unchecked
+                                          </UncontrolledTooltip>
+                                        </>
+                                      )}
+
+                                      {/* Show dropdown if this annotation is selected and has a numeric label */}
+                                      {selectedAnnotation === anno && !isNaN(Number.parseInt(anno.label)) ? (
+                                        <div style={{ flexGrow: 1 }} onClick={(e) => e.stopPropagation()}>
+                                          <InputGroup size="sm">
+                                            <Input
+                                              type="select"
+                                              value={newLabel || anno.label}
+                                              onChange={(e) => {
+                                                setNewLabel(e.target.value)
+                                                handleLabelChange(e.target.value)
+                                              }}
+                                            >
+                                              {Array.from({ length: 32 }, (_, i) => i + 1).map((num) => (
+                                                <option key={num} value={num.toString()}>
+                                                  Tooth [{num}]
+                                                </option>
+                                              ))}
+                                            </Input>
+                                          </InputGroup>
+                                        </div>
+                                      ) : (
+                                        <span>
+                                          {/* For tooth annotations, display as "Tooth [number]" */}
+                                          {!isNaN(Number.parseInt(anno.label)) ?
+                                            `Tooth [${anno.label}]` :
+                                            /* For non-tooth annotations, display label and associated tooth */
+                                            (() => {
+                                              // Get associated tooth for display
+                                              let displayToothInfo = "";
+
+                                              // Special handling for bone loss annotations
+                                              if (anno.label.toLowerCase().includes("bone loss")) {
+                                                const toothRange = findToothRangeForBoneLoss(anno, annotations.filter(a => !isNaN(Number.parseInt(a.label))));
+                                                displayToothInfo = toothRange ? ` [${toothRange}]` : (anno.associatedTooth ? ` [${anno.associatedTooth}]` : "");
                                               }
-                                              // If no associatedTooth, try to find it using overlap
+                                              // For all other non-tooth annotations
                                               else {
-                                                const toothAnnotations = annotations.filter(a => !isNaN(Number.parseInt(a.label)));
-                                                const associatedTooth = findToothForStoredAnomaly(anno, toothAnnotations);
-                                                if (associatedTooth) {
-                                                  displayToothInfo = ` [${associatedTooth}]`;
+                                                // First try to use the associatedTooth field
+                                                if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
+                                                  displayToothInfo = ` [${anno.associatedTooth}]`;
+                                                }
+                                                // If no associatedTooth, try to find it using overlap
+                                                else {
+                                                  const toothAnnotations = annotations.filter(a => !isNaN(Number.parseInt(a.label)));
+                                                  const associatedTooth = findToothForStoredAnomaly(anno, toothAnnotations);
+                                                  if (associatedTooth) {
+                                                    displayToothInfo = ` [${associatedTooth}]`;
+                                                  }
                                                 }
                                               }
-                                            }
 
-                                            return (
-                                              <>
-                                                {anno.label}
-                                                {displayToothInfo}
-                                              </>
-                                            );
-                                          })()
-                                        }
-                                        {/* Display annotation source indicator */}
-                                        {anno.created_by ? (anno.created_by.startsWith("Model v") ? "" : (anno.created_by.startsWith("Auto Update Labelling") ? "(A)" : " (M)")) : ""}
-                                        {/* Display confidence if enabled */}
-                                        {showConfidence && (` (${anno.confidence.toFixed(2).toString().slice(1)})`)}
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  <div className="d-flex">
-                                    {/* Delete Button */}
-                                    <button
-                                      id="btnRemove"
-                                      type="button"
-                                      style={{ cssText: "padding: 2px !important", fontSize: "20px" }}
-                                      className="btn"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        deleteBox(globalIndex)
-                                      }}
-                                    >
-                                      <i className="mdi mdi-trash-can"></i>
-                                    </button>
-
-                                    {/* Hide/Show Button */}
-                                    <button
-                                      id="btnHideShow"
-                                      type="button"
-                                      className="btn noti-icon"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        hiddenAnnotations.includes(globalIndex)
-                                          ? unhideBox(globalIndex)
-                                          : hideBox(globalIndex)
-                                      }}
-                                    >
-                                      <i
-                                        className={`ion ${hiddenAnnotations.includes(globalIndex) ? "ion-md-eye-off" : "ion-md-eye"}`}
-                                      ></i>
-                                    </button>
-
-                                    {/* Edit Button */}
-                                    <button
-                                      id="btnEdit"
-                                      type="button"
-                                      style={{ cssText: "padding: 2px !important", fontSize: "20px" }}
-                                      className="btn"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        if (selectedAnnotation === anno) {
-                                          handleSelectAnnotation()
-                                        } else {
-                                          setSelectedAnnotation(anno)
-                                          if (!isNaN(Number.parseInt(anno.label))) {
-                                            setNewLabel(anno.label)
+                                              return (
+                                                <>
+                                                  {anno.label}
+                                                  {displayToothInfo}
+                                                </>
+                                              );
+                                            })()
                                           }
-                                        }
-                                      }}
-                                    >
-                                      <i
-                                        className={`mdi ${selectedAnnotation === anno ? "mdi-lead-pencil" : "mdi-pencil-box-outline"
-                                          }`}
-                                      ></i>
-                                    </button>
-                                  </div>
-                                </ListGroupItem>
-                              )
-                            }
-                          })}
-                        </ListGroup>
-                      </Collapse>
-                    </div>
-                  )
-                }
-              })}
+                                          {/* Display annotation source indicator */}
+                                          {anno.created_by ? (anno.created_by.startsWith("Model v") ? "" : (anno.created_by.startsWith("Auto Update Labelling") ? "(A)" : " (M)")) : ""}
+                                          {/* Display confidence if enabled */}
+                                          {showConfidence && (` (${anno.confidence.toFixed(2).toString().slice(1)})`)}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <div className="d-flex">
+                                      {/* Delete Button */}
+                                      <button
+                                        id="btnRemove"
+                                        type="button"
+                                        style={{ cssText: "padding: 2px !important", fontSize: "20px" }}
+                                        className="btn"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          deleteBox(globalIndex)
+                                        }}
+                                      >
+                                        <i className="mdi mdi-trash-can"></i>
+                                      </button>
+
+                                      {/* Hide/Show Button */}
+                                      <button
+                                        id="btnHideShow"
+                                        type="button"
+                                        className="btn noti-icon"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          hiddenAnnotations.includes(globalIndex)
+                                            ? unhideBox(globalIndex)
+                                            : hideBox(globalIndex)
+                                        }}
+                                      >
+                                        <i
+                                          className={`ion ${hiddenAnnotations.includes(globalIndex) ? "ion-md-eye-off" : "ion-md-eye"}`}
+                                        ></i>
+                                      </button>
+
+                                      {/* Edit Button */}
+                                      <button
+                                        id="btnEdit"
+                                        type="button"
+                                        style={{ cssText: "padding: 2px !important", fontSize: "20px" }}
+                                        className="btn"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          if (selectedAnnotation === anno) {
+                                            handleSelectAnnotation()
+                                          } else {
+                                            setSelectedAnnotation(anno)
+                                            if (!isNaN(Number.parseInt(anno.label))) {
+                                              setNewLabel(anno.label)
+                                            }
+                                          }
+                                        }}
+                                      >
+                                        <i
+                                          className={`mdi ${selectedAnnotation === anno ? "mdi-lead-pencil" : "mdi-pencil-box-outline"
+                                            }`}
+                                        ></i>
+                                      </button>
+                                    </div>
+                                  </ListGroupItem>
+                                )
+                              }
+                            })}
+                          </ListGroup>
+                        </Collapse>
+                      </div>
+                    )
+                  }
+                })}
             </div>
           </Col>
         </Row>

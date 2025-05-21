@@ -1,6 +1,9 @@
 
 //  default
 [data-theme-mode="default"] {
+    --bs-primary: #F61569 !important;
+    --bs-primary-rgb: 246,21,105 !important;
+
     --bs-danger: #ef6767 !important;
     --bs-danger-rgb: 239,103,103 !important;
 }
@@ -20,11 +23,11 @@
     --bs-warning: #0dcaf0 !important;
     --bs-warning-rgb: 13,202,240 !important;
 
-    
+
     .btn-danger {
         background-color: var(--bs-danger);
         border-color: var(--bs-danger);
-    
+
         &:hover,
         &:focus,
         &:active,
@@ -37,7 +40,7 @@
             }
         }
     }
-    
+
     .btn-outline-danger {
         color: var(--bs-danger);
         border-color: var(--bs-danger);
@@ -64,4 +67,10 @@
 
     --bs-info: #36508b !important;
     --bs-info-rgb: 54, 80, 139 !important;
+}
+
+// Dark Mode
+[data-bs-theme="dark"] {
+    --bs-primary: #FF0066 !important;
+    --bs-primary-rgb: 255, 0, 102 !important;
 }

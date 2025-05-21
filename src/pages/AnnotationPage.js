@@ -2789,9 +2789,9 @@ const AnnotationPage = () => {
                       </button> &nbsp;
                       <UncontrolledTooltip placement="bottom" target="btnExit">Exit</UncontrolledTooltip>
 
-                      <button id="btnTrace" onClick={handleTraceClick} style={{ background: 'none', border: 'none', padding: '0' }}>
+                      <Button id="btnTrace" onClick={handleTraceClick} color="primary" style={{ border: 'none', padding: '0' }}>
                         <img src={isClassCategoryVisible ? imgEditActive : imgEdit} alt="Trace" style={{ width: '30px', height: '30px' }} />
-                      </button>
+                      </Button>
                       <UncontrolledTooltip placement="bottom" target="btnTrace">Add New</UncontrolledTooltip>
 
                     </Col>
@@ -2982,7 +2982,7 @@ const AnnotationPage = () => {
                           id="area-toggle"
                           checked={isArea}
                           onChange={() => setIsShowArea(!isArea)}
-                          style={{ height: '33.7px', marginTop:'0px', width:'20px' }}
+                          style={{ height: '33.7px', marginTop: '0px', width: '20px' }}
                         />
                         <InputGroupText style={{ marginRight: '5px' }}>Area</InputGroupText>
                         <Input
@@ -2990,30 +2990,30 @@ const AnnotationPage = () => {
                           id="labels-toggle"
                           checked={showLabel}
                           onChange={() => setShowLabel(!showLabel)}
-                          style={{ height: '33.7px', marginTop:'0px', width:'20px' }}
+                          style={{ height: '33.7px', marginTop: '0px', width: '20px' }}
                         />
                         <InputGroupText style={{ marginRight: '5px' }}>Labels</InputGroupText>
                         <UncontrolledTooltip placement="bottom" target="btnRedo">Redo</UncontrolledTooltip>
                         <Input
-                            type="checkbox"
-                            color="primary"
-                            id="confidence-toggle"
-                            checked={showConfidence}
-                            onChange={() => { setShowConfidence(!showConfidence) }}
-                            style={{ height: '33.7px', marginTop:'0px', width:'20px' }}/>
+                          type="checkbox"
+                          color="primary"
+                          id="confidence-toggle"
+                          checked={showConfidence}
+                          onChange={() => { setShowConfidence(!showConfidence) }}
+                          style={{ height: '33.7px', marginTop: '0px', width: '20px' }} />
                         <InputGroupText style={{ marginRight: '5px' }}>Confidence Levels</InputGroupText>
                         <UncontrolledTooltip placement="bottom" target="confidence-toggle">Show Confidence Levels</UncontrolledTooltip>
                         {sessionStorage.getItem('clientId') === "67161fcbadd1249d59085f9a" && (
                           <>
-                          <Input
+                            <Input
                               type="checkbox"
                               color="primary"
                               id="original-labels-toggle"
                               checked={showOriginalLabels}
                               onChange={() => { setShowOriginalLabels(!showOriginalLabels) }}
-                              style={{ height: '33.7px', marginTop:'0px', width:'20px' }}/>
-                          <InputGroupText style={{ marginRight: '5px' }}>Original Labels</InputGroupText>
-                          <UncontrolledTooltip placement="bottom" target="original-labels-toggle">Show Original Labels</UncontrolledTooltip>
+                              style={{ height: '33.7px', marginTop: '0px', width: '20px' }} />
+                            <InputGroupText style={{ marginRight: '5px' }}>Original Labels</InputGroupText>
+                            <UncontrolledTooltip placement="bottom" target="original-labels-toggle">Show Original Labels</UncontrolledTooltip>
                           </>
                         )}
                         {selectedAnnotation && (
@@ -3122,7 +3122,7 @@ const AnnotationPage = () => {
                             </CardBody>
                             <CardFooter>
                               {mainCanvasData?.name && (
-                                <span style={{color:"#ffffff"}}>{mainCanvasData.name.split('_').slice(3).join('_')}</span>
+                                <span style={{ color: "#ffffff" }}>{mainCanvasData.name.split('_').slice(3).join('_')}</span>
                               )}
                             </CardFooter>
                           </Card>
@@ -3284,9 +3284,9 @@ const AnnotationPage = () => {
                       )}
                     </Col>
                   </Row>
-                  <Row style={{ marginTop: 'auto', width: '100%' }}> {/* Push to bottom */}
+                  <Row style={{ marginTop: 'auto', width: '100%', marginBottom:'8px' }}> {/* Push to bottom */}
                     <Row>
-                      <Col md={4} style={{
+                      <Col md={2} style={{
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'flex-end',
@@ -3298,7 +3298,7 @@ const AnnotationPage = () => {
                           <UncontrolledTooltip target={"notes-btn"}>{isNotesOpen ? "Close Notes" : "Open Notes"}</UncontrolledTooltip>
                         </Button>
                       </Col>
-                      <Col md={4} style={{
+                      <Col md={2} style={{
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'flex-end',
@@ -3320,14 +3320,16 @@ const AnnotationPage = () => {
                           target="dentalChatButton"
                         />
                       </Col>
-                      <Col md={4} style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'flex-end',
-                        height: '100%',
-                        alignItems: 'end'
-                      }}>
-                        {/* <h4 className="card-title mb-6">Model : {model !== "" ? model ? model : "Object Det." : "Older Model"}</h4> */}
+                      <Col
+                        md={8}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                          height: '100%',
+                          alignItems: 'end',
+                          gap: '8px', // Optional: adds space between buttons
+                        }}
+                      >
                         <Button
                           id="navigateToTreatmentPlan"
                           color="primary"
@@ -3335,9 +3337,12 @@ const AnnotationPage = () => {
                         >
                           Treatment Plan
                         </Button>
-                        <UncontrolledTooltip target={"navigateToTreatmentPlan"}>Go To Treatment Plan</UncontrolledTooltip>
+                        <UncontrolledTooltip target={"navigateToTreatmentPlan"}>
+                          Go To Treatment Plan
+                        </UncontrolledTooltip>
+
                         {sessionStorage.getItem('clientId') === "67161fcbadd1249d59085f9a" && (
-                          <div style={{ margin: '4px' }}>
+                          <>
                             <Button
                               id="navigateToConfidenceLevelPage"
                               color="primary"
@@ -3345,8 +3350,10 @@ const AnnotationPage = () => {
                             >
                               Confidence
                             </Button>
-                            <UncontrolledTooltip target={"navigateToConfidenceLevelPage"}>Go To Confidence Level Page</UncontrolledTooltip>
-                          </div>
+                            <UncontrolledTooltip target={"navigateToConfidenceLevelPage"}>
+                              Go To Confidence Level Page
+                            </UncontrolledTooltip>
+                          </>
                         )}
                       </Col>
                     </Row>

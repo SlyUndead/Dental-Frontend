@@ -22,8 +22,8 @@ import logo4 from "../../assets/images/logo4.png"
 import logo5 from "../../assets/images/logo5.png"
 import logo7 from "../../assets/images/logo7.png"
 import logo8 from "../../assets/images/logo8.png"
-import logo9 from "../../assets/images/9-removebg-preview.png"
-import logo10 from "../../assets/images/12.png"
+import logo9 from "../../assets/images/OralWisdom-NewLogo-01.png"
+import logo10 from "../../assets/images/OralWisdom-NewLogo-01.png"
 //i18n
 import { withTranslation } from "react-i18next"
 
@@ -83,7 +83,7 @@ const Header = props => {
                   <img src={logo} alt="" height="22" />
                 </span>
                 <span className="logo-lg">
-                  <img src={logo9} alt="" height="45" width="100%"/>
+                  <img src={logo9} alt="" style={{ width: '100%', height: 'auto'}}/>
                 </span>
               </Link>
 
@@ -92,7 +92,7 @@ const Header = props => {
                   <img src={logo} alt="" height="22" />
                 </span>
                 <span className="logo-lg">
-                  <img src={logo10} alt="" height="45" width="100%" />
+                  <img src={logo10} alt="" style={{ width: '100%', height: 'auto' }} />
                 </span>
               </Link>
             </div>

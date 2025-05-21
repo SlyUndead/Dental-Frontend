@@ -11,7 +11,7 @@ import {
 import { withTranslation } from "react-i18next"
 // Redux
 import { connect } from "react-redux"
-import {  Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import withRouter from "components/Common/withRouter"
 
 // users
@@ -20,7 +20,19 @@ import user1 from "../../../assets/images/users/user-1.jpg"
 const ProfileMenu = props => {
   // Declare a new state variable, which we'll call "menu"
   const [menu, setMenu] = useState(false)
+  const navigate = useNavigate()
 
+  const handleLogout = () => {
+    // Remove token and other session data
+    sessionStorage.removeItem('token')
+    sessionStorage.removeItem('clientId')
+    sessionStorage.removeItem('firstName')
+    sessionStorage.removeItem('lastName')
+    sessionStorage.removeItem('xrayDate')
+
+    // Navigate to login page
+    navigate('/login')
+  }
 
   return (
     <React.Fragment>
@@ -58,12 +70,12 @@ const ProfileMenu = props => {
             <i className="mdi mdi-lock-open-outline font-size-17 text-muted align-middle me-1"/>
             {props.t("Lock screen")}
           </DropdownItem>
-          
+
           <div className="dropdown-divider"/>
-          <Link to="/logout" className="dropdown-item text-danger">
+          <DropdownItem className="text-danger" onClick={handleLogout}>
             <i className="mdi mdi-power font-size-17 text-muted align-middle me-1 text-danger"/>
             <span>{props.t("Logout")}</span>
-          </Link>
+          </DropdownItem>
         </DropdownMenu>
       </Dropdown>
     </React.Fragment>

@@ -3,50 +3,79 @@
 import { useState, useEffect, useMemo } from "react"
 import { calculateOverlap, polygonArea } from "./path-utils"
 import { Button } from "reactstrap"
-import Tooth01 from '../../assets/SVG-1-to-32/1-32/01.svg'
-import Tooth02 from '../../assets/SVG-1-to-32/1-32/02.svg'
-import Tooth03 from '../../assets/SVG-1-to-32/1-32/03.svg'
-import Tooth04 from '../../assets/SVG-1-to-32/1-32/04.svg'
-import Tooth05 from '../../assets/SVG-1-to-32/1-32/05.svg'
-import Tooth06 from '../../assets/SVG-1-to-32/1-32/06.svg'
-import Tooth07 from '../../assets/SVG-1-to-32/1-32/07.svg'
-import Tooth08 from '../../assets/SVG-1-to-32/1-32/08.svg'
-import Tooth09 from '../../assets/SVG-1-to-32/1-32/09.svg'
-import Tooth10 from '../../assets/SVG-1-to-32/1-32/10.svg'
-import Tooth11 from '../../assets/SVG-1-to-32/1-32/11.svg'
-import Tooth12 from '../../assets/SVG-1-to-32/1-32/12.svg'
-import Tooth13 from '../../assets/SVG-1-to-32/1-32/13.svg'
-import Tooth14 from '../../assets/SVG-1-to-32/1-32/14.svg'
-import Tooth15 from '../../assets/SVG-1-to-32/1-32/15.svg'
-import Tooth16 from '../../assets/SVG-1-to-32/1-32/16.svg'
-import Tooth17 from '../../assets/SVG-1-to-32/1-32/17.svg'
-import Tooth18 from '../../assets/SVG-1-to-32/1-32/18.svg'
-import Tooth19 from '../../assets/SVG-1-to-32/1-32/19.svg'
-import Tooth20 from '../../assets/SVG-1-to-32/1-32/20.svg'
-import Tooth21 from '../../assets/SVG-1-to-32/1-32/21.svg'
-import Tooth22 from '../../assets/SVG-1-to-32/1-32/22.svg'
-import Tooth23 from '../../assets/SVG-1-to-32/1-32/23.svg'
-import Tooth24 from '../../assets/SVG-1-to-32/1-32/24.svg'
-import Tooth25 from '../../assets/SVG-1-to-32/1-32/25.svg'
-import Tooth26 from '../../assets/SVG-1-to-32/1-32/26.svg'
-import Tooth27 from '../../assets/SVG-1-to-32/1-32/27.svg'
-import Tooth28 from '../../assets/SVG-1-to-32/1-32/28.svg'
-import Tooth29 from '../../assets/SVG-1-to-32/1-32/29.svg'
-import Tooth30 from '../../assets/SVG-1-to-32/1-32/30.svg'
-import Tooth31 from '../../assets/SVG-1-to-32/1-32/31.svg'
-import Tooth32 from '../../assets/SVG-1-to-32/1-32/32.svg'
+import Tooth01 from "../../assets/SVG-1-to-32/1-32/01.svg"
+import Tooth02 from "../../assets/SVG-1-to-32/1-32/02.svg"
+import Tooth03 from "../../assets/SVG-1-to-32/1-32/03.svg"
+import Tooth04 from "../../assets/SVG-1-to-32/1-32/04.svg"
+import Tooth05 from "../../assets/SVG-1-to-32/1-32/05.svg"
+import Tooth06 from "../../assets/SVG-1-to-32/1-32/06.svg"
+import Tooth07 from "../../assets/SVG-1-to-32/1-32/07.svg"
+import Tooth08 from "../../assets/SVG-1-to-32/1-32/08.svg"
+import Tooth09 from "../../assets/SVG-1-to-32/1-32/09.svg"
+import Tooth10 from "../../assets/SVG-1-to-32/1-32/10.svg"
+import Tooth11 from "../../assets/SVG-1-to-32/1-32/11.svg"
+import Tooth12 from "../../assets/SVG-1-to-32/1-32/12.svg"
+import Tooth13 from "../../assets/SVG-1-to-32/1-32/13.svg"
+import Tooth14 from "../../assets/SVG-1-to-32/1-32/14.svg"
+import Tooth15 from "../../assets/SVG-1-to-32/1-32/15.svg"
+import Tooth16 from "../../assets/SVG-1-to-32/1-32/16.svg"
+import Tooth17 from "../../assets/SVG-1-to-32/1-32/17.svg"
+import Tooth18 from "../../assets/SVG-1-to-32/1-32/18.svg"
+import Tooth19 from "../../assets/SVG-1-to-32/1-32/19.svg"
+import Tooth20 from "../../assets/SVG-1-to-32/1-32/20.svg"
+import Tooth21 from "../../assets/SVG-1-to-32/1-32/21.svg"
+import Tooth22 from "../../assets/SVG-1-to-32/1-32/22.svg"
+import Tooth23 from "../../assets/SVG-1-to-32/1-32/23.svg"
+import Tooth24 from "../../assets/SVG-1-to-32/1-32/24.svg"
+import Tooth25 from "../../assets/SVG-1-to-32/1-32/25.svg"
+import Tooth26 from "../../assets/SVG-1-to-32/1-32/26.svg"
+import Tooth27 from "../../assets/SVG-1-to-32/1-32/27.svg"
+import Tooth28 from "../../assets/SVG-1-to-32/1-32/28.svg"
+import Tooth29 from "../../assets/SVG-1-to-32/1-32/29.svg"
+import Tooth30 from "../../assets/SVG-1-to-32/1-32/30.svg"
+import Tooth31 from "../../assets/SVG-1-to-32/1-32/31.svg"
+import Tooth32 from "../../assets/SVG-1-to-32/1-32/32.svg"
 
-const DentalChart = ({ annotations, classCategories, confidenceLevels, setHiddenAnnotations, onToothSelect, externalSelectedTooth, isConsolidatedView = false }) => {
+const DentalChart = ({
+  annotations,
+  classCategories,
+  confidenceLevels,
+  setHiddenAnnotations,
+  onToothSelect,
+  externalSelectedTooth,
+  isConsolidatedView = false,
+}) => {
   // State to track which tooth is selected
   // If externalSelectedTooth is provided, use it as the initial value
   const [selectedTooth, setSelectedTooth] = useState(externalSelectedTooth || null)
+  // State to track viewport width
+  const [windowWidth, setWindowWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1200)
 
   // Update internal state when externalSelectedTooth changes
   useEffect(() => {
     if (externalSelectedTooth !== undefined) {
-      setSelectedTooth(externalSelectedTooth);
+      setSelectedTooth(externalSelectedTooth)
     }
   }, [externalSelectedTooth])
+
+  // Add window resize listener for responsive behavior
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth)
+    }
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("resize", handleResize)
+      return () => window.removeEventListener("resize", handleResize)
+    }
+  }, [])
+
+  // Calculate columns based on screen width
+  const getGridColumns = () => {
+    if (windowWidth < 576) return 8 // Extra small devices - show 8 teeth per row
+    if (windowWidth < 768) return 16 // Small devices - show all teeth in one row
+    return 16 // Medium and larger devices - show all teeth in one row
+  }
 
   // Create a mapping of tooth numbers to their imported SVG files
   const toothImages = {
@@ -81,7 +110,7 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
     29: Tooth29,
     30: Tooth30,
     31: Tooth31,
-    32: Tooth32
+    32: Tooth32,
   }
 
   // Initialize teeth data (1-32)
@@ -96,35 +125,35 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
     // Handle consolidated view differently
     if (isConsolidatedView && annotations) {
       // In consolidated view, annotations is an array of tooth objects with anomalies
-      annotations.forEach(toothData => {
+      annotations.forEach((toothData) => {
         // Skip unassigned teeth
         if (toothData.toothNumber === "Unassigned" || toothData.isUnassigned) {
-          return;
+          return
         }
 
-        const toothNumber = Number.parseInt(toothData.toothNumber);
+        const toothNumber = Number.parseInt(toothData.toothNumber)
         if (!isNaN(toothNumber) && toothNumber >= 1 && toothNumber <= 32) {
-          const toothIndex = toothNumber - 1;
-          teethData[toothIndex].hasAnnotations = true;
+          const toothIndex = toothNumber - 1
+          teethData[toothIndex].hasAnnotations = true
 
           // Check anomalies for this tooth
           if (toothData.anomalies && toothData.anomalies.length > 0) {
-            toothData.anomalies.forEach(anomaly => {
+            toothData.anomalies.forEach((anomaly) => {
               // Skip "No anomalies detected" entries
               if (anomaly.name === "No anomalies detected" || anomaly.name === "Not detected") {
-                return;
+                return
               }
 
-              const category = anomaly.category || classCategories[anomaly.name.toLowerCase()];
+              const category = anomaly.category || classCategories[anomaly.name.toLowerCase()]
               if (category === "Anomaly") {
-                teethData[toothIndex].hasAnomaly = true;
+                teethData[toothIndex].hasAnomaly = true
               } else if (category === "Procedure") {
-                teethData[toothIndex].hasProcedure = true;
+                teethData[toothIndex].hasProcedure = true
               }
-            });
+            })
           }
         }
-      });
+      })
     } else {
       // Standard view processing
       // First, identify all tooth annotations
@@ -149,13 +178,13 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
         }
 
         // Get the image group from the annotation's image
-        const imageGroup = anno.image?.annotations?.annotations?.group || 'pano';
-        const confidenceField = `${imageGroup}_confidence`;
-        const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()] ?
-          confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001 :
-          0.001;
+        const imageGroup = anno.image?.annotations?.annotations?.group || "pano"
+        const confidenceField = `${imageGroup}_confidence`
+        const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()]
+          ? confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001
+          : 0.001
 
-        if ((!anno.label || !anno.confidence) || anno.confidence < confidenceThreshold) {
+        if (!anno.label || !anno.confidence || anno.confidence < confidenceThreshold) {
           return
         }
 
@@ -247,7 +276,7 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
     // For consolidated view, we don't need to update hidden annotations
     // as the filtering is handled by the ConsolidatedToothTable component
     if (isConsolidatedView) {
-      return;
+      return
     }
 
     // Standard view processing
@@ -257,7 +286,7 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
 
     // Get tooth annotation first
     const toothAnnotationIndex = annotations.findIndex(
-      anno => !isNaN(Number.parseInt(anno.label)) && Number.parseInt(anno.label) === toothNumber
+      (anno) => !isNaN(Number.parseInt(anno.label)) && Number.parseInt(anno.label) === toothNumber,
     )
 
     if (toothAnnotationIndex !== -1) {
@@ -266,7 +295,7 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
 
     // Get tooth annotation object
     const toothAnnotation = annotations.find(
-      anno => !isNaN(Number.parseInt(anno.label)) && Number.parseInt(anno.label) === toothNumber
+      (anno) => !isNaN(Number.parseInt(anno.label)) && Number.parseInt(anno.label) === toothNumber,
     )
 
     // Process all annotations to determine which ones are related to this tooth
@@ -307,16 +336,55 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
     setHiddenAnnotations(hiddenAnnotations)
   }
 
+  // Calculate the number of columns for the grid
+  const numColumns = getGridColumns()
+
+  // Calculate the size of tooth images based on screen width
+  const getToothSize = () => {
+    if (windowWidth < 576) return { width: "20px", height: "40px" }
+    if (windowWidth < 768) return { width: "22px", height: "44px" }
+    return { width: "24px", height: "50px" }
+  }
+
+  const toothSize = getToothSize()
+
+  // Function to split array into chunks for responsive grid
+  const chunkArray = (array, chunkSize) => {
+    const result = []
+    for (let i = 0; i < array.length; i += chunkSize) {
+      result.push(array.slice(i, i + chunkSize))
+    }
+    return result
+  }
+
+  // Create tooth rows based on responsive grid
+  const upperTeethRows = chunkArray(
+    teeth.filter((tooth) => tooth.number >= 1 && tooth.number <= 16).sort((a, b) => a.number - b.number),
+    numColumns,
+  )
+
+  const lowerTeethRows = chunkArray(
+    teeth.filter((tooth) => tooth.number >= 17 && tooth.number <= 32).sort((a, b) => b.number - a.number),
+    numColumns,
+  )
+
   return (
-    <div className="dental-chart-container" style={{ marginBottom: "20px" }}>
+    <div className="dental-chart-container" style={{ marginBottom: "20px", maxWidth: "100%", overflowX: "hidden" }}>
       <h5>Dental Chart {selectedTooth ? `(Tooth ${selectedTooth} Selected)` : ""}</h5>
       <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
         {/* Upper teeth (1-16) in sequential order */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(16, 1fr)", gap: "2px" }}>
-          {teeth
-            .filter((tooth) => tooth.number >= 1 && tooth.number <= 16)
-            .sort((a, b) => a.number - b.number) // Simple ascending sort (1-16)
-            .map((tooth) => (
+        {upperTeethRows.map((row, rowIndex) => (
+          <div
+            key={`upper-row-${rowIndex}`}
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${row.length}, 1fr)`,
+              gap: "2px",
+              margin: "0 auto",
+              width: "100%",
+            }}
+          >
+            {row.map((tooth) => (
               <div
                 key={tooth.number}
                 style={{
@@ -326,43 +394,54 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
                   cursor: "pointer",
                   padding: "2px",
                   backgroundColor: selectedTooth === tooth.number ? "rgba(59, 130, 246, 0.1)" : "transparent",
-                  borderRadius: "4px"
+                  borderRadius: "4px",
                 }}
                 onClick={() => handleToothClick(tooth.number)}
               >
-                <div style={{
-                  fontSize: "10px",
-                  fontWeight: selectedTooth === tooth.number ? "700" : "500",
-                  marginBottom: "2px"
-                }}>
+                <div
+                  style={{
+                    fontSize: windowWidth < 576 ? "8px" : "10px",
+                    fontWeight: selectedTooth === tooth.number ? "700" : "500",
+                    marginBottom: "2px",
+                  }}
+                >
                   {tooth.number}
                 </div>
                 <img
-                  src={toothImages[tooth.number]}
+                  src={toothImages[tooth.number] || "/placeholder.svg"}
                   alt={`Tooth ${tooth.number}`}
                   viewBox="0 0 60 40"
                   style={{
-                    width: "24px",
-                    height: "50px",
-                    filter: getToothColor(tooth) === "grey"
-                      ? "invert(84%) sepia(9%) saturate(188%) hue-rotate(185deg) brightness(92%) contrast(85%)"
-                      : getToothColor(tooth) === "red"
-                        ? "invert(27%) sepia(90%) saturate(7500%) hue-rotate(0deg) brightness(105%) contrast(115%)"
-                        : getToothColor(tooth) === "green"
-                          ? "invert(85%) sepia(27%) saturate(1115%) hue-rotate(86deg) brightness(92%) contrast(87%)"
-                          : "invert(69%) sepia(45%) saturate(1129%) hue-rotate(191deg) brightness(103%) contrast(98%)"
+                    width: toothSize.width,
+                    height: toothSize.height,
+                    filter:
+                      getToothColor(tooth) === "grey"
+                        ? "invert(84%) sepia(9%) saturate(188%) hue-rotate(185deg) brightness(92%) contrast(85%)"
+                        : getToothColor(tooth) === "red"
+                          ? "invert(27%) sepia(90%) saturate(7500%) hue-rotate(0deg) brightness(105%) contrast(115%)"
+                          : getToothColor(tooth) === "green"
+                            ? "invert(85%) sepia(27%) saturate(1115%) hue-rotate(86deg) brightness(92%) contrast(87%)"
+                            : "invert(69%) sepia(45%) saturate(1129%) hue-rotate(191deg) brightness(103%) contrast(98%)",
                   }}
                 />
               </div>
             ))}
-        </div>
+          </div>
+        ))}
 
         {/* Lower teeth (32-17) in descending order */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(16, 1fr)", gap: "2px" }}>
-          {teeth
-            .filter((tooth) => tooth.number >= 17 && tooth.number <= 32)
-            .sort((a, b) => b.number - a.number) // Simple descending sort (32-17)
-            .map((tooth) => (
+        {lowerTeethRows.map((row, rowIndex) => (
+          <div
+            key={`lower-row-${rowIndex}`}
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${row.length}, 1fr)`,
+              gap: "2px",
+              margin: "0 auto",
+              width: "100%",
+            }}
+          >
+            {row.map((tooth) => (
               <div
                 key={tooth.number}
                 style={{
@@ -372,56 +451,67 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
                   cursor: "pointer",
                   padding: "2px",
                   backgroundColor: selectedTooth === tooth.number ? "rgba(59, 130, 246, 0.1)" : "transparent",
-                  borderRadius: "4px"
+                  borderRadius: "4px",
                 }}
                 onClick={() => handleToothClick(tooth.number)}
               >
                 <img
-                  src={toothImages[tooth.number]}
+                  src={toothImages[tooth.number] || "/placeholder.svg"}
                   alt={`Tooth ${tooth.number}`}
                   viewBox="0 0 60 40"
                   style={{
-                    width: "24px",
-                    height: "50px",
-                    filter: getToothColor(tooth) === "grey"
-                      ? "invert(84%) sepia(9%) saturate(188%) hue-rotate(185deg) brightness(92%) contrast(85%)"
-                      : getToothColor(tooth) === "red"
-                        ? "invert(27%) sepia(90%) saturate(7500%) hue-rotate(0deg) brightness(105%) contrast(115%)"
-                        : getToothColor(tooth) === "green"
-                          ? "invert(85%) sepia(27%) saturate(1115%) hue-rotate(86deg) brightness(92%) contrast(87%)"
-                          : "invert(69%) sepia(45%) saturate(1129%) hue-rotate(191deg) brightness(103%) contrast(98%)"
+                    width: toothSize.width,
+                    height: toothSize.height,
+                    filter:
+                      getToothColor(tooth) === "grey"
+                        ? "invert(84%) sepia(9%) saturate(188%) hue-rotate(185deg) brightness(92%) contrast(85%)"
+                        : getToothColor(tooth) === "red"
+                          ? "invert(27%) sepia(90%) saturate(7500%) hue-rotate(0deg) brightness(105%) contrast(115%)"
+                          : getToothColor(tooth) === "green"
+                            ? "invert(85%) sepia(27%) saturate(1115%) hue-rotate(86deg) brightness(92%) contrast(87%)"
+                            : "invert(69%) sepia(45%) saturate(1129%) hue-rotate(191deg) brightness(103%) contrast(98%)",
                   }}
                 />
-                <div style={{
-                  fontSize: "10px",
-                  fontWeight: selectedTooth === tooth.number ? "700" : "500",
-                  marginTop: "2px"
-                }}>
+                <div
+                  style={{
+                    fontSize: windowWidth < 576 ? "8px" : "10px",
+                    fontWeight: selectedTooth === tooth.number ? "700" : "500",
+                    marginTop: "2px",
+                  }}
+                >
                   {tooth.number}
                 </div>
               </div>
             ))}
-        </div>
+          </div>
+        ))}
 
-        {/* Legend */}
+        {/* Legend - Adjusted for smaller screens */}
         <div
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "15px", marginTop: "10px" }}
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: windowWidth < 576 ? "8px" : "15px",
+            marginTop: "10px",
+          }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
             <div style={{ width: "12px", height: "12px", backgroundColor: "#f87171", borderRadius: "2px" }}></div>
-            <span style={{ fontSize: "12px" }}>Anomaly</span>
+            <span style={{ fontSize: windowWidth < 576 ? "10px" : "12px" }}>Anomaly</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
             <div style={{ width: "12px", height: "12px", backgroundColor: "#4ade80", borderRadius: "2px" }}></div>
-            <span style={{ fontSize: "12px" }}>Procedure</span>
+            <span style={{ fontSize: windowWidth < 576 ? "10px" : "12px" }}>Procedure</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
             <div style={{ width: "12px", height: "12px", backgroundColor: "#93c5fd", borderRadius: "2px" }}></div>
-            <span style={{ fontSize: "12px" }}>Normal</span>
+            <span style={{ fontSize: windowWidth < 576 ? "10px" : "12px" }}>Normal</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
             <div style={{ width: "12px", height: "12px", backgroundColor: "#d1d5db", borderRadius: "2px" }}></div>
-            <span style={{ fontSize: "12px" }}>Not Detected</span>
+            <span style={{ fontSize: windowWidth < 576 ? "10px" : "12px" }}>Not Detected</span>
           </div>
         </div>
 
@@ -430,11 +520,12 @@ const DentalChart = ({ annotations, classCategories, confidenceLevels, setHidden
           <div style={{ display: "flex", justifyContent: "center", marginTop: "5px" }}>
             <Button
               color="primary"
+              size={windowWidth < 576 ? "sm" : "md"}
               onClick={() => {
-                setSelectedTooth(null);
-                setHiddenAnnotations([]);
+                setSelectedTooth(null)
+                setHiddenAnnotations([])
                 if (onToothSelect) {
-                  onToothSelect(null);
+                  onToothSelect(null)
                 }
               }}
             >

@@ -1,9 +1,8 @@
 import PropTypes from "prop-types"
-import React, { useState, useEffect } from "react"
-import { Row, Col, Collapse } from "reactstrap"
+import React, { useEffect } from "react"
+import { Collapse } from "reactstrap"
 import { Link } from "react-router-dom"
 import withRouter from "components/Common/withRouter"
-import classname from "classnames"
 
 //i18n
 import { withTranslation } from "react-i18next"
@@ -11,15 +10,6 @@ import { withTranslation } from "react-i18next"
 import { connect } from "react-redux"
 
 const Navbar = props => {
-  const [ui, setui] = useState(false)
-  const [email, setemail] = useState(false)
-  const [form, setform] = useState(false)
-  const [table, settable] = useState(false)
-  const [chart, setchart] = useState(false)
-  const [icon, seticon] = useState(false)
-  const [map, setmap] = useState(false)
-  const [extra, setextra] = useState(false)
-  const [moreItem, setMoreItem] = useState(false);
 
   useEffect(() => {
     const pathName = process.env.PUBLIC_URL + props.router.location.pathname;
@@ -87,6 +77,21 @@ const Navbar = props => {
   return (
     <React.Fragment>
       <div className="container-fluid">
+        <style>{`
+          .navbar-nav .nav-item i {
+            min-width: 2rem;
+          }
+          .menu-title {
+            padding: 12px 20px !important;
+            letter-spacing: .05em;
+            pointer-events: none;
+            cursor: default;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #7b8190;
+            font-weight: 600;
+          }
+        `}</style>
         <div className="topnav">
           <nav
             className="navbar navbar-light navbar-expand-lg topnav-menu"
@@ -97,44 +102,45 @@ const Navbar = props => {
               className="navbar-collapse"
               id="topnav-menu-content"
             >
-              <ul className="navbar-nav">
+              <ul className="navbar-nav list-unstyled">
+                <li className="menu-title">{props.t("Main")} </li>
                 {isVisible && (
                   <li className="nav-item">
-                    <Link className="nav-link" to="/practiceList">
-                      <i className="ti-dashboard">
-                      </i>{props.t("Practice List")} {props.menuOpen}
+                    <Link className="nav-link waves-effect" to="/practiceList">
+                      <i className="mdi mdi-view-dashboard"></i>
+                      <span>{props.t("Practice List")}</span>
                     </Link>
                   </li>)}
                 {!isVisible && (
                   <>
                     <li className="nav-item">
-                      <Link className="nav-link" to="/practiceList">
-                        <i className="ti-dashboard">
-                        </i>{props.t("Practice List")} {props.menuOpen}
+                      <Link className="nav-link waves-effect" to="/practiceList">
+                        <i className="mdi mdi-view-dashboard"></i>
+                        <span>{props.t("Practice List")}</span>
                       </Link>
                     </li>
                     <li className="nav-item">
-                      <Link className="nav-link" to="/patientList">
-                        <i className="ti-dashboard">
-                        </i>{props.t("Patient List")} {props.menuOpen}
+                      <Link className="nav-link waves-effect" to="/patientList">
+                        <i className="mdi mdi-view-dashboard"></i>
+                        <span>{props.t("Patient List")}</span>
                       </Link>
                     </li>
                     <li className="nav-item">
-                      <Link className="nav-link" to="/newPatient">
-                        <i className="ti-dashboard">
-                        </i>{props.t("New Patient")} {props.menuOpen}
+                      <Link className="nav-link waves-effect" to="/newPatient">
+                        <i className="mdi mdi-calendar-check"></i>
+                        <span>{props.t("New Patient")}</span>
                       </Link>
                     </li>
                     <li className="nav-item">
-                      <Link className="nav-link" to="/preferences">
-                        <i className="ti-dashboard">
-                        </i>{props.t("Preferences")} {props.menuOpen}
+                      <Link className="nav-link waves-effect" to="/preferences">
+                        <i className="mdi mdi-calendar-check"></i>
+                        <span>{props.t("Preferences")}</span>
                       </Link>
                     </li>
                     <li className="nav-item">
-                      <Link className="nav-link" to="/exports">
-                        <i className="ti-dashboard">
-                        </i>{props.t("Exports")} {props.menuOpen}
+                      <Link className="nav-link waves-effect" to="/exports">
+                        <i className="mdi mdi-calendar-check"></i>
+                        <span>{props.t("Exports")}</span>
                       </Link>
                     </li>
                   </>
@@ -152,7 +158,7 @@ const Navbar = props => {
                     <i className="ti-email"></i>{props.t("Email")}
                   </Link>
                   <div
-                    className={classname("dropdown-menu dropdown-menu-left", 
+                    className={classname("dropdown-menu dropdown-menu-left",
                     { show: email }
                     )}
                   >
@@ -392,7 +398,7 @@ const Navbar = props => {
                         <Link to="/maps-vector" className="dropdown-item">
                           {props.t("Vector Maps")}{" "}
                         </Link>
-                       
+
                       </div>
                     </div>
                     <Link to="/ui-rangeslider" className="dropdown-item">{props.t("Range Slider")}</Link>
@@ -418,7 +424,7 @@ const Navbar = props => {
                       {props.t("Apex charts")}
                     </Link>
 
-                    
+
                     <Link to="/charts-chartjs" className="dropdown-item">
                       {props.t("Chartjs Chart")}
                     </Link>

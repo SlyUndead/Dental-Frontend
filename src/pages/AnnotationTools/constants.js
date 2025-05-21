@@ -1,7 +1,7 @@
 // constants.js
 export const CANVAS_WIDTH = 1000;
 export const CANVAS_HEIGHT = 600;
-export const desiredOrder = ['Anomaly', 'Procedure', 'Landmark', 'Foreign Object', 'Dental Chart', 'Others'];
+export const desiredOrder = ['Dental Chart', 'Anomaly', 'Procedure', 'Foreign Object', 'Landmark', 'Others'];
 export const labelColors = {
   'A': 'red',
   'B': 'blue',
@@ -31,3 +31,12 @@ export const STATUS_OPTIONS = [
   'Complete',
   'Signed Off'
 ];
+
+export const groupNames = {
+  "Foreign Object":"Foreign Objects",
+  "Anomaly":"Anomalies",
+  "Landmark":"Landmarks",
+  "Procedure":"Existing Procedures",
+  "Dental Chart":"Dental Chart",
+  "Other":"Others"
+}

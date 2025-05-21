@@ -1,11 +1,12 @@
 {
   "files": {
-    "main.css": "/static/css/main.5af24134.css",
-    "main.js": "/static/js/main.c99e74b9.js",
+    "main.css": "/static/css/main.7f9c5275.css",
+    "main.js": "/static/js/main.d4a7898b.js",
     "static/media/materialdesignicons-webfont.eot": "/static/media/materialdesignicons-webfont.52adde0de9840940801f.eot",
     "static/media/materialdesignicons-webfont.ttf?v=5.8.55": "/static/media/materialdesignicons-webfont.506bc8215df8660d8f04.ttf",
     "static/media/fa-solid-900.svg": "/static/media/fa-solid-900.371dbce0dd46bd4d2033.svg",
     "static/media/fa-brands-400.svg": "/static/media/fa-brands-400.e33e2cf6e02cac2ccb77.svg",
+    "static/media/OralWisdom-NewLogo-01.png": "/static/media/OralWisdom-NewLogo-01.1c9e6e759c997b761dc3.png",
     "static/media/materialdesignicons-webfont.woff?v=5.8.55": "/static/media/materialdesignicons-webfont.d06df622bc47f0db9812.woff",
     "static/media/materialdesignicons-webfont.woff2?v=5.8.55": "/static/media/materialdesignicons-webfont.6147fc3741c622c5de2c.woff2",
     "static/media/ionicons.svg?v=4.5.10-1": "/static/media/ionicons.bb0605ccfbc8cbabadc5.svg",
@@ -97,16 +98,16 @@
     "static/media/26.svg": "/static/media/26.d5f564ab6d562d83eab4fd7ac776c217.svg",
     "static/media/23.svg": "/static/media/23.c504d1f6d4b20cd24a33739989711ee1.svg",
     "index.html": "/index.html",
-    "static/media/edit.svg": "/static/media/edit.cfd801fb326972e9f62e795a0cca00d5.svg",
+    "static/media/edit.svg": "/static/media/edit.72f0d18714a82140d53dea5ebc4979e8.svg",
     "static/media/exit.svg": "/static/media/exit.70f0d554471a4c3f851ffceade0e4d4e.svg",
     "static/media/editActive.svg": "/static/media/editActive.e9defcbef92c04875e435b3502b93496.svg",
     "static/media/2D.svg": "/static/media/2D.f6c8ff477376352f2ffe3a793adb1cec.svg",
     "static/media/3D.svg": "/static/media/3D.4c6fdf5ad075f8e8a415c1ad417a0346.svg",
-    "main.5af24134.css.map": "/static/css/main.5af24134.css.map",
-    "main.c99e74b9.js.map": "/static/js/main.c99e74b9.js.map"
+    "main.7f9c5275.css.map": "/static/css/main.7f9c5275.css.map",
+    "main.d4a7898b.js.map": "/static/js/main.d4a7898b.js.map"
   },
   "entrypoints": [
-    "static/css/main.5af24134.css",
-    "static/js/main.c99e74b9.js"
+    "static/css/main.7f9c5275.css",
+    "static/js/main.d4a7898b.js"
   ]
 }
