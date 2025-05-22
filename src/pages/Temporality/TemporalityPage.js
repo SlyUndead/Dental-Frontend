@@ -750,6 +750,7 @@ const TemporalityPage = (props) => {
   const generateConsolidatedView = useCallback(
     (visitAnnots = null) => {
       console.time("generateConsolidatedView") // Performance measurement
+      const seenBoneLossRanges = new Set(); // Place this at the top of generateConsolidatedView
       const annotations = visitAnnots || allVisitsAnnotations
       if (!annotations || Object.keys(annotations).length === 0) {
         console.timeEnd("generateConsolidatedView")
@@ -877,6 +878,88 @@ const TemporalityPage = (props) => {
             ) {
               return
             }
+            // --- Bone Loss Anomaly Handling ---
+            if (anno.label?.toLowerCase().includes("bone loss")) {
+              const overlappingTeeth = [];
+
+              toothAnnots.forEach((toothAnno) => {
+                const toothNumber = Number.parseInt(toothAnno.label);
+                if (!isNaN(toothNumber) && anno.segmentation && toothAnno.segmentation) {
+                  try {
+                    const overlap = calculateOverlap(anno.segmentation, toothAnno.segmentation);
+                    const annoArea = polygonArea(anno.segmentation.map(p => [p.x, p.y]));
+                    const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0;
+
+                    if (overlapPercentage > 0.02) {
+                      overlappingTeeth.push(toothNumber);
+                    }
+                  } catch (e) {
+                    console.error("Error calculating bone loss overlap:", e);
+                  }
+                }
+              });
+
+              overlappingTeeth.sort((a, b) => a - b);
+              if (overlappingTeeth.length === 0) return;
+
+              // Group into ranges
+              const ranges = [];
+              let currentRange = [overlappingTeeth[0]];
+
+              for (let j = 1; j < overlappingTeeth.length; j++) {
+                if (overlappingTeeth[j] - overlappingTeeth[j - 1] <= 2) {
+                  currentRange.push(overlappingTeeth[j]);
+                } else {
+                  ranges.push([...currentRange]);
+                  currentRange = [overlappingTeeth[j]];
+                }
+              }
+              if (currentRange.length) ranges.push(currentRange);
+
+              // Confidence check
+              const imageGroup = anno.image?.annotations?.annotations?.group || "pano";
+              const confidenceField = `${imageGroup}_confidence`;
+              const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()] ?
+                confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001 :
+                0.001;
+
+              if (anno.confidence < confidenceThreshold) return;
+
+              // Store only the first visit’s instance of the bone loss range
+              ranges.forEach((range) => {
+                const rangeText = range.length > 1 ? `${range[0]}-${range[range.length - 1]}` : `${range[0]}`;
+                if (seenBoneLossRanges.has(rangeText)) return;
+
+                // Mark range as processed so future visits skip it
+                seenBoneLossRanges.add(rangeText);
+
+                if (!consolidatedTeeth[rangeText]) {
+                  consolidatedTeeth[rangeText] = {
+                    toothNumber: rangeText,
+                    anomalies: [],
+                    visitDate: patientVisits[i].formattedDate,
+                    visitIndex: i,
+                    originalAnnotation: null,
+                  };
+                }
+
+                consolidatedTeeth[rangeText].anomalies.push({
+                  name: anno.label,
+                  category: classCategories[anno.label.toLowerCase()] || "Unknown",
+                  confidence: anno.confidence,
+                  visitDate: patientVisits[i].formattedDate,
+                  visitIndex: i,
+                  visitId: patientVisits[i]._id,
+                  imageNumber: anno.imageNumber,
+                  imageName: anno.imageName,
+                  originalAnnotation: anno,
+                  isRange: true,
+                  teethRange: rangeText,
+                });
+              });
+
+              return; // Skip normal processing for bone loss
+            }
 
             // Calculate overlap for remaining anomalies
             if (anno.segmentation && toothAnno.segmentation) {
@@ -921,13 +1004,13 @@ const TemporalityPage = (props) => {
               anomalies.length > 0
                 ? anomalies
                 : [
-                    {
-                      name: "No anomalies detected",
-                      category: "Info",
-                      visitDate: patientVisits[i].formattedDate,
-                      visitIndex: i,
-                    },
-                  ],
+                  {
+                    name: "No anomalies detected",
+                    category: "Info",
+                    visitDate: patientVisits[i].formattedDate,
+                    visitIndex: i,
+                  },
+                ],
             visitDate: patientVisits[i].formattedDate,
             visitIndex: i,
             originalAnnotation: toothAnno,
