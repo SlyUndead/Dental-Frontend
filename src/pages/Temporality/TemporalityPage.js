@@ -27,6 +27,7 @@ import { connect } from "react-redux"
 import ConsolidatedToothTable from "./ConsolidatedToothTable"
 import { calculateOverlap, polygonArea } from "../AnnotationTools/path-utils"
 import DateSlider from "./DateSlider"
+import sessionManager from "utils/sessionManager"
 
 const TemporalityPage = (props) => {
   document.title = "Temporality View | AGP Dental Tool"
@@ -55,11 +56,12 @@ const TemporalityPage = (props) => {
   const [allVisitsAnnotations, setAllVisitsAnnotations] = useState({})
   const [isLoadingConsolidated, setIsLoadingConsolidated] = useState(false)
   const [visitAnnotationsCache, setVisitAnnotationsCache] = useState({}) // Cache for visit annotations
+  const [lastSelectedVisits, setLastSelectedVisits] = useState({ first: null, second: null })
 
   const breadcrumbItems = [
-    { title: `${sessionStorage.getItem("firstName")} ${sessionStorage.getItem("lastName")}`, link: "/practiceList" },
-    { title: sessionStorage.getItem("practiceName"), link: "/patientList" },
-    { title: `${sessionStorage.getItem("patientName")} Images List`, link: "/patientImagesList" },
+    { title: `${sessionManager.getItem("firstName")} ${sessionManager.getItem("lastName")}`, link: "/practiceList" },
+    { title: sessionManager.getItem("practiceName"), link: "/patientList" },
+    { title: `${sessionManager.getItem("patientName")} Images List`, link: "/patientImagesList" },
     { title: `Temporality View`, link: "/temporalityPage" },
   ]
 
@@ -92,7 +94,7 @@ const TemporalityPage = (props) => {
 
   // Handle print functionality
   const handlePrint = () => {
-    const patientName = sessionStorage.getItem("patientName")
+    const patientName = sessionManager.getItem("patientName")
     const printWindow = window.open("", "_blank")
 
     // Collect all stylesheets
@@ -536,17 +538,17 @@ const TemporalityPage = (props) => {
     try {
       setPatientVisits([])
       const response = await axios.get(
-        `${apiUrl}/getPatientVisitsByID?patientId=${sessionStorage.getItem("patientId")}`,
+        `${apiUrl}/getPatientVisitsByID?patientId=${sessionManager.getItem("patientId")}`,
         {
           headers: {
-            Authorization: sessionStorage.getItem("token"),
+            Authorization: sessionManager.getItem("token"),
           },
         },
       )
 
       if (response.status === 200) {
         const visitData = response.data
-        sessionStorage.setItem("token", response.headers["new-token"])
+        sessionManager.setItem("token", response.headers["new-token"])
 
         // Format dates and set state
         if (visitData.patienVisits && visitData.patienVisits.length > 0) {
@@ -600,7 +602,7 @@ const TemporalityPage = (props) => {
       }
     } catch (error) {
       if (error.status === 403 || error.status === 401) {
-        sessionStorage.removeItem("token")
+        sessionManager.removeItem("token")
         setRedirectToLogin(true)
       } else {
         logErrorToServer(error, "fetchPatientVisits")
@@ -661,12 +663,12 @@ const TemporalityPage = (props) => {
             // Use visitid-annotations API for all visits
             const response = await axios.get(`${apiUrl}/visitid-annotations?visitID=${visitId}`, {
               headers: {
-                Authorization: sessionStorage.getItem("token"),
+                Authorization: sessionManager.getItem("token"),
               },
             })
 
             if (response.status === 200) {
-              sessionStorage.setItem("token", response.headers["new-token"])
+              sessionManager.setItem("token", response.headers["new-token"])
               const imagesData = response.data.images
 
               // Skip this visit if there are no images
@@ -749,11 +751,9 @@ const TemporalityPage = (props) => {
   // Generate consolidated view from all visits' annotations - optimized with memoization
   const generateConsolidatedView = useCallback(
     (visitAnnots = null) => {
-      console.time("generateConsolidatedView") // Performance measurement
-      const seenBoneLossRanges = new Set(); // Place this at the top of generateConsolidatedView
+      const seenBoneLossRanges = new Set() // Place this at the top of generateConsolidatedView
       const annotations = visitAnnots || allVisitsAnnotations
       if (!annotations || Object.keys(annotations).length === 0) {
-        console.timeEnd("generateConsolidatedView")
         return
       }
 
@@ -880,58 +880,58 @@ const TemporalityPage = (props) => {
             }
             // --- Bone Loss Anomaly Handling ---
             if (anno.label?.toLowerCase().includes("bone loss")) {
-              const overlappingTeeth = [];
+              const overlappingTeeth = []
 
               toothAnnots.forEach((toothAnno) => {
-                const toothNumber = Number.parseInt(toothAnno.label);
+                const toothNumber = Number.parseInt(toothAnno.label)
                 if (!isNaN(toothNumber) && anno.segmentation && toothAnno.segmentation) {
                   try {
-                    const overlap = calculateOverlap(anno.segmentation, toothAnno.segmentation);
-                    const annoArea = polygonArea(anno.segmentation.map(p => [p.x, p.y]));
-                    const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0;
+                    const overlap = calculateOverlap(anno.segmentation, toothAnno.segmentation)
+                    const annoArea = polygonArea(anno.segmentation.map((p) => [p.x, p.y]))
+                    const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
 
                     if (overlapPercentage > 0.02) {
-                      overlappingTeeth.push(toothNumber);
+                      overlappingTeeth.push(toothNumber)
                     }
                   } catch (e) {
-                    console.error("Error calculating bone loss overlap:", e);
+                    console.error("Error calculating bone loss overlap:", e)
                   }
                 }
-              });
+              })
 
-              overlappingTeeth.sort((a, b) => a - b);
-              if (overlappingTeeth.length === 0) return;
+              overlappingTeeth.sort((a, b) => a - b)
+              if (overlappingTeeth.length === 0) return
 
               // Group into ranges
-              const ranges = [];
-              let currentRange = [overlappingTeeth[0]];
+              const ranges = []
+              let currentRange = [overlappingTeeth[0]]
 
               for (let j = 1; j < overlappingTeeth.length; j++) {
                 if (overlappingTeeth[j] - overlappingTeeth[j - 1] <= 2) {
-                  currentRange.push(overlappingTeeth[j]);
+                  currentRange.push(overlappingTeeth[j])
                 } else {
-                  ranges.push([...currentRange]);
-                  currentRange = [overlappingTeeth[j]];
+                  ranges.push([...currentRange])
+                  currentRange = [overlappingTeeth[j]]
                 }
               }
-              if (currentRange.length) ranges.push(currentRange);
+              if (currentRange.length) ranges.push(currentRange)
 
               // Confidence check
-              const imageGroup = anno.image?.annotations?.annotations?.group || "pano";
-              const confidenceField = `${imageGroup}_confidence`;
-              const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()] ?
-                confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001 :
-                0.001;
+              const imageGroup = anno.image?.annotations?.annotations?.group || "pano"
+              const confidenceField = `${imageGroup}_confidence`
+              const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()]
+                ? confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001
+                : 0.001
 
-              if (anno.confidence < confidenceThreshold) return;
+              if (anno.confidence < confidenceThreshold) return
 
               // Store only the first visit’s instance of the bone loss range
               ranges.forEach((range) => {
-                const rangeText = range.length > 1 ? `${range[0]}-${range[range.length - 1]}` : `${range[0]}`;
-                if (seenBoneLossRanges.has(rangeText)) return;
+                const rangeText = range.length > 1 ? `${range[0]}-${range[range.length - 1]}` : `${range[0]}`
+                if (seenBoneLossRanges.has(rangeText)) return
 
                 // Mark range as processed so future visits skip it
-                seenBoneLossRanges.add(rangeText);
+                seenBoneLossRanges.add(rangeText)
 
                 if (!consolidatedTeeth[rangeText]) {
                   consolidatedTeeth[rangeText] = {
@@ -940,7 +940,7 @@ const TemporalityPage = (props) => {
                     visitDate: patientVisits[i].formattedDate,
                     visitIndex: i,
                     originalAnnotation: null,
-                  };
+                  }
                 }
 
                 consolidatedTeeth[rangeText].anomalies.push({
@@ -955,10 +955,10 @@ const TemporalityPage = (props) => {
                   originalAnnotation: anno,
                   isRange: true,
                   teethRange: rangeText,
-                });
-              });
+                })
+              })
 
-              return; // Skip normal processing for bone loss
+              return // Skip normal processing for bone loss
             }
 
             // Calculate overlap for remaining anomalies
@@ -1004,13 +1004,13 @@ const TemporalityPage = (props) => {
               anomalies.length > 0
                 ? anomalies
                 : [
-                  {
-                    name: "No anomalies detected",
-                    category: "Info",
-                    visitDate: patientVisits[i].formattedDate,
-                    visitIndex: i,
-                  },
-                ],
+                    {
+                      name: "No anomalies detected",
+                      category: "Info",
+                      visitDate: patientVisits[i].formattedDate,
+                      visitIndex: i,
+                    },
+                  ],
             visitDate: patientVisits[i].formattedDate,
             visitIndex: i,
             originalAnnotation: toothAnno,
@@ -1106,17 +1106,16 @@ const TemporalityPage = (props) => {
       })
 
       setConsolidatedAnnotations(consolidatedArray)
-      console.timeEnd("generateConsolidatedView") // Performance measurement
     },
     [allVisitsAnnotations, patientVisits, classCategories, confidenceLevels],
   )
   // Fetch class categories
   const fetchClassCategories = async () => {
     try {
-      const response = await fetch(`${apiUrl}/get-classCategories?clientId=${sessionStorage.getItem("clientId")}`, {
+      const response = await fetch(`${apiUrl}/get-classCategories?clientId=${sessionManager.getItem("clientId")}`, {
         method: "GET",
         headers: {
-          Authorization: sessionStorage.getItem("token"),
+          Authorization: sessionManager.getItem("token"),
         },
       })
 
@@ -1149,7 +1148,7 @@ const TemporalityPage = (props) => {
       setConfidenceLevels(updatedConfidenceLevels)
     } catch (error) {
       if (error.status === 403 || error.status === 401) {
-        sessionStorage.removeItem("token")
+        sessionManager.removeItem("token")
         setRedirectToLogin(true)
       } else {
         logErrorToServer(error, "fetchClassCategories")
@@ -1161,15 +1160,15 @@ const TemporalityPage = (props) => {
   // Handle first visit selection - optimized with caching
   const handleFirstVisitSelect = useCallback(
     async (visitId, patientVisits) => {
-      console.time("handleFirstVisitSelect") // Performance measurement
+      setMessage('')
       setFirstVisitId(visitId)
+
       setIsFirstLoading(true)
 
       // Find the selected visit
       const selectedVisit = patientVisits.find((v) => v._id === visitId)
       if (!selectedVisit) {
         setIsFirstLoading(false)
-        console.timeEnd("handleFirstVisitSelect")
         return
       }
 
@@ -1178,19 +1177,18 @@ const TemporalityPage = (props) => {
         if (visitAnnotationsCache[visitId]) {
           setLastVisitAnnotations(visitAnnotationsCache[visitId])
           setIsFirstLoading(false)
-          console.timeEnd("handleFirstVisitSelect")
           return
         }
 
         // Fetch annotations for the selected visit
         const response = await axios.get(`${apiUrl}/visitid-annotations?visitID=${visitId}`, {
           headers: {
-            Authorization: sessionStorage.getItem("token"),
+            Authorization: sessionManager.getItem("token"),
           },
         })
 
         if (response.status === 200) {
-          sessionStorage.setItem("token", response.headers["new-token"])
+          sessionManager.setItem("token", response.headers["new-token"])
           const imagesData = response.data.images
           let visitAnnotations = []
 
@@ -1234,7 +1232,6 @@ const TemporalityPage = (props) => {
         setLastVisitAnnotations([])
       } finally {
         setIsFirstLoading(false)
-        console.timeEnd("handleFirstVisitSelect")
       }
     },
     [apiUrl, visitAnnotationsCache],
@@ -1242,15 +1239,16 @@ const TemporalityPage = (props) => {
   // Handle second visit selection - optimized with caching
   const handleSecondVisitSelect = useCallback(
     async (visitId, patientVisits) => {
-      console.time("handleSecondVisitSelect") // Performance measurement
+      setMessage('')
       setSecondVisitId(visitId)
+      // Update lastSelectedVisits when a new second visit is selected
+      setLastSelectedVisits((prev) => ({ ...prev, second: visitId }))
       setIsSecondLoading(true)
 
       // Find the selected visit
       const selectedVisit = patientVisits.find((v) => v._id === visitId)
       if (!selectedVisit) {
         setIsSecondLoading(false)
-        console.timeEnd("handleSecondVisitSelect")
         return
       }
 
@@ -1259,19 +1257,18 @@ const TemporalityPage = (props) => {
         if (visitAnnotationsCache[visitId]) {
           setSelectedVisitAnnotations(visitAnnotationsCache[visitId])
           setIsSecondLoading(false)
-          console.timeEnd("handleSecondVisitSelect")
           return
         }
 
         // Fetch annotations for the selected visit
         const response = await axios.get(`${apiUrl}/visitid-annotations?visitID=${visitId}`, {
           headers: {
-            Authorization: sessionStorage.getItem("token"),
+            Authorization: sessionManager.getItem("token"),
           },
         })
 
         if (response.status === 200) {
-          sessionStorage.setItem("token", response.headers["new-token"])
+          sessionManager.setItem("token", response.headers["new-token"])
           const imagesData = response.data.images
           let visitAnnotations = []
 
@@ -1315,7 +1312,6 @@ const TemporalityPage = (props) => {
         setSelectedVisitAnnotations([])
       } finally {
         setIsSecondLoading(false)
-        console.timeEnd("handleSecondVisitSelect")
       }
     },
     [apiUrl, visitAnnotationsCache],
@@ -1323,19 +1319,16 @@ const TemporalityPage = (props) => {
 
   // Initialize on component mount - optimized
   useEffect(() => {
-    console.time("initialLoad") // Performance measurement
     props.setBreadcrumbItems("Temporality View", breadcrumbItems)
 
     const initializeData = async () => {
       try {
         // Load class categories and patient visits in parallel
         await Promise.all([fetchClassCategories(), fetchPatientVisits()])
-        console.timeEnd("initialLoad")
       } catch (error) {
         logErrorToServer(error, "temporalityPageInit")
         console.error("Error initializing TemporalityPage:", error)
         setMessage("Unable to load annotations. Please contact admin.")
-        console.timeEnd("initialLoad")
       }
     }
 

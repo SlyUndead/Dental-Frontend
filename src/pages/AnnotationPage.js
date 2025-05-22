@@ -22,6 +22,7 @@ import { desiredOrder } from "./AnnotationTools/constants";
 import DentalChatPopup from "./Llama Chat/ChatPopup";
 import { findAdjacentTeeth } from "helpers/DrawingTools/tooth-utils";
 import ConfirmationModal from "./AnnotationTools/ConfirmationModal";
+import sessionManager from "utils/sessionManager";
 const AnnotationPage = () => {
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   const [exitClick, setExitClick] = useState(false);
@@ -130,25 +131,25 @@ const AnnotationPage = () => {
   const [showConfidence, setShowConfidence] = useState(false)
   const fetchNotesContent = async () => {
     try {
-      const response = await axios.get(`${apiUrl}/notes-content?visitID=` + sessionStorage.getItem('visitId'),
+      const response = await axios.get(`${apiUrl}/notes-content?visitID=` + sessionManager.getItem('visitId'),
         {
           headers: {
-            Authorization: sessionStorage.getItem('token')
+            Authorization: sessionManager.getItem('token')
           }
         }); // Adjust the API endpoint as needed
       const data = response.data;
       // setMainImage(data.image);
-      sessionStorage.setItem('token', response.headers['new-token'])
+      sessionManager.setItem('token', response.headers['new-token'])
       // console.log(data);
       // setAnnotations(data.annotations);
       return data.notes;
     } catch (error) {
       if (error.status === 403 || error.status === 401) {
-        if (sessionStorage.getItem('preLayoutMode')) {
+        if (sessionManager.getItem('preLayoutMode')) {
           dispatch(changeMode(preLayoutMode));
-          sessionStorage.removeItem('preLayoutMode');
+          sessionManager.removeItem('preLayoutMode');
         }
-        sessionStorage.removeItem('token');
+        sessionManager.removeItem('token');
         setRedirectToLogin(true);
       }
       else {
@@ -159,24 +160,24 @@ const AnnotationPage = () => {
   }
   const fetchVisitDateImages = async () => {
     try {
-      const response = await axios.get(`${apiUrl}/visitid-images?visitID=` + sessionStorage.getItem('visitId'),
+      const response = await axios.get(`${apiUrl}/visitid-images?visitID=` + sessionManager.getItem('visitId'),
         {
           headers: {
-            Authorization: sessionStorage.getItem('token')
+            Authorization: sessionManager.getItem('token')
           }
         }); // Adjust the API endpoint as needed
       const data = response.data;
-      sessionStorage.setItem('token', response.headers['new-token'])
+      sessionManager.setItem('token', response.headers['new-token'])
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
       return data.images;
     } catch (error) {
       if (error.status === 403 || error.status === 401) {
-        if (sessionStorage.getItem('preLayoutMode')) {
+        if (sessionManager.getItem('preLayoutMode')) {
           dispatch(changeMode(preLayoutMode));
-          sessionStorage.removeItem('preLayoutMode');
+          sessionManager.removeItem('preLayoutMode');
         }
-        sessionStorage.removeItem('token');
+        sessionManager.removeItem('token');
         setRedirectToLogin(true);
       }
       else {
@@ -188,14 +189,14 @@ const AnnotationPage = () => {
   };
   const fetchClassCategories = async () => {
     try {
-      const response = await axios.get(`${apiUrl}/get-classCategories?clientId=` + sessionStorage.getItem('clientId'),
+      const response = await axios.get(`${apiUrl}/get-classCategories?clientId=` + sessionManager.getItem('clientId'),
         {
           headers: {
-            Authorization: sessionStorage.getItem('token')
+            Authorization: sessionManager.getItem('token')
           }
         }); // Adjust the API endpoint as needed
       const data = response.data;
-      sessionStorage.setItem('token', response.headers['new-token'])
+      sessionManager.setItem('token', response.headers['new-token'])
       let updatedClassCategories = {}
       let updatedLabelColors = {}
       let updatedConfidenceLevels = {}
@@ -222,13 +223,13 @@ const AnnotationPage = () => {
       setConfidenceLevels(updatedConfidenceLevels)
     } catch (error) {
       if (error.status === 403 || error.status === 401) {
-        if (sessionStorage.getItem('preLayoutMode')) {
+        if (sessionManager.getItem('preLayoutMode')) {
           dispatch(changeMode(preLayoutMode));
-          sessionStorage.removeItem('preLayoutMode');
+          sessionManager.removeItem('preLayoutMode');
         }
         else {
           logErrorToServer(error, "fetchClassCategories");
-          sessionStorage.removeItem('token');
+          sessionManager.removeItem('token');
           setRedirectToLogin(true);
         }
       }
@@ -834,7 +835,7 @@ const AnnotationPage = () => {
             return distance <= eraserSize;
           });
         });
-        updatedAnnotation = { ...selectedAnnotation, segmentation: updatedVertices, created_by: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, created_on: date };
+        updatedAnnotation = { ...selectedAnnotation, segmentation: updatedVertices, created_by: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, created_on: date };
       }
       else if (selectedAnnotation.bounding_box) {
         updatedVertices = selectedAnnotation.bounding_box.filter(vertex => {
@@ -845,7 +846,7 @@ const AnnotationPage = () => {
             return distance <= eraserSize;
           });
         });
-        updatedAnnotation = { ...selectedAnnotation, bounding_box: updatedVertices, created_by: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, created_on: date };
+        updatedAnnotation = { ...selectedAnnotation, bounding_box: updatedVertices, created_by: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, created_on: date };
       }
       else if (selectedAnnotation.vertices) {
         updatedVertices = selectedAnnotation.vertices.filter(vertex => {
@@ -856,7 +857,7 @@ const AnnotationPage = () => {
             return distance <= eraserSize;
           });
         });
-        updatedAnnotation = { ...selectedAnnotation, vertices: updatedVertices, created_by: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, created_on: date };
+        updatedAnnotation = { ...selectedAnnotation, vertices: updatedVertices, created_by: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, created_on: date };
       }
       const newAnnotations = annotations.map(anno =>
         anno === selectedAnnotation ? updatedAnnotation : anno
@@ -900,16 +901,16 @@ const AnnotationPage = () => {
           className: newClassName,
           category: newClassCategory,
           color: newClassColor,
-          clientId: sessionStorage.getItem('clientId'),
-          created_by: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`
+          clientId: sessionManager.getItem('clientId'),
+          created_by: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`
         },
         {
           headers: {
-            Authorization: sessionStorage.getItem('token')
+            Authorization: sessionManager.getItem('token')
           }
         }
       );
-      sessionStorage.setItem('token', response.headers['new-token'])
+      sessionManager.setItem('token', response.headers['new-token'])
 
       // Update local state
       const updateState = () => {
@@ -950,11 +951,11 @@ const AnnotationPage = () => {
       // fetchClassCategories();
     } catch (error) {
       if (error.status === 403 || error.status === 401) {
-        if (sessionStorage.getItem('preLayoutMode')) {
+        if (sessionManager.getItem('preLayoutMode')) {
           dispatch(changeMode(preLayoutMode));
-          sessionStorage.removeItem('preLayoutMode');
+          sessionManager.removeItem('preLayoutMode');
         }
-        sessionStorage.removeItem('token');
+        sessionManager.removeItem('token');
         setRedirectToLogin(true);
       }
       else {
@@ -983,7 +984,7 @@ const AnnotationPage = () => {
         else {
           newPath = modifyPath(selectedAnnotation.segmentation, editingPathVertices, true);
         }
-        updatedAnnotation = { ...selectedAnnotation, segmentation: newPath, created_by: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, created_on: date };
+        updatedAnnotation = { ...selectedAnnotation, segmentation: newPath, created_by: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, created_on: date };
       }
       else if (selectedAnnotation.bounding_box) {
         if (!subtractPath) {
@@ -992,7 +993,7 @@ const AnnotationPage = () => {
         else {
           newPath = modifyPath(selectedAnnotation.bounding_box, editingPathVertices, true);
         }
-        updatedAnnotation = { ...selectedAnnotation, bounding_box: newPath, created_by: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, created_on: date };
+        updatedAnnotation = { ...selectedAnnotation, bounding_box: newPath, created_by: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, created_on: date };
       }
       else {
         if (!subtractPath) {
@@ -1001,7 +1002,7 @@ const AnnotationPage = () => {
         else {
           newPath = modifyPath(selectedAnnotation.vertices, editingPathVertices, true);
         }
-        updatedAnnotation = { ...selectedAnnotation, vertices: newPath, created_by: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, created_on: date };
+        updatedAnnotation = { ...selectedAnnotation, vertices: newPath, created_by: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, created_on: date };
       }
       const newAnnotations = annotations.map(anno =>
         anno === selectedAnnotation ? updatedAnnotation : anno
@@ -1367,7 +1368,7 @@ const AnnotationPage = () => {
       const updatedAnnotation = {
         ...selectedAnnotation,
         label: pendingLabelChange,
-        created_by: `${sessionStorage.getItem("firstName")} ${sessionStorage.getItem("lastName")}`,
+        created_by: `${sessionManager.getItem("firstName")} ${sessionManager.getItem("lastName")}`,
         created_on: new Date().toISOString(),
       }
 
@@ -1419,7 +1420,7 @@ const AnnotationPage = () => {
   //     const updatedAnnotation = {
   //       ...selectedAnnotation,
   //       label: newValue,
-  //       created_by: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`,
+  //       created_by: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`,
   //       created_on: new Date().toISOString()
   //     };
 
@@ -1728,9 +1729,9 @@ const AnnotationPage = () => {
       let mainImageData = []
 
       if (imagesData && imagesData.length > 0) {
-        // Check if there's a selected image name in sessionStorage
-        const selectedImageName = sessionStorage.getItem("selectedImageName")
-        const selectedImageIndex = sessionStorage.getItem("selectedImageIndex")
+        // Check if there's a selected image name in sessionManager
+        const selectedImageName = sessionManager.getItem("selectedImageName")
+        const selectedImageIndex = sessionManager.getItem("selectedImageIndex")
 
         // First try to find the image by name
         if (selectedImageName) {
@@ -1755,9 +1756,9 @@ const AnnotationPage = () => {
           setMainImageIndex(0)
         }
 
-        // Clear the selected image info from sessionStorage
-        sessionStorage.removeItem("selectedImageName")
-        sessionStorage.removeItem("selectedImageIndex")
+        // Clear the selected image info from sessionManager
+        sessionManager.removeItem("selectedImageName")
+        sessionManager.removeItem("selectedImageIndex")
 
         setAnnotations(mainImageData.annotations.annotations.annotations)
 
@@ -1835,10 +1836,10 @@ const AnnotationPage = () => {
   };
   const getPatientDetails = async () => {
     try {
-      const response = await axios.get(`${apiUrl}/getPatientByID?patientId=` + sessionStorage.getItem('patientId'),
+      const response = await axios.get(`${apiUrl}/getPatientByID?patientId=` + sessionManager.getItem('patientId'),
         {
           headers: {
-            Authorization: sessionStorage.getItem('token')
+            Authorization: sessionManager.getItem('token')
           }
         });
       setPatient_first_name(response.data.patientList.first_name)
@@ -1854,11 +1855,11 @@ const AnnotationPage = () => {
     }
     catch (error) {
       if (error.status === 403 || error.status === 401) {
-        if (sessionStorage.getItem('preLayoutMode')) {
+        if (sessionManager.getItem('preLayoutMode')) {
           dispatch(changeMode(preLayoutMode));
-          sessionStorage.removeItem('preLayoutMode');
+          sessionManager.removeItem('preLayoutMode');
         }
-        sessionStorage.removeItem('token');
+        sessionManager.removeItem('token');
         setRedirectToLogin(true);
       }
       else {
@@ -1869,17 +1870,17 @@ const AnnotationPage = () => {
   }
   useEffect(() => {
     try {
-      setFirstVisit(sessionStorage.getItem('first') === 'true' ? true : false)
-      setLastVisit(sessionStorage.getItem('last') === 'true' ? true : false)
+      setFirstVisit(sessionManager.getItem('first') === 'true' ? true : false)
+      setLastVisit(sessionManager.getItem('last') === 'true' ? true : false)
       loadImages();
       getPatientDetails();
       fetchClassCategories();
-      if (!sessionStorage.getItem('preLayoutMode')) {
+      if (!sessionManager.getItem('preLayoutMode')) {
         setPreLayoutMode(mode);
-        sessionStorage.setItem('preLayoutMode', mode);
+        sessionManager.setItem('preLayoutMode', mode);
       }
       dispatch(changeMode('dark'));
-      setFullName(sessionStorage.getItem('patientName'));
+      setFullName(sessionManager.getItem('patientName'));
     }
     catch (error) {
       logErrorToServer(error, "firstUseEffect");
@@ -1891,7 +1892,7 @@ const AnnotationPage = () => {
   //   const handleNavigationAway = () => {
   //     console.log("Exited through button")
   //     dispatch(changeMode(preLayoutMode));
-  //     sessionStorage.removeItem('preLayoutMode');
+  //     sessionManager.removeItem('preLayoutMode');
   //   };
 
   //   // Listen for back/forward navigation
@@ -2102,26 +2103,26 @@ const AnnotationPage = () => {
     if (notesContent !== oldNotesContent) {
       try {
         const response = await axios.put(`${apiUrl}/save-notes`, {
-          visitID: sessionStorage.getItem('visitId'),
+          visitID: sessionManager.getItem('visitId'),
           notes: notesContent  // Send notes in the body instead of query string
         },
           {
             headers: {
-              Authorization: sessionStorage.getItem('token')
+              Authorization: sessionManager.getItem('token')
             }
           });
         const data = response.data;
-        sessionStorage.setItem('token', response.headers['new-token'])
+        sessionManager.setItem('token', response.headers['new-token'])
         setOldNotesContent(notesContent);
         return data.notes;
       } catch (error) {
         // Fallback logic if connection fails
         if (error.status === 403 || error.status === 401) {
-          if (sessionStorage.getItem('preLayoutMode')) {
+          if (sessionManager.getItem('preLayoutMode')) {
             dispatch(changeMode(preLayoutMode));
-            sessionStorage.removeItem('preLayoutMode');
+            sessionManager.removeItem('preLayoutMode');
           }
-          sessionStorage.removeItem('token');
+          sessionManager.removeItem('token');
           setRedirectToLogin(true);
         }
         else {
@@ -2146,28 +2147,28 @@ const AnnotationPage = () => {
       const filePath = smallCanvasData[mainImageIndex].name.split('.').slice(0, -1).join('.') + '.json';
       const response = await axios.put(`${apiUrl}/save-annotations`,
         {
-          patientId: sessionStorage.getItem('patientId'),
-          visitId: sessionStorage.getItem('visitId'),
+          patientId: sessionManager.getItem('patientId'),
+          visitId: sessionManager.getItem('visitId'),
           scaledResponse: scaledResponse,
           imageNumber: (mainImageIndex + 1),
           annotationPath: filePath
         },
         {
           headers: {
-            Authorization: sessionStorage.getItem('token')
+            Authorization: sessionManager.getItem('token')
           }
         }
       );
       const data = response.data;
-      sessionStorage.setItem('token', response.headers['new-token'])
+      sessionManager.setItem('token', response.headers['new-token'])
       return data;
     } catch (error) {
       if (error.status === 403 || error.status === 401) {
-        if (sessionStorage.getItem('preLayoutMode')) {
+        if (sessionManager.getItem('preLayoutMode')) {
           dispatch(changeMode(preLayoutMode));
-          sessionStorage.removeItem('preLayoutMode');
+          sessionManager.removeItem('preLayoutMode');
         }
-        sessionStorage.removeItem('token');
+        sessionManager.removeItem('token');
         setRedirectToLogin(true);
       }
       else {
@@ -2207,7 +2208,7 @@ const AnnotationPage = () => {
       newAnnotation = {
         label: newBoxLabel,
         segmentation: newBoxVertices,
-        created_by: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`,
+        created_by: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`,
         created_on: date,
       };
     }
@@ -2215,7 +2216,7 @@ const AnnotationPage = () => {
       newAnnotation = {
         label: newBoxLabel,
         vertices: newBoxVertices,
-        created_by: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`,
+        created_by: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`,
         created_on: date,
       };
     }
@@ -2293,33 +2294,33 @@ const AnnotationPage = () => {
     mainCanvasRef.current = null
     setHiddenAnnotations([])
     try {
-      const response = await axios.get(`${apiUrl}/next-previousVisit?patientId=` + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=true',
+      const response = await axios.get(`${apiUrl}/next-previousVisit?patientId=` + sessionManager.getItem('patientId') + '&visitId=' + sessionManager.getItem('visitId') + '&next=true',
         {
           headers: {
-            Authorization: sessionStorage.getItem('token')
+            Authorization: sessionManager.getItem('token')
           }
         });
       const data = response.data;
-      sessionStorage.setItem('token', response.headers['new-token'])
+      sessionManager.setItem('token', response.headers['new-token'])
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
-      sessionStorage.setItem('visitId', data.visitId._id)
-      sessionStorage.setItem('xrayDate', data.visitId.date_of_xray)
+      sessionManager.setItem('visitId', data.visitId._id)
+      sessionManager.setItem('xrayDate', data.visitId.date_of_xray)
       // console.log(data);
       setLastVisit(data.last);
       setMainImageIndex(0);
       setFirstVisit(false);
-      sessionStorage.setItem('first', false);
-      sessionStorage.setItem('last', data.last)
+      sessionManager.setItem('first', false);
+      sessionManager.setItem('last', data.last)
       setHiddenAnnotations([]);
       loadImages();
     } catch (error) {
       if (error.status === 403 || error.status === 401) {
-        if (sessionStorage.getItem('preLayoutMode')) {
+        if (sessionManager.getItem('preLayoutMode')) {
           dispatch(changeMode(preLayoutMode));
-          sessionStorage.removeItem('preLayoutMode');
+          sessionManager.removeItem('preLayoutMode');
         }
-        sessionStorage.removeItem('token');
+        sessionManager.removeItem('token');
         setRedirectToLogin(true);
       }
       else {
@@ -2341,33 +2342,33 @@ const AnnotationPage = () => {
     mainCanvasRef.current = null
     setHiddenAnnotations([])
     try {
-      const response = await axios.get(`${apiUrl}/next-previousVisit?patientId=` + sessionStorage.getItem('patientId') + '&visitId=' + sessionStorage.getItem('visitId') + '&next=false',
+      const response = await axios.get(`${apiUrl}/next-previousVisit?patientId=` + sessionManager.getItem('patientId') + '&visitId=' + sessionManager.getItem('visitId') + '&next=false',
         {
           headers: {
-            Authorization: sessionStorage.getItem('token')
+            Authorization: sessionManager.getItem('token')
           }
         });
       const data = response.data;
       // setMainImage(data.image);
       // setAnnotations(data.annotations);
-      sessionStorage.setItem('visitId', data.visitId._id)
-      sessionStorage.setItem('token', response.headers['new-token'])
-      sessionStorage.setItem('xrayDate', data.visitId.date_of_xray)
+      sessionManager.setItem('visitId', data.visitId._id)
+      sessionManager.setItem('token', response.headers['new-token'])
+      sessionManager.setItem('xrayDate', data.visitId.date_of_xray)
       // console.log(data);
       setLastVisit(false);
       setMainImageIndex(0);
       setFirstVisit(data.first)
-      sessionStorage.setItem('first', data.first);
-      sessionStorage.setItem('last', false);
+      sessionManager.setItem('first', data.first);
+      sessionManager.setItem('last', false);
       setHiddenAnnotations([]);
       loadImages();
     } catch (error) {
       if (error.status === 403 || error.status === 401) {
-        if (sessionStorage.getItem('preLayoutMode')) {
+        if (sessionManager.getItem('preLayoutMode')) {
           dispatch(changeMode(preLayoutMode));
-          sessionStorage.removeItem('preLayoutMode');
+          sessionManager.removeItem('preLayoutMode');
         }
-        sessionStorage.removeItem('token');
+        sessionManager.removeItem('token');
         setRedirectToLogin(true);
       }
 
@@ -2417,13 +2418,13 @@ const AnnotationPage = () => {
   if (navigateToTreatmentPlan) {
     localStorage.removeItem('globalCheckedAnnotations')
     dispatch(changeMode(preLayoutMode));
-    sessionStorage.removeItem('preLayoutMode');
+    sessionManager.removeItem('preLayoutMode');
     return <Navigate to="/treatmentPlan" />
   }
   if (exitClick) {
     localStorage.removeItem('globalCheckedAnnotations')
     dispatch(changeMode(preLayoutMode));
-    sessionStorage.removeItem('preLayoutMode');
+    sessionManager.removeItem('preLayoutMode');
     return <Navigate to="/patientImagesList" />
   }
   if (redirectToLogin) {
@@ -2616,7 +2617,7 @@ const AnnotationPage = () => {
                           <i class="fas fa-backward"></i>
                           <UncontrolledTooltip placement="bottom" target="btnPreVisit">Show Previous Visit</UncontrolledTooltip>
                         </Button>&nbsp;
-                        Xray Date : {DateFormatter(new Date(sessionStorage.getItem('xrayDate')))}
+                        Xray Date : {DateFormatter(new Date(sessionManager.getItem('xrayDate')))}
                         &nbsp;
                         <Button id="btnNextVisit" type="button" color="secondary" disabled={lastVisit} onClick={handleNextClick}>
                           <i class="fas fa-forward"></i>
@@ -2767,7 +2768,7 @@ const AnnotationPage = () => {
                             <i class="fas fa-backward"></i>
                             <UncontrolledTooltip placement="bottom" target="btnPreVisit">Show Previous Visit</UncontrolledTooltip>
                           </Button>&nbsp;
-                          Xray Date : {DateFormatter(new Date(sessionStorage.getItem('xrayDate')))}
+                          Xray Date : {DateFormatter(new Date(sessionManager.getItem('xrayDate')))}
                           &nbsp;
                           <Button id="btnNextVisit" type="button" color="secondary" disabled={lastVisit} onClick={handleNextClick}>
                             <i class="fas fa-forward"></i>
@@ -2782,7 +2783,7 @@ const AnnotationPage = () => {
                         // Clean up resources
                         localStorage.removeItem('globalCheckedAnnotations');
                         dispatch(changeMode(preLayoutMode));
-                        sessionStorage.removeItem('preLayoutMode');
+                        sessionManager.removeItem('preLayoutMode');
                         setExitClick(true);
                       }} style={{ background: 'none', border: 'none', padding: '0' }}>
                         <img src={imgExit} alt="Exit" style={{ width: '30px', height: '30px' }} />
@@ -3003,7 +3004,7 @@ const AnnotationPage = () => {
                           style={{ height: '33.7px', marginTop: '0px', width: '20px' }} />
                         <InputGroupText style={{ marginRight: '5px' }}>Confidence Levels</InputGroupText>
                         <UncontrolledTooltip placement="bottom" target="confidence-toggle">Show Confidence Levels</UncontrolledTooltip>
-                        {sessionStorage.getItem('clientId') === "67161fcbadd1249d59085f9a" && (
+                        {sessionManager.getItem('clientId') === "67161fcbadd1249d59085f9a" && (
                           <>
                             <Input
                               type="checkbox"
@@ -3341,7 +3342,7 @@ const AnnotationPage = () => {
                           Go To Treatment Plan
                         </UncontrolledTooltip>
 
-                        {sessionStorage.getItem('clientId') === "67161fcbadd1249d59085f9a" && (
+                        {sessionManager.getItem('clientId') === "67161fcbadd1249d59085f9a" && (
                           <>
                             <Button
                               id="navigateToConfidenceLevelPage"

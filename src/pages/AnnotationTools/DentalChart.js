@@ -44,6 +44,7 @@ const DentalChart = ({
   onToothSelect,
   externalSelectedTooth,
   isConsolidatedView = false,
+  headerClassNames = "",
 }) => {
   // State to track which tooth is selected
   // If externalSelectedTooth is provided, use it as the initial value
@@ -370,7 +371,7 @@ const DentalChart = ({
 
   return (
     <div className="dental-chart-container" style={{ marginBottom: "20px", maxWidth: "100%", overflowX: "hidden" }}>
-      <h5>Dental Chart {selectedTooth ? `(Tooth ${selectedTooth} Selected)` : ""}</h5>
+      <h5 className={headerClassNames}>Dental Chart {selectedTooth ? `(Tooth ${selectedTooth} Selected)` : ""}</h5>
       <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
         {/* Upper teeth (1-16) in sequential order */}
         {upperTeethRows.map((row, rowIndex) => (

@@ -7,12 +7,13 @@ import { connect } from "react-redux";
 import { Navigate } from "react-router-dom";
 import axios from 'axios';
 import { logErrorToServer } from '../utils/logError';
+import sessionManager from "utils/sessionManager"
 const PracticeList = (props) => {
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
     document.title = "Practice List | AGP Dental Tool";
 
     const breadcrumbItems = [
-        { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
+        { title: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, link: "/practiceList" },
         { title: "Practice Name", link: "#" }
     ]
     const [redirectToLogin, setRedirectToLogin] = useState(false);
@@ -20,22 +21,22 @@ const PracticeList = (props) => {
     useEffect(() => {
         const getPracticeList = async () => {
             try {
-                const response = await axios.get(`${apiUrl}/getPracticeList?clientId=` + sessionStorage.getItem('clientId'),
+                const response = await axios.get(`${apiUrl}/getPracticeList?clientId=` + sessionManager.getItem('clientId'),
                     {
                         headers: {
-                            Authorization: sessionStorage.getItem('token')
+                            Authorization: sessionManager.getItem('token')
                         }
                     }); // Adjust the API endpoint as needed
                 //    const getPracticeList= async()=>{const response = await axios.get('http://localhost:3001/getPracticeList');
                 const data = response.data;
-                sessionStorage.setItem('token', response.headers['new-token'])
+                sessionManager.setItem('token', response.headers['new-token'])
                 // setMainImage(data.image);
                 // setAnnotations(data.annotations);
                 setPractices(data.practiceList);
             }
             catch (error) {
                 if (error.status === 403 || error.status === 401) {
-                    sessionStorage.removeItem('token');
+                    sessionManager.removeItem('token');
                     setRedirectToLogin(true);
                 }
                 else {
@@ -59,8 +60,8 @@ const PracticeList = (props) => {
     const [redirectToNewPractice, setRedirectToNewPractice] = useState(false);
     const handleClick = (practiceName) => {
         //console.log('practice name : ' + practiceName.name)
-        sessionStorage.setItem('practiceId', practiceName._id)
-        sessionStorage.setItem('practiceName', practiceName.name)
+        sessionManager.setItem('practiceId', practiceName._id)
+        sessionManager.setItem('practiceName', practiceName.name)
         setRedirect(true);
     };
 
@@ -70,10 +71,10 @@ const PracticeList = (props) => {
     const handleEditClick = (e, practice) => {
         // return <Navigate to="/login" />
         e.stopPropagation();
-        sessionStorage.setItem('practiceName', practice.name);
-        sessionStorage.setItem('practiceAddress', practice.address);
-        sessionStorage.setItem('practiceTelephone', practice.contactNo);
-        sessionStorage.setItem('practiceId', practice._id);
+        sessionManager.setItem('practiceName', practice.name);
+        sessionManager.setItem('practiceAddress', practice.address);
+        sessionManager.setItem('practiceTelephone', practice.contactNo);
+        sessionManager.setItem('practiceId', practice._id);
         setRedirectToNewPractice(true);
     }
 

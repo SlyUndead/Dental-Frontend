@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react"
 import { Table, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, FormGroup, Label, Input } from "reactstrap"
 import { calculateOverlap, polygonArea } from "../AnnotationTools/path-utils"
 import { useNavigate } from "react-router-dom"
+import sessionManager from "utils/sessionManager"
 
 // Add a style tag for the pink badge if it doesn't exist in your CSS
 const styleElement = document.createElement("style")
@@ -42,12 +43,8 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
 
   // Handle annotation click to open AnnotationPage in a new tab - optimized with useCallback
   const handleAnnotationClick = useCallback((anomaly) => {
-    console.time('handleAnnotationClick'); // Performance measurement
 
-    // Create a new window/tab
-    const newWindow = window.open("", "_blank");
-
-    // Batch sessionStorage operations
+    // Batch sessionManager operations
     const sessionData = {};
 
     // Set first/last flags
@@ -74,11 +71,13 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
         }
       }
     }
-
-    // Apply all sessionStorage updates at once
+    // Apply all sessionManager updates at once
     Object.entries(sessionData).forEach(([key, value]) => {
-      sessionStorage.setItem(key, value.toString());
+      sessionManager.setItem(key, value.toString());
     });
+
+    // Create a new window/tab
+    const newWindow = window.open("", "_blank");
 
     // Set the URL for the new tab and navigate
     if (newWindow) {
@@ -87,8 +86,6 @@ const ToothAnnotationTable = ({ annotations, classCategories, selectedTooth, oth
       // Fallback to regular navigation if popup is blocked
       navigate("/annotationPage");
     }
-
-    console.timeEnd('handleAnnotationClick');
   }, [patientVisits, visitId, navigate]);
 
   // Process annotations when they change or when a tooth is selected

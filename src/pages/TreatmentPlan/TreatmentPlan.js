@@ -17,7 +17,8 @@ import {
   Col,
   Spinner,
   Collapse,
-  CardFooter
+  CardFooter,
+  Alert
 } from 'reactstrap';
 import { setBreadcrumbItems } from 'store/actions';
 import { connect } from "react-redux";
@@ -25,6 +26,7 @@ import { calculateOverlap } from 'pages/AnnotationTools/path-utils';
 import { Navigate } from 'react-router-dom';
 import { logErrorToServer } from 'utils/logError';
 import DentalChart from 'pages/AnnotationTools/DentalChart';
+import sessionManager from "utils/sessionManager"
 
 const DentalTreatmentPlan = (props) => {
   const [selectedTeeth, setSelectedTeeth] = useState([]);
@@ -46,28 +48,95 @@ const DentalTreatmentPlan = (props) => {
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   document.title = "Treatment Plan | AGP Dental Tool";
   const breadcrumbItems = [
-    { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
-    { title: sessionStorage.getItem('practiceName'), link: "/patientList" },
-    { title: `${sessionStorage.getItem('patientName')}`, link: "/patientImagesList" },
+    { title: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, link: "/practiceList" },
+    { title: sessionManager.getItem('practiceName'), link: "/patientList" },
+    { title: `${sessionManager.getItem('patientName')}`, link: "/patientImagesList" },
     { title: "Treatment Plan", link: "/treatmentPlan" }
   ];
+  
   // Add these to your existing useState declarations at the top
   const [treatmentPlanSaved, setTreatmentPlanSaved] = useState(false);
   const [savingPlan, setSavingPlan] = useState(false);
   const [generatingPlan, setGeneratingPlan] = useState(false);
+  
+  // Add autosave states
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState(null);
+  const [saveError, setSaveError] = useState(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Add these functions to handle saving and fetching treatment plans
-  const saveTreatmentPlan = async () => {
-    setSavingPlan(true);
+  // Autosave function
+  const autoSaveTreatmentPlan = async (treatmentsToSave) => {
+    setAutoSaving(true);
+    setSaveError(null);
+    
     try {
       const response = await fetch(`${apiUrl}/save-treatment-plan`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: sessionStorage.getItem("token"),
+          Authorization: sessionManager.getItem("token"),
         },
         body: JSON.stringify({
-          patientId: sessionStorage.getItem('patientId'),
+          patientId: sessionManager.getItem('patientId'),
+          treatments: treatmentsToSave,
+          created_by: "test"
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setTreatmentPlanSaved(true);
+        setLastSaved(new Date());
+        setHasUnsavedChanges(false);
+      } else {
+        setSaveError("Failed to save treatment plan");
+      }
+    } catch (error) {
+      if (error.status === 403 || error.status === 401) {
+        sessionManager.removeItem('token');
+        setRedirectToLogin(true);
+      } else {
+        setSaveError("Error saving treatment plan");
+        logErrorToServer(error, "autoSaveTreatmentPlan");
+        console.log(error);
+      }
+    } finally {
+      setAutoSaving(false);
+    }
+  };
+
+  // Debounced autosave hook
+  useEffect(() => {
+    if (hasUnsavedChanges && treatments.length >= 0) {
+      const timeoutId = setTimeout(() => {
+        autoSaveTreatmentPlan(treatments);
+      }, 2000); // Autosave after 2 seconds of inactivity
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [treatments, hasUnsavedChanges]);
+
+  // Modified setTreatments wrapper to trigger autosave
+  const updateTreatments = (newTreatments) => {
+    setTreatments(newTreatments);
+    setHasUnsavedChanges(true);
+  };
+
+  // Add these functions to handle saving and fetching treatment plans
+  const saveTreatmentPlan = async () => {
+    setSavingPlan(true);
+    setSaveError(null);
+    
+    try {
+      const response = await fetch(`${apiUrl}/save-treatment-plan`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: sessionManager.getItem("token"),
+        },
+        body: JSON.stringify({
+          patientId: sessionManager.getItem('patientId'),
           treatments: treatments,
           created_by: "test"
         }),
@@ -76,15 +145,18 @@ const DentalTreatmentPlan = (props) => {
       const data = await response.json();
       if (data.success) {
         setTreatmentPlanSaved(true);
+        setLastSaved(new Date());
+        setHasUnsavedChanges(false);
         // Show success message or notification here
       }
     } catch (error) {
       if (error.status === 403 || error.status === 401) {
-        sessionStorage.removeItem('token');
+        sessionManager.removeItem('token');
         setRedirectToLogin(true);
       }
       else {
-        logErrorToServer(error, "getPatientList");
+        setSaveError("Error saving treatment plan");
+        logErrorToServer(error, "saveTreatmentPlan");
         console.log(error)
       }
     } finally {
@@ -94,10 +166,10 @@ const DentalTreatmentPlan = (props) => {
 
   const fetchExistingTreatmentPlan = async () => {
     try {
-      const response = await fetch(`${apiUrl}/get-treatment-plan?patientId=${sessionStorage.getItem('patientId')}`, {
+      const response = await fetch(`${apiUrl}/get-treatment-plan?patientId=${sessionManager.getItem('patientId')}`, {
         method: "GET",
         headers: {
-          Authorization: sessionStorage.getItem("token"),
+          Authorization: sessionManager.getItem("token"),
         },
       });
 
@@ -112,6 +184,7 @@ const DentalTreatmentPlan = (props) => {
 
         setSelectedTeeth([...new Set(teethFromTreatments)]);
         setTreatmentPlanSaved(true);
+        setHasUnsavedChanges(false);
         return teethFromTreatments
       }
       else {
@@ -119,11 +192,11 @@ const DentalTreatmentPlan = (props) => {
       }
     } catch (error) {
       if (error.status === 403 || error.status === 401) {
-        sessionStorage.removeItem('token');
+        sessionManager.removeItem('token');
         setRedirectToLogin(true);
       }
       else {
-        logErrorToServer(error, "getPatientList");
+        logErrorToServer(error, "fetchExistingTreatmentPlan");
         console.log(error)
       }
     }
@@ -138,7 +211,7 @@ const DentalTreatmentPlan = (props) => {
       if (dctCodes.length === 0) {
         const response = await fetch(`${apiUrl}/getCDTCodes`, {
           headers: {
-            Authorization: sessionStorage.getItem('token')
+            Authorization: sessionManager.getItem('token')
           }
         });
         const data = await response.json();
@@ -147,10 +220,10 @@ const DentalTreatmentPlan = (props) => {
         setFilteredCodes(convertedCodes);
 
         // Now fetch JSON files and process them
-        const jsonResponse = await fetch(`${apiUrl}/get-annotations-for-treatment-plan?patientId=` + sessionStorage.getItem('patientId'), {
+        const jsonResponse = await fetch(`${apiUrl}/get-annotations-for-treatment-plan?patientId=` + sessionManager.getItem('patientId'), {
           method: "GET",
           headers: {
-            Authorization: sessionStorage.getItem("token"),
+            Authorization: sessionManager.getItem("token"),
           },
         });
 
@@ -160,10 +233,10 @@ const DentalTreatmentPlan = (props) => {
         }
       } else {
         // DCT codes already loaded, just fetch and process JSON files
-        const response = await fetch(`${apiUrl}/get-annotations-for-treatment-plan?patientId=` + sessionStorage.getItem('patientId'), {
+        const response = await fetch(`${apiUrl}/get-annotations-for-treatment-plan?patientId=` + sessionManager.getItem('patientId'), {
           method: "GET",
           headers: {
-            Authorization: sessionStorage.getItem("token"),
+            Authorization: sessionManager.getItem("token"),
           },
         });
 
@@ -174,11 +247,11 @@ const DentalTreatmentPlan = (props) => {
       }
     } catch (error) {
       if (error.status === 403 || error.status === 401) {
-        sessionStorage.removeItem('token');
+        sessionManager.removeItem('token');
         setRedirectToLogin(true);
       }
       else {
-        logErrorToServer(error, "getPatientList");
+        logErrorToServer(error, "generateTreatmentPlan");
         console.log(error)
       }
     } finally {
@@ -283,7 +356,7 @@ const DentalTreatmentPlan = (props) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: sessionStorage.getItem("token"),
+          Authorization: sessionManager.getItem("token"),
         },
         body: JSON.stringify({
           query: `Give me the CDT codes for treating moderate risk ${anomaly} only. it should in the form D____.`,
@@ -295,11 +368,11 @@ const DentalTreatmentPlan = (props) => {
       return parseCdtCodes(ragText.answer, convertedCdtCode, anomaly);
     } catch (error) {
       if (error.status === 403 || error.status === 401) {
-        sessionStorage.removeItem('token');
+        sessionManager.removeItem('token');
         setRedirectToLogin(true);
       }
       else {
-        logErrorToServer(error, "getPatientList");
+        logErrorToServer(error, "fetchCdtCodesFromRAG");
         console.log(error)
       }
       return [];
@@ -433,7 +506,7 @@ const DentalTreatmentPlan = (props) => {
     });
 
     if (newTreatments.length > 0) {
-      setTreatments(prev => [...prev, ...newTreatments]);
+      updateTreatments(prev => [...prev, ...newTreatments]);
 
       // Ensure all new tooth numbers are added to selectedTeeth (avoid duplicates)
       const toothNumsToAdd = toothNumberArray.filter(t => !isNaN(parseInt(t)));
@@ -453,10 +526,10 @@ const DentalTreatmentPlan = (props) => {
   // Fetch class categories
   const fetchClassCategories = async () => {
     try {
-      const response = await fetch(`${apiUrl}/get-classCategories?clientId=${sessionStorage.getItem("clientId")}`, {
+      const response = await fetch(`${apiUrl}/get-classCategories?clientId=${sessionManager.getItem("clientId")}`, {
         method: "GET",
         headers: {
-          Authorization: sessionStorage.getItem("token"),
+          Authorization: sessionManager.getItem("token"),
         },
       });
 
@@ -489,7 +562,7 @@ const DentalTreatmentPlan = (props) => {
       setConfidenceLevels(updatedConfidenceLevels);
     } catch (error) {
       if (error.status === 403 || error.status === 401) {
-        sessionStorage.removeItem('token');
+        sessionManager.removeItem('token');
         setRedirectToLogin(true);
       } else {
         logErrorToServer(error, "fetchClassCategories");
@@ -501,10 +574,10 @@ const DentalTreatmentPlan = (props) => {
   // Fetch annotations for dental chart
   const fetchAnnotations = async () => {
     try {
-      const response = await fetch(`${apiUrl}/get-annotations-for-treatment-plan?patientId=${sessionStorage.getItem('patientId')}`, {
+      const response = await fetch(`${apiUrl}/get-annotations-for-treatment-plan?patientId=${sessionManager.getItem('patientId')}`, {
         method: "GET",
         headers: {
-          Authorization: sessionStorage.getItem("token"),
+          Authorization: sessionManager.getItem("token"),
         },
       });
 
@@ -513,8 +586,8 @@ const DentalTreatmentPlan = (props) => {
         // Extract all annotations from all images
         const allAnnotations = [];
         jsonFiles.images.forEach(image => {
-          if (image.annotations && image.annotations.annotations) {
-            image.annotations.annotations.forEach(annotation => {
+          if (image.annotations && image.annotations.annotations.annotations) {
+            image.annotations.annotations.annotations.forEach(annotation => {
               // Add image reference to each annotation
               annotation.image = image;
               allAnnotations.push(annotation);
@@ -525,7 +598,7 @@ const DentalTreatmentPlan = (props) => {
       }
     } catch (error) {
       if (error.status === 403 || error.status === 401) {
-        sessionStorage.removeItem('token');
+        sessionManager.removeItem('token');
         setRedirectToLogin(true);
       } else {
         logErrorToServer(error, "fetchAnnotations");
@@ -550,7 +623,7 @@ const DentalTreatmentPlan = (props) => {
       try {
         const response = await fetch(`${apiUrl}/getCDTCodes`, {
           headers: {
-            Authorization: sessionStorage.getItem('token')
+            Authorization: sessionManager.getItem('token')
           }
         });
         const data = await response.json();
@@ -559,7 +632,7 @@ const DentalTreatmentPlan = (props) => {
         setFilteredCodes(convertedCodes);
         const response1 = await fetch(`${apiUrl}/get-treatment-codes`, {
           headers: {
-            Authorization: sessionStorage.getItem('token')
+            Authorization: sessionManager.getItem('token')
           }
         });
         const data1 = await response1.json()
@@ -568,11 +641,11 @@ const DentalTreatmentPlan = (props) => {
         setIsLoading(false);
       } catch (error) {
         if (error.status === 403 || error.status === 401) {
-          sessionStorage.removeItem('token');
+          sessionManager.removeItem('token');
           setRedirectToLogin(true);
         }
         else {
-          logErrorToServer(error, "getPatientList");
+          logErrorToServer(error, "fetchData");
           console.log(error)
           console.error('Error fetching DCT codes:', error);
           // Sample data as fallback
@@ -596,10 +669,10 @@ const DentalTreatmentPlan = (props) => {
 
     const fetchJsonFiles = async (convertedCdtCode) => {
       try {
-        const response = await fetch(`${apiUrl}/get-annotations-for-treatment-plan?patientId=` + sessionStorage.getItem('patientId'), {
+        const response = await fetch(`${apiUrl}/get-annotations-for-treatment-plan?patientId=` + sessionManager.getItem('patientId'), {
           method: "GET",
           headers: {
-            Authorization: sessionStorage.getItem("token"),
+            Authorization: sessionManager.getItem("token"),
           },
         });
 
@@ -611,11 +684,11 @@ const DentalTreatmentPlan = (props) => {
         }
       } catch (error) {
         if (error.status === 403 || error.status === 401) {
-          sessionStorage.removeItem('token');
+          sessionManager.removeItem('token');
           setRedirectToLogin(true);
         }
         else {
-          logErrorToServer(error, "getPatientList");
+          logErrorToServer(error, "fetchJsonFiles");
           console.log(error)
           setIsLoading(false);
         }
@@ -643,7 +716,7 @@ const DentalTreatmentPlan = (props) => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: sessionStorage.getItem("token"),
+            Authorization: sessionManager.getItem("token"),
           },
           body: JSON.stringify({ labels: uncheckedLabels }),
         });
@@ -653,11 +726,11 @@ const DentalTreatmentPlan = (props) => {
         Object.assign(anomalyCache, data);
       } catch (error) {
         if (error.status === 403 || error.status === 401) {
-          sessionStorage.removeItem('token');
+          sessionManager.removeItem('token');
           setRedirectToLogin(true);
         }
         else {
-          logErrorToServer(error, "getPatientList");
+          logErrorToServer(error, "checkAnomaliesWithServer");
           console.log(error)
         }
       }
@@ -667,53 +740,52 @@ const DentalTreatmentPlan = (props) => {
   };
 
   const handleDctCodeSelect = (code) => {
+    let newTreatment;
+    
     if (code.unit && code.unit.toLowerCase() === "full mouth") {
       // For full mouth treatment
-      const newTreatment = {
+      newTreatment = {
         id: Date.now(),
         toothNumber: "fullmouth",
         anomalyType: "Manually Selected Procedures",
         ...code
       };
-      setTreatments([...treatments, newTreatment]);
     } else if (code.unit && code.unit.toLowerCase() === "visit") {
       // For per visit treatment
-      const newTreatment = {
+      newTreatment = {
         id: Date.now(),
         toothNumber: "visit",
         anomalyType: "Manually Selected Procedures",
         ...code
       };
-      setTreatments([...treatments, newTreatment]);
     } else if (code.unit && code.unit.toLowerCase() === "quadrant") {
       // For quadrant treatment, use the quadrant of the selected tooth
       const quadrant = getQuadrantForTooth(selectedTooth);
-      const newTreatment = {
+      newTreatment = {
         id: Date.now(),
         toothNumber: quadrant,
         affectedTeeth: [selectedTooth], // Initially only includes the selected tooth
         anomalyType: "Manually Selected Procedures",
         ...code
       };
-      setTreatments([...treatments, newTreatment]);
     } else {
       // For individual tooth treatment (default)
-      const newTreatment = {
+      newTreatment = {
         id: Date.now(),
         toothNumber: selectedTooth.toString(),
         anomalyType: "Manually Selected Procedures",
         ...code
       };
-      setTreatments([...treatments, newTreatment]);
     }
 
+    updateTreatments([...treatments, newTreatment]);
     setSearchTerm('');
     setModalOpen(false); // Close modal after selection
   };
 
   const removeTreatment = (id) => {
     const updatedTreatments = treatments.filter(t => t.id !== id);
-    setTreatments(updatedTreatments);
+    updateTreatments(updatedTreatments);
 
     // Remove tooth from selected teeth if it has no more treatments
     const treatmentToRemove = treatments.find(t => t.id === id);
@@ -738,12 +810,13 @@ const DentalTreatmentPlan = (props) => {
           setHiddenAnnotations={setHiddenAnnotations}
           onToothSelect={handleToothClick}
           externalSelectedTooth={selectedTooth}
+          headerClassNames = "mb-5"
         />
 
         {/* Treatment count badges - Upper teeth (positioned ABOVE the teeth) */}
         <div className='justify-content-center align-items-center' style={{
           position: "absolute",
-          top: "0px", /* Positioned at the very top, above the teeth */
+          top: "30px", /* Positioned at the very top, above the teeth */
           left: 0,
           right: 0,
           display: "grid",
@@ -959,11 +1032,59 @@ const DentalTreatmentPlan = (props) => {
     );
   };
 
+  // Format last saved time
+  const formatLastSaved = (date) => {
+    if (!date) return '';
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    
+    if (diffMins < 1) return 'just now';
+    if (diffMins === 1) return '1 minute ago';
+    if (diffMins < 60) return `${diffMins} minutes ago`;
+    
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours === 1) return '1 hour ago';
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    
+    return date.toLocaleDateString();
+  };
+
   return (
     <div className="p-4">
       <Card>
         <CardHeader>
-          <CardTitle tag="h4">Dental Treatment Plan</CardTitle>
+          <div className="d-flex justify-content-between align-items-center">
+            <CardTitle tag="h4">Dental Treatment Plan</CardTitle>
+            <div className="d-flex align-items-center">
+              {/* Autosave status indicator */}
+              {autoSaving && (
+                <div className="d-flex align-items-center me-3">
+                  <Spinner size="sm" className="me-2" />
+                  <small className="text-muted">Auto-saving...</small>
+                </div>
+              )}
+              {hasUnsavedChanges && !autoSaving && (
+                <div className="d-flex align-items-center me-3">
+                  <i className="mdi mdi-circle text-warning me-2"></i>
+                  <small className="text-muted">Unsaved changes</small>
+                </div>
+              )}
+              {lastSaved && !hasUnsavedChanges && !autoSaving && (
+                <div className="d-flex align-items-center me-3">
+                  <i className="mdi mdi-check-circle text-success me-2"></i>
+                  <small className="text-muted">Saved {formatLastSaved(lastSaved)}</small>
+                </div>
+              )}
+            </div>
+          </div>
+          {/* Error message */}
+          {saveError && (
+            <Alert color="danger" className="mt-2 mb-0">
+              <i className="mdi mdi-alert me-2"></i>
+              {saveError}
+            </Alert>
+          )}
         </CardHeader>
         <CardBody>
           {/* Dental Chart with Treatment Counts */}
@@ -1075,19 +1196,6 @@ const DentalTreatmentPlan = (props) => {
             disabled={savingPlan || generatingPlan}
           >
             Annotation Page
-          </Button>
-          <Button
-            color="success"
-            onClick={saveTreatmentPlan}
-            disabled={treatments.length === 0 || savingPlan}
-          >
-            {savingPlan ? (
-              <>
-                <Spinner size="sm" className="me-2" /> Saving...
-              </>
-            ) : (
-              "Save Treatment Plan"
-            )}
           </Button>
         </CardFooter>
       </Card>

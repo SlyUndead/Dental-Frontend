@@ -13,7 +13,7 @@ import { withTranslation } from "react-i18next"
 import { connect } from "react-redux"
 import { useNavigate } from "react-router-dom";
 import withRouter from "components/Common/withRouter"
-
+import sessionManager from "utils/sessionManager"
 // users
 import user1 from "../../../assets/images/users/user-1.jpg"
 
@@ -24,12 +24,7 @@ const ProfileMenu = props => {
 
   const handleLogout = () => {
     // Remove token and other session data
-    sessionStorage.removeItem('token')
-    sessionStorage.removeItem('clientId')
-    sessionStorage.removeItem('firstName')
-    sessionStorage.removeItem('lastName')
-    sessionStorage.removeItem('xrayDate')
-
+    sessionManager.clearSession();
     // Navigate to login page
     navigate('/login')
   }

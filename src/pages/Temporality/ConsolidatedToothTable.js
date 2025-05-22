@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react"
 import { Table, Dropdown, DropdownToggle, DropdownMenu, DropdownItem, FormGroup, Label, Input } from "reactstrap"
 import { useNavigate } from "react-router-dom"
+import sessionManager from "utils/sessionManager"
 
 // Add this at the top of your file, after the imports
 // Add a style tag for the pink badge if it doesn't exist in your CSS
@@ -46,7 +47,7 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
     const handleAnnotationClick = useCallback((anomaly) => {
         if (anomaly.visitIndex === undefined) return;
 
-        // Batch sessionStorage operations
+        // Batch sessionManager operations
         const sessionData = {
             "selectedImageIndex": (anomaly.imageNumber - 1).toString(),
             "xrayDate": anomaly.visitDate,
@@ -61,9 +62,9 @@ const ConsolidatedToothTable = ({ consolidatedAnnotations, classCategories, pati
             sessionData.visitId = patientVisits[anomaly.visitIndex]._id;
         }
 
-        // Apply all sessionStorage updates at once
+        // Apply all sessionManager updates at once
         Object.entries(sessionData).forEach(([key, value]) => {
-            sessionStorage.setItem(key, value.toString());
+            sessionManager.setItem(key, value.toString());
         });
 
         // Open new window

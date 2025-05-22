@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Popover, PopoverBody } from 'reactstrap';
+import sessionManager from "utils/sessionManager"
 
 const DentalChatPopup = ({ isOpen, toggle, target }) => {
   const [messages, setMessages] = useState([]);
@@ -43,7 +44,7 @@ const DentalChatPopup = ({ isOpen, toggle, target }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: sessionStorage.getItem('token')
+          Authorization: sessionManager.getItem('token')
         },
         body: JSON.stringify({
           query: input,

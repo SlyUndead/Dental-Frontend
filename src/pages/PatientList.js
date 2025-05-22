@@ -7,13 +7,14 @@ import { connect } from "react-redux";
 import { Link } from "react-router-dom"
 import axios from 'axios';
 import { logErrorToServer } from 'utils/logError';
+import sessionManager from "utils/sessionManager"
 const PatientList = (props) => {
     const printRef = useRef();
 
     document.title = "Patients List | AGP Dental Tool";
     const breadcrumbItems = [
-        { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
-        { title: sessionStorage.getItem('practiceName'), link: "/patientList" },
+        { title: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, link: "/practiceList" },
+        { title: sessionManager.getItem('practiceName'), link: "/patientList" },
         { title: "Patient List", link: "/patientImagesList" },
     ]
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
@@ -48,23 +49,23 @@ const PatientList = (props) => {
         );
     });
     useEffect(() => {
-        const practiceId = sessionStorage.getItem('practiceId');
+        const practiceId = sessionManager.getItem('practiceId');
         const getPatientList = async () => {
             try {
                 const response = await axios.get(`${apiUrl}/getPatient?practiceId=` + practiceId,
                     {
                         headers: {
-                            Authorization: sessionStorage.getItem('token')
+                            Authorization: sessionManager.getItem('token')
                         }
                     }); // Adjust the API endpoint as needed
                 //const getPatientList= async()=>{const response = await axios.get('http://localhost:3001/getPatient?practiceId=' + practiceId); 
                 const data = response.data;
-                sessionStorage.setItem('token', response.headers['new-token'])
+                sessionManager.setItem('token', response.headers['new-token'])
                 setPatients(data.patientList);
             }
             catch (error) {
                 if (error.status === 403 || error.status === 401) {
-                    sessionStorage.removeItem('token');
+                    sessionManager.removeItem('token');
                     setRedirectToLogin(true);
                 }
                 else {
@@ -89,36 +90,36 @@ const PatientList = (props) => {
 
     const handleClick = (patientId, firstName, lastName) => {
         //console.log(patinetId);
-        sessionStorage.setItem('patientId', patientId);
+        sessionManager.setItem('patientId', patientId);
         const fullName = `${firstName} ${lastName}`
-        sessionStorage.setItem('patientName', fullName);
+        sessionManager.setItem('patientName', fullName);
         setRedirectToImages(true);
     };
     const handleEditClick = (e, patient) => {
         // return <Navigate to="/login" />
         e.stopPropagation();
         console.log(patient);
-        sessionStorage.setItem('patientFName', patient.first_name);
-        sessionStorage.setItem('patientLName', patient.last_name);
-        sessionStorage.setItem('patientEmail', patient.email);
-        sessionStorage.setItem('patientTelephone', patient.telephone);
-        sessionStorage.setItem('patientId', patient._id);
-        sessionStorage.setItem('patientAddress', patient.address);
-        sessionStorage.setItem('patientGender', patient.gender);
-        sessionStorage.setItem('patientGFName', patient.guardian_first_name);
-        sessionStorage.setItem('patientGLName', patient.guardian_last_name);
-        sessionStorage.setItem('patientGRelationship', patient.guardian_relationship);
-        sessionStorage.setItem('patientActive', patient.patient_active);
+        sessionManager.setItem('patientFName', patient.first_name);
+        sessionManager.setItem('patientLName', patient.last_name);
+        sessionManager.setItem('patientEmail', patient.email);
+        sessionManager.setItem('patientTelephone', patient.telephone);
+        sessionManager.setItem('patientId', patient._id);
+        sessionManager.setItem('patientAddress', patient.address);
+        sessionManager.setItem('patientGender', patient.gender);
+        sessionManager.setItem('patientGFName', patient.guardian_first_name);
+        sessionManager.setItem('patientGLName', patient.guardian_last_name);
+        sessionManager.setItem('patientGRelationship', patient.guardian_relationship);
+        sessionManager.setItem('patientActive', patient.patient_active);
         if (patient.date_of_birth) {
-            sessionStorage.setItem('patientDOB', patient.date_of_birth);
+            sessionManager.setItem('patientDOB', patient.date_of_birth);
         }
         else {
-            sessionStorage.setItem('patientAge', patient.reference_dob_for_age);
+            sessionManager.setItem('patientAge', patient.reference_dob_for_age);
         }
         setRedirectToNewPatient(true);
     }
     const handlePrint = () => {
-        const practiceName = sessionStorage.getItem('practiceName')
+        const practiceName = sessionManager.getItem('practiceName')
         const printWindow = window.open('', '_blank');
 
         const styles = Array.from(document.styleSheets).map((styleSheet) => {

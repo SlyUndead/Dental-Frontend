@@ -1,6 +1,7 @@
 import axios from "axios";
 import { logErrorToServer } from "utils/logError";
 import { calculateOverlap, polygonArea } from "../../pages/AnnotationTools/path-utils";
+import sessionManager from "utils/sessionManager";
 export const getCoordinatesFromAPI = async (file, model, base64Image, thumbnailBase64, visitId, imageFileName, patientID, imageNumber, annotationFileName) => {
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   const formData = new FormData();
@@ -22,7 +23,7 @@ export const getCoordinatesFromAPI = async (file, model, base64Image, thumbnailB
       // console.log(formData)
       const headers = {
         'Content-Type': 'application/json',
-        Authorization: sessionStorage.getItem('token')
+        Authorization: sessionManager.getItem('token')
       };
       response = await axios.post(`${apiUrl}/upload/coordinates`, {
         base64Image: base64Image,
@@ -39,7 +40,7 @@ export const getCoordinatesFromAPI = async (file, model, base64Image, thumbnailB
       });
       if (response.status === 200) {
         // console.log(response)
-        sessionStorage.setItem('token', response.headers['new-token'])
+        sessionManager.setItem('token', response.headers['new-token'])
         // Axios automatically parses JSON response
         const data = response.data;
 
@@ -116,10 +117,10 @@ export const getCoordinatesFromAPI = async (file, model, base64Image, thumbnailB
           }, {
             headers: {
               'Content-Type': 'application/json',
-              Authorization: sessionStorage.getItem('token')
+              Authorization: sessionManager.getItem('token')
             }
           });
-          sessionStorage.setItem('token', response.headers['new-token'])
+          sessionManager.setItem('token', response.headers['new-token'])
           // console.log('Image, annotations and thumbnail uploaded successfully');
           return { success: true };
         } catch (error) {
@@ -159,7 +160,7 @@ export const saveImageToFolder = async (file, patientID, imageNumber, model) => 
     // Process annotations (assuming getCoordinatesFromAPI is a function you have)
     const base64Image = await getFileAsBase64(file);
     const thumbnailBase64 = await createThumbnail(file);
-    const visitId = sessionStorage.getItem('visitId');
+    const visitId = sessionManager.getItem('visitId');
     const annotations = await getCoordinatesFromAPI(file, model, base64Image, thumbnailBase64, visitId, imageFileName, patientID, imageNumber, annotationFileName);
     if (annotations.error) {
       return { success: false, error: annotations.error }

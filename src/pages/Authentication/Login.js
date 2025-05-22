@@ -1,72 +1,104 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom';
 import { Container, Row, Col, Card, CardBody, Form, Input, Button } from 'reactstrap';
-import logoDark from "../../assets/images/logo-dark.png";
-import logoLight from "../../assets/images/logo-light.png";
-import logo3 from "../../assets/images/logo3.png"
-import logo4 from "../../assets/images/logo4.png"
-import logo5 from "../../assets/images/logo5.png"
-import logo7 from "../../assets/images/logo7.png"
 import logo8 from "../../assets/images/OralWisdom-NewLogo-01.png"
 import dentalLaser from "../../assets/images/PX/Dental Laser.png"
 import surgicalMicroscope from "../../assets/images/PX/Surgical Microscope.png"
 import dentalServices from "../../assets/images/PX/Dental Services.png"
 import toothExtraction from "../../assets/images/PX/Tooth Extraction.png"
-// import { useSelector, useDispatch } from "react-redux";
-// import { createSelector } from "reselect";
-// import PropTypes, { resetWarningCache } from "prop-types";
 import { Navigate } from "react-router-dom";
-// Formik validation
-//import * as Yup from "yup";
-//import { useFormik } from "formik";
-// import withRouter from 'components/Common/withRouter';
 import { AvForm, AvField } from "availity-reactstrap-validation"
-// actions
-//import { loginUser, socialLogin, loginSuccess } from "../../store/actions";
 import axios from "axios"
 import { logErrorToServer } from '../../utils/logError';
+import sessionManager from '../../utils/sessionManager';
 const Login = props => {
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   document.title = "Login | AGP Dental Tool";
   const [redirect, setRedirect] = useState(false);
   const [loading, setLoading] = useState(true);
-  //const dispatch = useDispatch();
+
+  // Function to sync sessionStorage across tabs
+  const syncSessionStorage = () => {
+    // Request session data from other tabs
+    localStorage.setItem('requestSessionData', Date.now().toString());
+    localStorage.removeItem('requestSessionData');
+  };
+
+  // Function to respond to session data requests
+  const handleStorageEvent = (e) => {
+    if (e.key === 'requestSessionData') {
+      // Another tab is requesting session data
+      const token = sessionStorage.getItem('token');
+      if (token) {
+        // Send session data via localStorage
+        localStorage.setItem('shareSessionData', JSON.stringify({
+          token: sessionStorage.getItem('token'),
+          clientId: sessionStorage.getItem('clientId'),
+          firstName: sessionStorage.getItem('firstName'),
+          lastName: sessionStorage.getItem('lastName')
+        }));
+        localStorage.removeItem('shareSessionData');
+      }
+    } else if (e.key === 'shareSessionData' && e.newValue) {
+      // Receiving session data from another tab
+      const sessionData = JSON.parse(e.newValue);
+      if (sessionData.token && !sessionStorage.getItem('token')) {
+        sessionStorage.setItem('token', sessionData.token);
+        sessionStorage.setItem('clientId', sessionData.clientId);
+        sessionStorage.setItem('firstName', sessionData.firstName);
+        sessionStorage.setItem('lastName', sessionData.lastName);
+      }
+    }
+  };
 
   // Check if token exists and is valid
   useEffect(() => {
-    const token = sessionStorage.getItem('token');
-
     const validateToken = async () => {
+      // Try to get session data from other tabs if not available in current tab
+      if (!sessionManager.getItem('token')) {
+        sessionManager.requestSessionData();
+        // Small delay to allow other tabs to respond
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      const token = sessionManager.getItem('token');
+
       if (token) {
         try {
-          // Use an existing protected endpoint to validate the token
-          // We'll use the getCDTCodes endpoint which requires authentication
           const response = await axios.get(`${apiUrl}/getCDTCodes`, {
             headers: {
               Authorization: `${token}`
             }
           });
 
-          // If the request is successful, the token is valid
           if (response.status === 200) {
             setRedirect(true);
           }
         } catch (error) {
-          // If there's an error, the token is invalid or expired
-          // Clear the session storage
-          sessionStorage.removeItem('token');
-          sessionStorage.removeItem('clientId');
-          sessionStorage.removeItem('firstName');
-          sessionStorage.removeItem('lastName');
+          // Clear session if token is invalid
+          sessionManager.clearSession();
         }
       }
-      // Set loading to false regardless of whether there's a token or not
       setLoading(false);
     };
 
+    // Listen for session changes from other tabs
+    const handleSessionChange = (type, sessionData) => {
+      if (type === 'login' && sessionData.token) {
+        setRedirect(true);
+      }
+    };
+
+    const removeListener = sessionManager.addEventListener(handleSessionChange);
+    
     validateToken();
+
+    // Cleanup
+    return () => {
+      removeListener();
+    };
   }, [apiUrl])
-  //-----------
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -75,18 +107,19 @@ const Login = props => {
     e.preventDefault();
     setError('');
     try {
-      //console.log("calling api");
       const response = await axios.post(`${apiUrl}/login`, {
         username: username, password: password
       });
-      // console.log(response);
+      
       if (response.status === 200) {
-        //console.log(response);
-        sessionStorage.setItem('token', response.data.token);
-        sessionStorage.setItem('clientId', response.data.clientId);
-        sessionStorage.setItem('firstName', response.data.firstName);
-        sessionStorage.setItem('lastName', response.data.lastName);
-        // localStorage.setItem('authUser',response.data.token);
+        // Use sessionManager instead of direct sessionStorage
+        sessionManager.setSessionData({
+          token: response.data.token,
+          clientId: response.data.clientId,
+          firstName: response.data.firstName,
+          lastName: response.data.lastName
+        });
+        
         setError('');
         setRedirect(true);
       }
@@ -108,7 +141,6 @@ const Login = props => {
     return <Navigate to="/practiceList" />;
   }
 
-  // Show loading spinner while validating token
   if (loading) {
     return (
       <div className="d-flex justify-content-center align-items-center vh-100">
@@ -127,7 +159,6 @@ const Login = props => {
             {/* Left Section - Logo & AI Dental Care */}
             <Col md={7} className="left-section d-flex flex-column justify-content-center" style={{ color: '#1B69B2' }}>
               <div className="text-start h-100 overflow-auto">
-                {/* Add Your Logo Here */}
                 <img src={logo8} alt="Logo" className="mb-3" style={{maxWidth: '50%', height: 'auto'}} />
                 <h2 className="mt-3" style={{ fontSize: '32px', marginLeft: '5%', color: '#000' }}>Smarter dental care, powered by AI wisdom.</h2><br />
                 <p className="mt-2" style={{ fontSize: '28px', marginLeft: '5%', color:'#000' }}>Enhancing diagnostics, optimizing workflows, and improving patient outcomes with AI-driven solutions.</p><br />
@@ -204,12 +235,10 @@ const Login = props => {
                   </div>
                 </CardBody>
               </Card>
-
             </Col>
           </Row>
         </Container>
 
-        {/* Custom Styles */}
         <style>{`
         .login-page {
           background-color: white;
@@ -261,13 +290,8 @@ const Login = props => {
         }
       `}</style>
       </div>
-
     </React.Fragment>
   )
 }
 
 export default Login;
-
-// Login.propTypes = {
-//   history: PropTypes.object,
-// };

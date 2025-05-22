@@ -6,12 +6,13 @@ import { setBreadcrumbItems } from "../store/actions";
 import { connect } from "react-redux";
 import axios from "axios";
 import { logErrorToServer } from 'utils/logError';
+import sessionManager from "utils/sessionManager"
 const PatientImagesList = (props) => {
     document.title = "Patient Images List | AGP Dental Tool";
     const breadcrumbItems = [
-        { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
-        { title: sessionStorage.getItem('practiceName'), link: "/patientList" },
-        { title: `${sessionStorage.getItem('patientName')} Images List`, link: "/patientImagesList" },
+        { title: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, link: "/practiceList" },
+        { title: sessionManager.getItem('practiceName'), link: "/patientList" },
+        { title: `${sessionManager.getItem('patientName')} Images List`, link: "/patientImagesList" },
     ]
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
     const [redirectToLogin, setRedirectToLogin] = useState(false);
@@ -51,8 +52,8 @@ const PatientImagesList = (props) => {
     const [errorClr, setErrorClr] = useState('red');
     useEffect(() => {
         props.setBreadcrumbItems('Patient Images List', breadcrumbItems)
-        setPatientId(sessionStorage.getItem('patientId'));
-        //sessionStorage.removeItem('patientId');
+        setPatientId(sessionManager.getItem('patientId'));
+        //sessionManager.removeItem('patientId');
 
 
         // const fetchImages = async () => {
@@ -85,18 +86,18 @@ const PatientImagesList = (props) => {
         };
 
         const getPatientDetails = async () => {
-            //console.log(sessionStorage.getItem('patientId'));
+            //console.log(sessionManager.getItem('patientId'));
             try {
-                const response = await axios.get(`${apiUrl}/getPatientByID?patientId=` + sessionStorage.getItem('patientId'),
+                const response = await axios.get(`${apiUrl}/getPatientByID?patientId=` + sessionManager.getItem('patientId'),
                     {
                         headers: {
-                            Authorization: sessionStorage.getItem('token')
+                            Authorization: sessionManager.getItem('token')
                         }
                     });
-                // const response = await axios.get('http://localhost:3000/getPatientByID?patientId=' + sessionStorage.getItem('patientId'));
+                // const response = await axios.get('http://localhost:3000/getPatientByID?patientId=' + sessionManager.getItem('patientId'));
                 if (response.status === 200) {
                     const data = response.data;
-                    sessionStorage.setItem('token', response.headers['new-token'])
+                    sessionManager.setItem('token', response.headers['new-token'])
                     // console.log(data);
                     setpatient_name(data.patientList.last_name + ' ' + data.patientList.first_name)
                     setpatient_email(data.patientList.email);
@@ -111,7 +112,7 @@ const PatientImagesList = (props) => {
             }
             catch (error) {
                 if (error.status === 403 || error.status === 401) {
-                    sessionStorage.removeItem('token');
+                    sessionManager.removeItem('token');
                     setRedirectToLogin(true);
                 }
                 else {
@@ -136,26 +137,26 @@ const PatientImagesList = (props) => {
     const getPatientVisits = async () => {
         try {
             setVisitDetails([]);
-            //console.log(sessionStorage.getItem('patientId'));
-            const response = await axios.get(`${apiUrl}/getPatientVisitsByID?patientId=` + sessionStorage.getItem('patientId'),
+            //console.log(sessionManager.getItem('patientId'));
+            const response = await axios.get(`${apiUrl}/getPatientVisitsByID?patientId=` + sessionManager.getItem('patientId'),
                 {
                     headers: {
-                        Authorization: sessionStorage.getItem('token')
+                        Authorization: sessionManager.getItem('token')
                     }
                 });
-            //  const response = await axios.get('http://localhost:3001/getPatientVisitsByID?patientId=' + sessionStorage.getItem('patientId'));
+            //  const response = await axios.get('http://localhost:3001/getPatientVisitsByID?patientId=' + sessionManager.getItem('patientId'));
             if (response.status === 200) {
                 const visitData = response.data;
-                sessionStorage.setItem('token', response.headers['new-token'])
-                // const responseImages = await axios.get('http://localhost:3000/getPatientImagesByID?patientId=' + sessionStorage.getItem('patientId'));
-                const responseImages = await axios.get(`${apiUrl}/getPatientImagesByID?patientId=` + sessionStorage.getItem('patientId'),
+                sessionManager.setItem('token', response.headers['new-token'])
+                // const responseImages = await axios.get('http://localhost:3000/getPatientImagesByID?patientId=' + sessionManager.getItem('patientId'));
+                const responseImages = await axios.get(`${apiUrl}/getPatientImagesByID?patientId=` + sessionManager.getItem('patientId'),
                     {
                         headers: {
-                            Authorization: sessionStorage.getItem('token')
+                            Authorization: sessionManager.getItem('token')
                         }
                     });
                 if (responseImages.status === 200) {
-                    sessionStorage.setItem('token', response.headers['new-token'])
+                    sessionManager.setItem('token', response.headers['new-token'])
                     await visitData.patienVisits.map(visit => {
                         const visitImages = responseImages.data.patienImages.filter(image => image.visitId === visit._id)
                         const visitDate = DateFormatter(new Date(visit.date_of_visit));
@@ -171,7 +172,7 @@ const PatientImagesList = (props) => {
         }
         catch (error) {
             if (error.status === 403 || error.status === 401) {
-                sessionStorage.removeItem('token');
+                sessionManager.removeItem('token');
                 setRedirectToLogin(true);
             }
             else {
@@ -187,9 +188,9 @@ const PatientImagesList = (props) => {
     const [redirectToTreatmentPlan, setRedirectToTreatmentPlan] = useState(false);
     const handleClickPatientImage = () => {
         setError("");
-        sessionStorage.setItem('patientId', patientId);
+        sessionManager.setItem('patientId', patientId);
         setRedirect(true);
-        sessionStorage.removeItem('visitId');
+        sessionManager.removeItem('visitId');
     };
 
     if (redirect) {
@@ -200,15 +201,15 @@ const PatientImagesList = (props) => {
     }
     const handleClickTreatmentPlan = () => {
         setError("");
-        sessionStorage.setItem('patientId', patientId);
+        sessionManager.setItem('patientId', patientId);
         setRedirectToTreatmentPlan(true);
-        sessionStorage.removeItem('visitId');
+        sessionManager.removeItem('visitId');
     };
     const handleClickTemporality = () => {
         setError("");
-        sessionStorage.setItem('patientId', patientId);
+        sessionManager.setItem('patientId', patientId);
         setRedirectToTemporality(true);
-        sessionStorage.removeItem('visitId');
+        sessionManager.removeItem('visitId');
     };
 
     if (redirectToTreatmentPlan) {
@@ -223,7 +224,7 @@ const PatientImagesList = (props) => {
     const handleEditClick = (e, visitId, key) => {
         // return <Navigate to="/login" />
         e.stopPropagation();
-        sessionStorage.setItem('visitId', visitId.visitId);
+        sessionManager.setItem('visitId', visitId.visitId);
         setRedirect(true);
     }
 
@@ -231,25 +232,25 @@ const PatientImagesList = (props) => {
         try {
             setError("");
             if (visitId.patientImages.length > 0) {
-                sessionStorage.setItem('visitId', visitId.patientImages[0].visitId);
-                sessionStorage.setItem('xrayDate', visitId.DateOfXray);
+                sessionManager.setItem('visitId', visitId.patientImages[0].visitId);
+                sessionManager.setItem('xrayDate', visitId.DateOfXray);
                 // console.log(visitId.DateOfXray);
                 // console.log(key)
                 if (key === 0 && key === visitDetials.length - 1) {
-                    sessionStorage.setItem('first', true)
-                    sessionStorage.setItem('last', true)
+                    sessionManager.setItem('first', true)
+                    sessionManager.setItem('last', true)
                 }
                 else if (key === 0) {
-                    sessionStorage.setItem('first', false)
-                    sessionStorage.setItem('last', true)
+                    sessionManager.setItem('first', false)
+                    sessionManager.setItem('last', true)
                 }
                 else if (key === visitDetials.length - 1) {
-                    sessionStorage.setItem('last', false)
-                    sessionStorage.setItem('first', true)
+                    sessionManager.setItem('last', false)
+                    sessionManager.setItem('first', true)
                 }
                 else {
-                    sessionStorage.setItem('last', false)
-                    sessionStorage.setItem('first', false)
+                    sessionManager.setItem('last', false)
+                    sessionManager.setItem('first', false)
                 }
                 setRedirectToAnnotationPage(true);
             }
@@ -293,12 +294,12 @@ const PatientImagesList = (props) => {
                     let response = await axios.post(`${apiUrl}/delete-patient-image?ids=` + checkedImages, {},
                         {
                             headers: {
-                                Authorization: sessionStorage.getItem('token')
+                                Authorization: sessionManager.getItem('token')
                             }
                         })
                     if (response.status === 200) {
                         getPatientVisits();
-                        sessionStorage.setItem('token', response.headers['new-token'])
+                        sessionManager.setItem('token', response.headers['new-token'])
                         setError('Image/s deleted successfully');
                         setErrorClr('green');
                     }
@@ -307,7 +308,7 @@ const PatientImagesList = (props) => {
         }
         catch (error) {
             if (error.status === 403 || error.status === 401) {
-                sessionStorage.removeItem('token');
+                sessionManager.removeItem('token');
                 setRedirectToLogin(true);
             }
             else {
@@ -347,7 +348,7 @@ const PatientImagesList = (props) => {
                         const response = await fetch(`${apiUrl}/download-image?imageName=${encodeURIComponent(imageName)}`,
                             {
                                 headers: {
-                                    Authorization: sessionStorage.getItem('token')
+                                    Authorization: sessionManager.getItem('token')
                                 }
                             });
                         // Check if the response is successful
@@ -370,7 +371,7 @@ const PatientImagesList = (props) => {
                 }
             } catch (error) {
                 if (error.status === 403 || error.status === 401) {
-                    sessionStorage.removeItem('token');
+                    sessionManager.removeItem('token');
                     setRedirectToLogin(true);
                 }
                 else {

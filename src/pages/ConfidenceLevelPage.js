@@ -3,6 +3,7 @@ import { Button, Input, Table, UncontrolledTooltip, Nav, NavItem, NavLink, TabCo
 import axios from "axios";
 import { Navigate } from "react-router-dom";
 import { logErrorToServer } from "utils/logError";
+import sessionManager from "utils/sessionManager";
 
 const ConfidenceLevelPage = () => {
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
@@ -22,20 +23,20 @@ const ConfidenceLevelPage = () => {
 
     useEffect(() => {
         const fetchClassCategories = async () => {
-            if (sessionStorage.getItem('clientId') === '67161fcbadd1249d59085f9a') {
+            if (sessionManager.getItem('clientId') === '67161fcbadd1249d59085f9a') {
                 try {
-                    const response = await axios.get(`${apiUrl}/get-classCategories?clientId=` + sessionStorage.getItem('clientId'),
+                    const response = await axios.get(`${apiUrl}/get-classCategories?clientId=` + sessionManager.getItem('clientId'),
                         {
                             headers: {
-                                Authorization: sessionStorage.getItem('token')
+                                Authorization: sessionManager.getItem('token')
                             }
                         });
                     const data = response.data;
-                    sessionStorage.setItem('token', response.headers['new-token']);
+                    sessionManager.setItem('token', response.headers['new-token']);
                     setConfidenceLevels(data);
                 } catch (error) {
                     if (error.status === 403 || error.status === 401) {
-                        sessionStorage.removeItem('token');
+                        sessionManager.removeItem('token');
                         setRedirectToLogin(true);
                     }
                     else {
@@ -58,11 +59,11 @@ const ConfidenceLevelPage = () => {
 
             const response = await axios.post(endpoint, {}, {
                 headers: {
-                    Authorization: sessionStorage.getItem('token')
+                    Authorization: sessionManager.getItem('token')
                 }
             });
 
-            sessionStorage.setItem('token', response.headers['new-token']);
+            sessionManager.setItem('token', response.headers['new-token']);
 
             // Update the state based on which confidence level was changed
             setConfidenceLevels((prevLevels) => {
@@ -77,7 +78,7 @@ const ConfidenceLevelPage = () => {
             });
         } catch (error) {
             if (error.status === 403 || error.status === 401) {
-                sessionStorage.removeItem('token');
+                sessionManager.removeItem('token');
                 setRedirectToLogin(true);
             }
             else {

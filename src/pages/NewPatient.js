@@ -14,6 +14,7 @@ import Flatpickr from "react-flatpickr"
 import 'flatpickr/dist/flatpickr.min.css';
 import axios from "axios";
 import { logErrorToServer } from "utils/logError";
+import sessionManager from "utils/sessionManager";
 const NewPatient = (props) => {
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
     document.title = "New Patient | AGP Dental Tool";
@@ -38,58 +39,58 @@ const NewPatient = (props) => {
     const [patientActive, setPatientActive] = useState(true);
     const [error, setError] = useState("")
     const breadcrumbItems = [
-        { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
-        { title: sessionStorage.getItem('practiceName'), link: "/patientList" },
+        { title: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, link: "/practiceList" },
+        { title: sessionManager.getItem('practiceName'), link: "/patientList" },
         { title: "New Patient", link: "/NewPatient" },
     ]
     const [patientId, setPatientId] = useState('');
     useEffect(() => {
         props.setBreadcrumbItems('New Patient', breadcrumbItems)
-        if (sessionStorage.getItem('patientAddress')) {
-            setFirstName(sessionStorage.getItem('patientFName'));
-            setLastName(sessionStorage.getItem('patientLName'));
-            setAddress(sessionStorage.getItem('patientAddress'));
-            setGender(sessionStorage.getItem('patientGender'));
-            setPatientId(sessionStorage.getItem('patientId'));
-            setEmail(sessionStorage.getItem('patientEmail'));
-            setTelephone(sessionStorage.getItem('patientTelephone'));
-            setGuardianFirstName(sessionStorage.getItem('patientGFName'));
-            setGuardianLastName(sessionStorage.getItem('patientGLName'));
-            setGuardianRelationship(sessionStorage.getItem('patientGRelationship'));
-            setPatientActive(sessionStorage.getItem('patientActive') === "false" ? false : true);
-            if (sessionStorage.getItem('patientDOB')) {
-                setDob(sessionStorage.getItem('patientDOB'));
-                setDisplayDob(new Date(sessionStorage.getItem('patientDOB')))
+        if (sessionManager.getItem('patientAddress')) {
+            setFirstName(sessionManager.getItem('patientFName'));
+            setLastName(sessionManager.getItem('patientLName'));
+            setAddress(sessionManager.getItem('patientAddress'));
+            setGender(sessionManager.getItem('patientGender'));
+            setPatientId(sessionManager.getItem('patientId'));
+            setEmail(sessionManager.getItem('patientEmail'));
+            setTelephone(sessionManager.getItem('patientTelephone'));
+            setGuardianFirstName(sessionManager.getItem('patientGFName'));
+            setGuardianLastName(sessionManager.getItem('patientGLName'));
+            setGuardianRelationship(sessionManager.getItem('patientGRelationship'));
+            setPatientActive(sessionManager.getItem('patientActive') === "false" ? false : true);
+            if (sessionManager.getItem('patientDOB')) {
+                setDob(sessionManager.getItem('patientDOB'));
+                setDisplayDob(new Date(sessionManager.getItem('patientDOB')))
                 setDefaultAge(false);
             }
             else {
                 const currentDate = new Date(); // Current date
-                const birthDate = new Date(sessionStorage.getItem('patientAge'));
+                const birthDate = new Date(sessionManager.getItem('patientAge'));
                 setAge(currentDate.getFullYear() - birthDate.getFullYear());
             }
             setEdit(true);
         }
-        else if (sessionStorage.getItem('patientId')) {
-            sessionStorage.removeItem('patientId');
+        else if (sessionManager.getItem('patientId')) {
+            sessionManager.removeItem('patientId');
         }
     }, [])
     const handleCancelSubmit = async () => {
         if (edit) {
-            sessionStorage.removeItem('patientFName');
-            sessionStorage.removeItem('patientLName');
-            sessionStorage.removeItem('patientAddress');
-            sessionStorage.removeItem('patientGender');
-            sessionStorage.removeItem('patientEmail');
-            sessionStorage.removeItem('patientTelephone');
-            sessionStorage.removeItem('patientGLName');
-            sessionStorage.removeItem('patientGFName');
-            sessionStorage.removeItem('patientGRelationship');
-            sessionStorage.removeItem('patientActive');
-            if (sessionStorage.getItem('patientDOB')) {
-                sessionStorage.removeItem('patientDOB');
+            sessionManager.removeItem('patientFName');
+            sessionManager.removeItem('patientLName');
+            sessionManager.removeItem('patientAddress');
+            sessionManager.removeItem('patientGender');
+            sessionManager.removeItem('patientEmail');
+            sessionManager.removeItem('patientTelephone');
+            sessionManager.removeItem('patientGLName');
+            sessionManager.removeItem('patientGFName');
+            sessionManager.removeItem('patientGRelationship');
+            sessionManager.removeItem('patientActive');
+            if (sessionManager.getItem('patientDOB')) {
+                sessionManager.removeItem('patientDOB');
             }
             else {
-                sessionStorage.removeItem('patientAge');
+                sessionManager.removeItem('patientAge');
             }
         }
         setRedirectToPatientList(true);
@@ -127,11 +128,11 @@ const NewPatient = (props) => {
                             //    response = await axios.post('http://localhost:3001/add-patient', {
                             first_name: firstName, last_name: lastName, email: email, telephone: telephone, gender: gender, dob: dob,
                             guardian_first_name: guardian_first_name, guardian_last_name: guardian_last_name, guardian_relationship: guardian_relationship, address: address,
-                            is_active: true, created_by: "test", practiceId: sessionStorage.getItem('practiceId'), patientId: patientId, patientActive: patientActive
+                            is_active: true, created_by: "test", practiceId: sessionManager.getItem('practiceId'), patientId: patientId, patientActive: patientActive
                         },
                             {
                                 headers: {
-                                    Authorization: sessionStorage.getItem('token')
+                                    Authorization: sessionManager.getItem('token')
                                 }
                             })
                     }
@@ -140,11 +141,11 @@ const NewPatient = (props) => {
                             //    response = await axios.post('http://localhost:3001/add-patient', {
                             first_name: firstName, last_name: lastName, email: email, telephone: telephone, gender: gender, dob: dob,
                             guardian_first_name: guardian_first_name, guardian_last_name: guardian_last_name, guardian_relationship: guardian_relationship, address: address,
-                            is_active: true, created_by: "test", practiceId: sessionStorage.getItem('practiceId'), patientActive: patientActive
+                            is_active: true, created_by: "test", practiceId: sessionManager.getItem('practiceId'), patientActive: patientActive
                         },
                             {
                                 headers: {
-                                    Authorization: sessionStorage.getItem('token')
+                                    Authorization: sessionManager.getItem('token')
                                 }
                             })
                     }
@@ -155,11 +156,11 @@ const NewPatient = (props) => {
                             //    response = await axios.post('http://localhost:3001/add-patient', {
                             first_name: firstName, last_name: lastName, email: email, telephone: telephone, gender: gender, reference_dob_for_age: ref_dob,
                             guardian_first_name: guardian_first_name, guardian_last_name: guardian_last_name, guardian_relationship: guardian_relationship, address: address,
-                            is_active: true, created_by: 'test', practiceId: sessionStorage.getItem('practiceId'), patientId: patientId, patientActive: patientActive
+                            is_active: true, created_by: 'test', practiceId: sessionManager.getItem('practiceId'), patientId: patientId, patientActive: patientActive
                         },
                             {
                                 headers: {
-                                    Authorization: sessionStorage.getItem('token')
+                                    Authorization: sessionManager.getItem('token')
                                 }
                             })
                     }
@@ -168,36 +169,36 @@ const NewPatient = (props) => {
                             //    response = await axios.post('http://localhost:3001/add-patient', {
                             first_name: firstName, last_name: lastName, email: email, telephone: telephone, gender: gender, reference_dob_for_age: ref_dob,
                             guardian_first_name: guardian_first_name, guardian_last_name: guardian_last_name, guardian_relationship: guardian_relationship, address: address,
-                            is_active: true, created_by: 'test', practiceId: sessionStorage.getItem('practiceId'), patientActive: patientActive
+                            is_active: true, created_by: 'test', practiceId: sessionManager.getItem('practiceId'), patientActive: patientActive
                         },
                             {
                                 headers: {
-                                    Authorization: sessionStorage.getItem('token')
+                                    Authorization: sessionManager.getItem('token')
                                 }
                             })
                     }
                 }
                 if (response.status === 200) {
-                    sessionStorage.setItem('patientId', response.data.user1._id);
-                    sessionStorage.setItem('token', response.headers['new-token'])
+                    sessionManager.setItem('patientId', response.data.user1._id);
+                    sessionManager.setItem('token', response.headers['new-token'])
                     setPatientId(response.data.user1._id);
-                    sessionStorage.setItem('patientName', `${firstName} ${lastName}`);
+                    sessionManager.setItem('patientName', `${firstName} ${lastName}`);
                     if (edit) {
-                        sessionStorage.removeItem('patientFName');
-                        sessionStorage.removeItem('patientLName');
-                        sessionStorage.removeItem('patientAddress');
-                        sessionStorage.removeItem('patientGender');
-                        sessionStorage.removeItem('patientEmail');
-                        sessionStorage.removeItem('patientTelephone');
-                        sessionStorage.removeItem('patientGLName');
-                        sessionStorage.removeItem('patientGFName');
-                        sessionStorage.removeItem('patientGRelationship');
-                        sessionStorage.removeItem('patientActive');
-                        if (sessionStorage.getItem('patientDOB')) {
-                            sessionStorage.removeItem('patientDOB');
+                        sessionManager.removeItem('patientFName');
+                        sessionManager.removeItem('patientLName');
+                        sessionManager.removeItem('patientAddress');
+                        sessionManager.removeItem('patientGender');
+                        sessionManager.removeItem('patientEmail');
+                        sessionManager.removeItem('patientTelephone');
+                        sessionManager.removeItem('patientGLName');
+                        sessionManager.removeItem('patientGFName');
+                        sessionManager.removeItem('patientGRelationship');
+                        sessionManager.removeItem('patientActive');
+                        if (sessionManager.getItem('patientDOB')) {
+                            sessionManager.removeItem('patientDOB');
                         }
                         else {
-                            sessionStorage.removeItem('patientAge');
+                            sessionManager.removeItem('patientAge');
                         }
                     }
                     setRedirect(true);
@@ -205,7 +206,7 @@ const NewPatient = (props) => {
             }
             catch (err) {
                 if (err.status === 403 || err.status === 401) {
-                    sessionStorage.removeItem('token');
+                    sessionManager.removeItem('token');
                     setRedirectToLogin(true);
                 }
                 else {

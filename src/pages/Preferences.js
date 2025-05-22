@@ -10,12 +10,13 @@ import {
 //Import Action to copy breadcrumb items from local state to redux state
 import { setBreadcrumbItems } from "../store/actions";
 import { logErrorToServer } from '../utils/logError';
+import sessionManager from "utils/sessionManager"
 const Preferences = (props) => {
     document.title = "Preferences | AGP Dental Tool";
 
     const breadcrumbItems = [
-        { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
-        { title: sessionStorage.getItem('practiceName'), link: "/patientList" },
+        { title: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, link: "/practiceList" },
+        { title: sessionManager.getItem('practiceName'), link: "/patientList" },
         { title: "Preferences", link: "/preferences" },
     ]
     const [ipAdd, setipAdd] = useState('');

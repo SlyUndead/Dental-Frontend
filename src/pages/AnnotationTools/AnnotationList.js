@@ -24,6 +24,7 @@ import { logErrorToServer } from "utils/logError"
 import { desiredOrder, groupNames } from "./constants"
 import { calculateOverlap, polygonArea } from "./path-utils"
 import DentalChart from "./DentalChart"
+import sessionManager from "utils/sessionManager"
 const AnnotationList = ({
   annotations,
   hiddenAnnotations,
@@ -119,10 +120,10 @@ const AnnotationList = ({
   // Add this useEffect to fetch existing treatment plan on component mount
   const loadExistingTreatmentPlan = async () => {
     // Fetch the existing treatment plan
-    const response = await fetch(`${apiUrl}/get-treatment-plan?patientId=${sessionStorage.getItem("patientId")}`, {
+    const response = await fetch(`${apiUrl}/get-treatment-plan?patientId=${sessionManager.getItem("patientId")}`, {
       method: "GET",
       headers: {
-        Authorization: sessionStorage.getItem("token"),
+        Authorization: sessionManager.getItem("token"),
       },
     })
 
@@ -231,12 +232,12 @@ const AnnotationList = ({
         // Fetch data from the API
         const response = await axios.get(`${apiUrl}/get-className?className=` + anno.label, {
           headers: {
-            Authorization: sessionStorage.getItem("token"),
+            Authorization: sessionManager.getItem("token"),
           },
         })
         // console.log(response.data)
         setPopoverData(response.data)
-        sessionStorage.setItem("token", response.headers["new-token"])
+        sessionManager.setItem("token", response.headers["new-token"])
         setPopoverOpen(index)
         if (response.data === null) {
           setPopoverData({ description: "Please contact admin", className: "Data Missing" })
@@ -244,7 +245,7 @@ const AnnotationList = ({
         }
       } catch (err) {
         if (err.status === 403 || err.status === 401) {
-          sessionStorage.removeItem("token")
+          sessionManager.removeItem("token")
           setRedirectToLogin(true)
         } else {
           logErrorToServer(err, "handleAnnotationClick")
@@ -343,7 +344,7 @@ const AnnotationList = ({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: sessionStorage.getItem("token"),
+            Authorization: sessionManager.getItem("token"),
           },
           body: JSON.stringify({ labels: uncheckedLabels }),
         })
@@ -366,7 +367,7 @@ const AnnotationList = ({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: sessionStorage.getItem("token"),
+          Authorization: sessionManager.getItem("token"),
         },
         body: JSON.stringify({
           query: `Give me the CDT codes for treating moderate risk ${anomaly} only. it should in the form D____.`,
@@ -527,10 +528,10 @@ const AnnotationList = ({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: sessionStorage.getItem("token"),
+          Authorization: sessionManager.getItem("token"),
         },
         body: JSON.stringify({
-          patientId: sessionStorage.getItem("patientId"),
+          patientId: sessionManager.getItem("patientId"),
           treatments: updatedTreatments,
           created_by: "test",
         }),
@@ -560,7 +561,7 @@ const AnnotationList = ({
       if (dctCodes.length === 0) {
         const response = await fetch(`${apiUrl}/getCDTCodes`, {
           headers: {
-            Authorization: sessionStorage.getItem("token"),
+            Authorization: sessionManager.getItem("token"),
           },
         })
         const data = await response.json()

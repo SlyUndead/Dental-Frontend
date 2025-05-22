@@ -32,6 +32,7 @@ import { setBreadcrumbItems } from "../store/actions";
 import Flatpickr from "react-flatpickr"
 import 'flatpickr/dist/flatpickr.min.css';
 import axios from "axios"
+import sessionManager from "utils/sessionManager"
 import { logErrorToServer } from "utils/logError"
 const NewPatient = (props) => {
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
@@ -44,27 +45,27 @@ const NewPatient = (props) => {
     const [model, setModel] = useState("Segmentation Model");
 
     const breadcrumbItems = [
-        { title: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`, link: "/practiceList" },
-        { title: sessionStorage.getItem('practiceName'), link: "/patientList" },
-        { title: sessionStorage.getItem('patientName'), link: "/patientImagesList" },
+        { title: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, link: "/practiceList" },
+        { title: sessionManager.getItem('practiceName'), link: "/patientList" },
+        { title: sessionManager.getItem('patientName'), link: "/patientImagesList" },
         { title: "New Visit", link: "/patientImagesList" },
     ]
     const [patientId, setPatientId] = useState('');
     useEffect(() => {
         props.setBreadcrumbItems('Patient Visit', breadcrumbItems)
-        if (sessionStorage.getItem('patientId')) {
-            setPatientId(sessionStorage.getItem('patientId'));
+        if (sessionManager.getItem('patientId')) {
+            setPatientId(sessionManager.getItem('patientId'));
         }
-        if (sessionStorage.getItem('visitId')) {
+        if (sessionManager.getItem('visitId')) {
             const getVisitDetails = async () => {
-                const response = await axios.get(`${apiUrl}/getVisitDetailsById?visitID=` + sessionStorage.getItem('visitId'),
+                const response = await axios.get(`${apiUrl}/getVisitDetailsById?visitID=` + sessionManager.getItem('visitId'),
                     {
                         headers: {
-                            Authorization: sessionStorage.getItem('token')
+                            Authorization: sessionManager.getItem('token')
                         }
                     }); // Adjust the API endpoint as needed
                 // console.log(response);
-                sessionStorage.setItem('token', response.headers['new-token'])
+                sessionManager.setItem('token', response.headers['new-token'])
                 setDateOfVisit(response.data.visitDetails[0].date_of_visit);
                 setDateOfXray(response.data.visitDetails[0].date_of_xray);
                 setNotes(response.data.visitDetails[0].notes);
@@ -101,19 +102,19 @@ const NewPatient = (props) => {
             try {
                 let response;
                 //console.log('handlePatientVisitSubmit : ' + patientId);
-                if (sessionStorage.getItem('visitId')) {
+                if (sessionManager.getItem('visitId')) {
                     response = await axios.post(`${apiUrl}/update-patientVisit`, {
-                        visitId: sessionStorage.getItem('visitId'), date_of_xray: dateOfXray, notes: notes,
+                        visitId: sessionManager.getItem('visitId'), date_of_xray: dateOfXray, notes: notes,
                         date_of_visit: dateOfVisit, summary: summary
                     },
                         {
                             headers: {
-                                Authorization: sessionStorage.getItem('token')
+                                Authorization: sessionManager.getItem('token')
                             }
                         });
                     if (response.status === 200) {
-                        sessionStorage.setItem('xrayDate', dateOfXray)
-                        sessionStorage.setItem('token', response.headers['new-token'])
+                        sessionManager.setItem('xrayDate', dateOfXray)
+                        sessionManager.setItem('token', response.headers['new-token'])
                         toggleCustom("2");
                     }
                 }
@@ -125,13 +126,13 @@ const NewPatient = (props) => {
                     },
                         {
                             headers: {
-                                Authorization: sessionStorage.getItem('token')
+                                Authorization: sessionManager.getItem('token')
                             }
                         })
                     //console.log(response)
                     if (response.status === 200) {
-                        sessionStorage.setItem('visitId', response.data.visitDetail._id);
-                        sessionStorage.setItem('token', response.headers['new-token'])
+                        sessionManager.setItem('visitId', response.data.visitDetail._id);
+                        sessionManager.setItem('token', response.headers['new-token'])
                         toggleCustom("2");
                     }
                 }
@@ -167,10 +168,10 @@ const NewPatient = (props) => {
             setMessage(`${errors.length} files failed to upload:\n${errors.join('\n')}`);
             return;
         }
-        sessionStorage.setItem("xrayDate", dateOfXray)
+        sessionManager.setItem("xrayDate", dateOfXray)
         // Set success states if no errors occurred
-        sessionStorage.setItem('last', true);
-        sessionStorage.setItem('first', false);
+        sessionManager.setItem('last', true);
+        sessionManager.setItem('first', false);
         setRedirect(true);
     };
 
