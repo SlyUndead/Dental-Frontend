@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from "react"
 import {
   Card,
   CardBody,
-  Button,
   ListGroup,
   ListGroupItem,
   Row,
@@ -12,7 +11,7 @@ import {
   UncontrolledTooltip,
   Input,
   InputGroup,
-  Collapse
+  Collapse,
 } from "reactstrap"
 import axios from "axios"
 import { changeMode } from "../../store/actions"
@@ -25,6 +24,7 @@ import { desiredOrder, groupNames } from "./constants"
 import { calculateOverlap, polygonArea } from "./path-utils"
 import DentalChart from "./DentalChart"
 import sessionManager from "utils/sessionManager"
+import AnnotationPrerequisitesModal from "./AnnotationPrerequisitesModal"
 const AnnotationList = ({
   annotations,
   hiddenAnnotations,
@@ -42,7 +42,8 @@ const AnnotationList = ({
   setSmallCanvasData,
   mainImageIndex,
   confidenceLevels,
-  showConfidence
+  showConfidence,
+  patientDetails,
 }) => {
   // Check if setHoveredAnnotation is a function, if not, use a no-op function
   const apiUrl = process.env.REACT_APP_NODEAPIURL
@@ -69,18 +70,22 @@ const AnnotationList = ({
   const [anomalyCache, setAnomalyCache] = useState({})
   const [newLabel, setNewLabel] = useState("")
   const [lockedAnnotations, setLockedAnnotations] = useState([])
+  const [prerequisitesModalOpen, setPrerequisitesModalOpen] = useState(false)
+  const [selectedAnnotationForPrerequisites, setSelectedAnnotationForPrerequisites] = useState(null)
   const [persistentHiddenCategories, setPersistentHiddenCategories] = useState(() => {
     // Initialize from localStorage or default to hide 'Dental Chart' and 'Landmark'
-    const saved = localStorage.getItem("persistentHiddenCategories");
-    return saved ? JSON.parse(saved) : {
-      "Dental Chart": true,
-      "Landmark": true
-    };
-  });
+    const saved = localStorage.getItem("persistentHiddenCategories")
+    return saved
+      ? JSON.parse(saved)
+      : {
+        "Dental Chart": true,
+        Landmark: true,
+      }
+  })
   const [expandedGroups, setExpandedGroups] = useState(() => {
     // Initially collapse all groups
     const initialState = {}
-    desiredOrder.forEach(category => {
+    desiredOrder.forEach((category) => {
       initialState[category] = false
     })
     return initialState
@@ -91,8 +96,8 @@ const AnnotationList = ({
     return saved ? JSON.parse(saved) : {}
   })
   useEffect(() => {
-    localStorage.setItem("persistentHiddenCategories", JSON.stringify(persistentHiddenCategories));
-  }, [persistentHiddenCategories]);
+    localStorage.setItem("persistentHiddenCategories", JSON.stringify(persistentHiddenCategories))
+  }, [persistentHiddenCategories])
   useEffect(() => {
     localStorage.setItem("globalCheckedAnnotations", JSON.stringify(globalCheckedAnnotations))
   }, [globalCheckedAnnotations])
@@ -274,7 +279,7 @@ const AnnotationList = ({
           toothNumber = anno.associatedTooth
         } else {
           // Fall back to calculating the associated tooth
-          const toothAnnotations = annotations.filter(a => !isNaN(Number.parseInt(a.label)))
+          const toothAnnotations = annotations.filter((a) => !isNaN(Number.parseInt(a.label)))
           toothNumber = findToothForStoredAnomaly(anno, toothAnnotations) || "Unassigned"
         }
       }
@@ -289,9 +294,9 @@ const AnnotationList = ({
     return byTooth
   }
   const toggleGroupExpansion = (category) => {
-    setExpandedGroups(prev => ({
+    setExpandedGroups((prev) => ({
       ...prev,
-      [category]: !prev[category]
+      [category]: !prev[category],
     }))
   }
 
@@ -359,10 +364,132 @@ const AnnotationList = ({
     // console.log(anomalyCache)
     return anomalyCache
   }
+  const structureAnnotationsForRAG = (selectedAnomaly, selectedAnomalyMetadata = {}, selectedAnomalySegmentation = null) => {
+    const teethData = {}
 
+    // Process all annotations to group by tooth
+    annotations.forEach((anno) => {
+      let toothNumber = null
+
+      // Determine the tooth number
+      if (!isNaN(Number.parseInt(anno.label))) {
+        // This is a tooth annotation itself - skip for now as we're focusing on anomalies/procedures/foreign objects
+        return
+      } else {
+        // For non-tooth annotations, find the associated tooth
+        if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
+          toothNumber = anno.associatedTooth
+        } else {
+          const toothAnnotations = annotations.filter((a) => !isNaN(Number.parseInt(a.label)))
+          toothNumber = findToothForStoredAnomaly(anno, toothAnnotations)
+        }
+      }
+
+      // Skip if no associated tooth found
+      if (!toothNumber) return
+
+      // Handle tooth ranges (e.g., "11-14" for bone loss)
+      let toothNumbers = []
+      if (typeof toothNumber === 'string' && toothNumber.includes('-')) {
+        const [start, end] = toothNumber.split('-').map(num => parseInt(num))
+        for (let i = start; i <= end; i++) {
+          toothNumbers.push(i)
+        }
+      } else {
+        toothNumbers = [parseInt(toothNumber)]
+      }
+
+      // Process each tooth number
+      toothNumbers.forEach((tNum, index) => {
+        if (!teethData[tNum]) {
+          teethData[tNum] = {
+            number: tNum,
+            anomalies: [],
+            procedures: [],
+            foreign_objects: []
+          }
+        }
+
+        // Determine the category using classCategories
+        const category = classCategories[anno.label.toLowerCase()]
+
+        // Get metadata - use selectedAnomalyMetadata only if this is the EXACT selected anomaly instance
+        let metadata = {}
+
+        // Check if this is the specific selected anomaly instance by comparing:
+        // 1. Label matches
+        // 2. Segmentation coordinates match (for exact instance identification)
+        const isSelectedInstance = anno.label === selectedAnomaly &&
+          selectedAnomalySegmentation &&
+          anno.segmentation &&
+          arraysEqual(anno.segmentation, selectedAnomalySegmentation)
+
+        if (isSelectedInstance) {
+          if (anno.label.toLowerCase().includes("bone loss")) {
+            // Only add metadata to the first tooth in the range (index 0)
+            metadata = index === 0 ? selectedAnomalyMetadata : {}
+          } else {
+            // For non-bone loss anomalies, add metadata normally
+            metadata = selectedAnomalyMetadata
+          }
+        }
+
+        const annotationData = {
+          description: anno.label,
+          metadata: metadata
+        }
+
+        // Categorize based on the category from classCategories
+        if (category === 'Anomaly') {
+          teethData[tNum].anomalies.push(annotationData)
+        } else if (category === 'Procedure') {
+          teethData[tNum].procedures.push(annotationData)
+        } else if (category === 'Foreign Object') {
+          teethData[tNum].foreign_objects.push(annotationData)
+        } else {
+          // Default to anomalies if category is unclear
+          teethData[tNum].anomalies.push(annotationData)
+        }
+      })
+    })
+
+    // Convert to array format and clean up empty categories
+    const teethArray = Object.values(teethData).map(tooth => {
+      const cleanTooth = { number: tooth.number }
+
+      if (tooth.anomalies.length > 0) {
+        cleanTooth.anomalies = tooth.anomalies
+      }
+      if (tooth.procedures.length > 0) {
+        cleanTooth.procedures = tooth.procedures
+      }
+      if (tooth.foreign_objects.length > 0) {
+        cleanTooth.foreign_objects = tooth.foreign_objects
+      }
+
+      return cleanTooth
+    }).filter(tooth => tooth.anomalies || tooth.procedures || tooth.foreign_objects) // Only include teeth with data
+
+    return {
+      teeth: teethArray
+    }
+  }
+
+  // Helper function to compare segmentation arrays for exact match
+  const arraysEqual = (arr1, arr2) => {
+    if (!arr1 || !arr2 || arr1.length !== arr2.length) return false
+
+    return arr1.every((point1, index) => {
+      const point2 = arr2[index]
+      return Math.abs(point1.x - point2.x) < 0.001 && Math.abs(point1.y - point2.y) < 0.001
+    })
+  }
   // Fetch CDT codes from RAG system
-  const fetchCdtCodesFromRAG = async (anomaly, convertedCdtCode) => {
+  const fetchCdtCodesFromRAG = async (selectedAnomaly, convertedCdtCode, selectedAnomalyMetadata = {}, selectedAnomalySegmentation = null) => {
     try {
+      // Structure all annotations into the required format
+      const structuredData = structureAnnotationsForRAG(selectedAnomaly, selectedAnomalyMetadata, selectedAnomalySegmentation)
+
       const response = await fetch(`${apiUrl}/chat-with-rag`, {
         method: "POST",
         headers: {
@@ -370,13 +497,13 @@ const AnnotationList = ({
           Authorization: sessionManager.getItem("token"),
         },
         body: JSON.stringify({
-          query: `Give me the CDT codes for treating moderate risk ${anomaly} only. it should in the form D____.`,
-          promptTemplate: "You are an expert in dentistry",
+          question: `Based on the findings in this dental case (including anomalies and bone loss), what are the corresponding CDT treatment codes for each issue?`,
+          teeth: structuredData.teeth, // Send the structured teeth data
         }),
       })
 
       const ragText = await response.json()
-      return parseCdtCodes(ragText.answer, convertedCdtCode, anomaly)
+      return parseCdtCodes(ragText.answer, convertedCdtCode, selectedAnomaly)
     } catch (error) {
       console.error("Error fetching CDT codes:", error)
       return []
@@ -428,25 +555,40 @@ const AnnotationList = ({
   const autofillTreatments = async (annotationsList, convertedCdtCode) => {
     await checkAnomaliesWithServer(annotationsList)
     let finalResult = treatments
-    for (const [_, annotation] of Object.entries(annotationsList)) {
-      const cdtCodes = await fetchCdtCodesFromRAG(annotation.label, convertedCdtCode)
+
+    for (const [_, annotationData] of Object.entries(annotationsList)) {
+      // Pass the metadata from the annotation's prerequisites AND the segmentation for exact matching
+      const metadata = annotationData.prerequisites || {}
+      const segmentation = annotationData.segmentation || null
+
+      const cdtCodes = await fetchCdtCodesFromRAG(
+        annotationData.label,
+        convertedCdtCode,
+        metadata,
+        segmentation  // Pass segmentation for exact instance matching
+      )
+
       if (cdtCodes.length > 0) {
-        // Use the associatedTooth field directly if available
-        let toothNumber = null
-        if (annotation.associatedTooth !== undefined && annotation.associatedTooth !== null) {
-          toothNumber = annotation.associatedTooth
-        } else {
-          // Fall back to overlap method if associatedTooth is not available
-          const toothAnnotations = annotations.filter(a => !isNaN(Number.parseInt(a.label)))
-          toothNumber = findToothForStoredAnomaly(annotation, toothAnnotations)
+        let toothNumbers = []
+
+        // Handle tooth range for bone loss or single tooth
+        if (typeof annotationData.associatedTooth === 'string' && annotationData.associatedTooth.includes('-')) {
+          const [start, end] = annotationData.associatedTooth.split('-').map(num => parseInt(num))
+          for (let i = start; i <= end; i++) {
+            toothNumbers.push(i)
+          }
+        } else if (annotationData.associatedTooth) {
+          toothNumbers = [parseInt(annotationData.associatedTooth)]
         }
 
-        // Only proceed if we have a valid tooth number
-        if (toothNumber) {
-          finalResult = [
-            ...finalResult,
-            ...handleAutoFillTreatments([toothNumber], cdtCodes, annotation.label),
-          ]
+        if (toothNumbers.length > 0) {
+          const treatmentsWithPrerequisites = handleAutoFillTreatments(
+            toothNumbers,
+            cdtCodes,
+            annotationData.label,
+            metadata, // Pass prerequisites
+          )
+          finalResult = [...finalResult, ...treatmentsWithPrerequisites]
         }
       }
     }
@@ -454,9 +596,9 @@ const AnnotationList = ({
   }
 
   // Handle auto-filling treatments
-  const handleAutoFillTreatments = (toothNumberArray, cdtData, anomalyType) => {
+  const handleAutoFillTreatments = (toothNumberArray, cdtData, anomalyType, prerequisites = {}) => {
     const newTreatments = []
-    // console.log(newTreatments, toothNumberArray, cdtData, anomalyType)
+
     cdtData.forEach((code) => {
       // Handle different unit types
       if (code.unit && code.unit.toLowerCase() === "full mouth") {
@@ -465,6 +607,7 @@ const AnnotationList = ({
           id: Date.now() + Math.random(),
           toothNumber: "fullmouth", // Special identifier for full mouth
           anomalyType: anomalyType,
+          prerequisites: prerequisites, // Add prerequisites data
           ...code,
         })
       } else if (code.unit && code.unit.toLowerCase() === "visit") {
@@ -473,6 +616,7 @@ const AnnotationList = ({
           id: Date.now() + Math.random(),
           toothNumber: "visit", // Special identifier for per visit
           anomalyType: anomalyType,
+          prerequisites: prerequisites,
           ...code,
         })
       } else if (code.unit && code.unit.toLowerCase() === "quadrant") {
@@ -494,16 +638,24 @@ const AnnotationList = ({
             toothNumber: quadrant, // Use quadrant as the identifier
             affectedTeeth: quadrants[quadrant], // Store affected teeth
             anomalyType: anomalyType,
+            prerequisites: prerequisites,
             ...code,
           })
         })
       } else {
         // For individual teeth (default case)
-        toothNumberArray.forEach((toothNumber) => {
+        toothNumberArray.forEach((toothNumber, index) => {
+          // For bone loss, only add prerequisites to the first tooth in the range
+          let treatmentPrerequisites = prerequisites
+          if (anomalyType.toLowerCase().includes("bone loss") && index > 0) {
+            treatmentPrerequisites = {} // Empty prerequisites for subsequent teeth
+          }
+
           newTreatments.push({
             id: Date.now() + Math.random(),
             toothNumber: toothNumber.toString(),
             anomalyType: anomalyType,
+            prerequisites: treatmentPrerequisites,
             ...code,
           })
         })
@@ -512,7 +664,6 @@ const AnnotationList = ({
 
     if (newTreatments.length > 0) {
       const updatedTreatments = newTreatments
-      // console.log(newTreatments, updatedTreatments)
       // Ensure all new tooth numbers are added to selectedTeeth (avoid duplicates)
       const toothNumsToAdd = toothNumberArray.filter((t) => !isNaN(Number.parseInt(t)))
       setSelectedTeeth((prev) => [...new Set([...prev, ...toothNumsToAdd])])
@@ -589,10 +740,8 @@ const AnnotationList = ({
     }
   }
 
-  // Function to handle checkbox changes
   const handleCheckboxChange = (index) => {
     const anno = annotations[index]
-
     // If it's a tooth annotation, do nothing
     if (!isNaN(Number.parseInt(anno.label))) {
       return
@@ -603,40 +752,130 @@ const AnnotationList = ({
       return
     }
 
-    // Create a copy of the global checked annotations
-    const updatedGlobalChecked = { ...globalCheckedAnnotations }
     const uniqueKey = getAnnotationUniqueKey(anno)
-    // Toggle the checked state
-    if (updatedGlobalChecked[uniqueKey]) {
+    const isCurrentlyChecked = !!globalCheckedAnnotations[uniqueKey]
+
+    if (isCurrentlyChecked) {
+      // Unchecking - remove from global state
+      const updatedGlobalChecked = { ...globalCheckedAnnotations }
       delete updatedGlobalChecked[uniqueKey]
+      setGlobalCheckedAnnotations(updatedGlobalChecked)
+
+      setCheckedAnnotations((prev) => prev.filter((i) => i !== index))
     } else {
-      // Use the associatedTooth field if available, otherwise calculate it using overlap method
-      let associatedTooth = null
-      if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
-        associatedTooth = anno.associatedTooth
+      // Checking - open prerequisites modal first
+      let associatedTooth
+
+      // Special handling for bone loss annotations - use the tooth range
+      if (anno.label.toLowerCase().includes("bone loss")) {
+        const toothAnnotations = annotations.filter((a) => !isNaN(Number.parseInt(a.label)))
+        associatedTooth = findToothRangeForBoneLoss(anno, toothAnnotations)
+      }
+
+      // If not bone loss or no range found, use the standard method
+      if (!associatedTooth) {
+        associatedTooth =
+          anno.associatedTooth !== undefined && anno.associatedTooth !== null
+            ? anno.associatedTooth
+            : findToothForStoredAnomaly(
+              anno,
+              annotations.filter((a) => !isNaN(Number.parseInt(a.label))),
+            )
+      }
+
+      setSelectedAnnotationForPrerequisites({
+        annotation: anno,
+        index: index,
+        associatedTooth: associatedTooth,
+      })
+      setPrerequisitesModalOpen(true)
+    }
+  }
+
+  const handlePrerequisitesSave = async (annotation, formData, prerequisites) => {
+    // Find the annotation index
+    const index = annotations.findIndex((a) => a === annotation)
+    if (index === -1) return
+
+    // Use the associatedTooth field if available, otherwise calculate it using overlap method
+    let associatedTooth = null
+
+    // Special handling for bone loss annotations - use the tooth range
+    if (annotation.label.toLowerCase().includes("bone loss")) {
+      const toothAnnotations = annotations.filter((a) => !isNaN(Number.parseInt(a.label)))
+      associatedTooth = findToothRangeForBoneLoss(annotation, toothAnnotations)
+    }
+
+    // If not bone loss or no range found, use standard methods
+    if (!associatedTooth) {
+      if (annotation.associatedTooth !== undefined && annotation.associatedTooth !== null) {
+        associatedTooth = annotation.associatedTooth
       } else {
         // Get tooth annotations from current image
         const toothAnnotations = annotations.filter((a) => !isNaN(Number.parseInt(a.label)))
         // Find the associated tooth for this anomaly using overlap calculation
-        associatedTooth = findToothForStoredAnomaly(anno, toothAnnotations)
-      }
-
-      updatedGlobalChecked[uniqueKey] = {
-        label: anno.label,
-        segmentation: anno.segmentation,
-        associatedTooth: associatedTooth, // Add the associated tooth number
+        associatedTooth = findToothForStoredAnomaly(annotation, toothAnnotations)
       }
     }
 
-    // Update the state
+    const uniqueKey = getAnnotationUniqueKey(annotation)
+    const updatedGlobalChecked = { ...globalCheckedAnnotations }
+
+    // Add to global checked annotations with prerequisites data
+    updatedGlobalChecked[uniqueKey] = {
+      label: annotation.label,
+      segmentation: annotation.segmentation,
+      associatedTooth: associatedTooth,
+      prerequisites: formData, // Store the form data
+    }
+
     setGlobalCheckedAnnotations(updatedGlobalChecked)
-    setCheckedAnnotations((prev) => {
-      if (prev.includes(index)) {
-        return prev.filter((i) => i !== index)
-      } else {
-        return [...prev, index]
+    setCheckedAnnotations((prev) => [...prev, index])
+
+    // Auto-generate treatment plan after saving prerequisites
+    try {
+      setIsLoading(true)
+      setGeneratingPlan(true)
+
+      // First fetch the DCT codes if they're not already loaded
+      let convertedCodes = dctCodes
+      if (dctCodes.length === 0) {
+        const response = await fetch(`${apiUrl}/getCDTCodes`, {
+          headers: {
+            Authorization: sessionManager.getItem("token"),
+          },
+        })
+        const data = await response.json()
+        convertedCodes = convertCdtCode(data.cdtCodes)
+        setDctCodes(convertedCodes)
+        setFilteredCodes(convertedCodes)
       }
-    })
+
+      // Use the updated global state (including the newly added annotation)
+      const checkedAnomalyAnnotations = Object.values(updatedGlobalChecked).filter((anno) =>
+        isNaN(Number.parseInt(anno.label)),
+      ) // Exclude tooth annotations
+
+      const updatedTreatments = await autofillTreatments(checkedAnomalyAnnotations, convertedCodes)
+
+      // Save the treatment plan
+      await saveTreatmentPlan(updatedTreatments)
+
+      // Close the modal after successful generation
+      handlePrerequisitesModalClose()
+    } catch (error) {
+      console.error("Error generating treatment plan:", error)
+      alert("Error generating treatment plan")
+    } finally {
+      setGeneratingPlan(false)
+      setIsLoading(false)
+    }
+  }
+
+  // Add this function to handle modal close
+  const handlePrerequisitesModalClose = () => {
+    setPrerequisitesModalOpen(false)
+    setSelectedAnnotationForPrerequisites(null)
   }
   useEffect(() => {
     // Reset checked annotations based on current annotations and persistent state
@@ -678,7 +917,7 @@ const AnnotationList = ({
           const overlapPercentage = annoArea > 0 ? overlap / annoArea : 0
 
           // For bone loss, include any tooth with even minimal overlap
-          if (overlapPercentage > 0) {
+          if (overlapPercentage > 0.02) {
             overlappingTeeth.push(toothNumber)
           }
         } catch (error) {
@@ -702,10 +941,9 @@ const AnnotationList = ({
 
   const findToothForStoredAnomaly = (anomaly, toothAnnotations) => {
     // First check if the annotation has an associatedTooth field
-    if (anomaly.associatedTooth !== undefined && anomaly.associatedTooth !== null) {
+    if (anomaly.associatedTooth && anomaly.associatedTooth !== undefined && anomaly.associatedTooth !== null) {
       return anomaly.associatedTooth
     }
-
     // If no associatedTooth field or it's null, fall back to overlap calculation
     let maxOverlap = 0
     let associatedTooth = null
@@ -747,47 +985,47 @@ const AnnotationList = ({
   }
 
   const hideCategory = (category) => {
-    const annotationsToHide = groupedAnnotations[category].map((anno) => annotations.findIndex((a) => a === anno));
-    setHiddenAnnotations((prev) => [...prev, ...annotationsToHide]);
-    setPersistentHiddenCategories((prev) => ({ ...prev, [category]: true }));
+    const annotationsToHide = groupedAnnotations[category].map((anno) => annotations.findIndex((a) => a === anno))
+    setHiddenAnnotations((prev) => [...prev, ...annotationsToHide])
+    setPersistentHiddenCategories((prev) => ({ ...prev, [category]: true }))
   }
 
   const unhideCategory = (category) => {
-    const annotationsToUnhide = groupedAnnotations[category].map((anno) => annotations.findIndex((a) => a === anno));
-    setHiddenAnnotations((prev) => prev.filter((index) => !annotationsToUnhide.includes(index)));
-    setPersistentHiddenCategories((prev) => ({ ...prev, [category]: false }));
+    const annotationsToUnhide = groupedAnnotations[category].map((anno) => annotations.findIndex((a) => a === anno))
+    setHiddenAnnotations((prev) => prev.filter((index) => !annotationsToUnhide.includes(index)))
+    setPersistentHiddenCategories((prev) => ({ ...prev, [category]: false }))
   }
 
   const hideAllBoxes = () => {
-    const allIndices = annotations.map((_, index) => index);
-    setHiddenAnnotations(allIndices);
+    const allIndices = annotations.map((_, index) => index)
+    setHiddenAnnotations(allIndices)
 
     // Update persistent state for all categories
-    const allCategoriesHidden = {};
-    Object.keys(groupedAnnotations).forEach(category => {
-      allCategoriesHidden[category] = true;
-    });
-    setPersistentHiddenCategories(allCategoriesHidden);
+    const allCategoriesHidden = {}
+    Object.keys(groupedAnnotations).forEach((category) => {
+      allCategoriesHidden[category] = true
+    })
+    setPersistentHiddenCategories(allCategoriesHidden)
   }
 
   const unhideAllBoxes = () => {
-    setHiddenAnnotations([]);
+    setHiddenAnnotations([])
 
     // Update persistent state for all categories
-    const allCategoriesVisible = {};
-    Object.keys(groupedAnnotations).forEach(category => {
-      allCategoriesVisible[category] = false;
-    });
-    setPersistentHiddenCategories(allCategoriesVisible);
+    const allCategoriesVisible = {}
+    Object.keys(groupedAnnotations).forEach((category) => {
+      allCategoriesVisible[category] = false
+    })
+    setPersistentHiddenCategories(allCategoriesVisible)
   }
 
   const handleCategoryVisibilityToggle = (category) => {
     if (hideGroup[category]) {
-      unhideCategory(category);
-      setHideGroup((prev) => ({ ...prev, [category]: false }));
+      unhideCategory(category)
+      setHideGroup((prev) => ({ ...prev, [category]: false }))
     } else {
-      hideCategory(category);
-      setHideGroup((prev) => ({ ...prev, [category]: true }));
+      hideCategory(category)
+      setHideGroup((prev) => ({ ...prev, [category]: true }))
     }
   }
 
@@ -823,7 +1061,7 @@ const AnnotationList = ({
       // Initialize expanded states for tooth groups
       const toothExpandedGroups = { ...expandedGroups }
 
-      Object.keys(byTooth).forEach(tooth => {
+      Object.keys(byTooth).forEach((tooth) => {
         toothHideGroups[tooth] = false
         // All tooth groups should be collapsed by default
         toothExpandedGroups[tooth] = false
@@ -831,7 +1069,6 @@ const AnnotationList = ({
 
       setHideGroup(toothHideGroups)
       setExpandedGroups(toothExpandedGroups)
-
     } else {
       // Original grouping by category
       const updatedGroupedAnnotations = {}
@@ -841,22 +1078,22 @@ const AnnotationList = ({
       annotations.forEach((anno, index) => {
         const category = classCategories[anno.label.toLowerCase()]
         // Get the image group from the annotation's image
-        const imageGroup = smallCanvasData[mainImageIndex]?.annotations?.annotations?.group || 'pano';
-        const confidenceField = `${imageGroup}_confidence`;
-        const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()] ?
-          confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001 :
-          0.001;
+        const imageGroup = smallCanvasData[mainImageIndex]?.annotations?.annotations?.group || "pano"
+        const confidenceField = `${imageGroup}_confidence`
+        const confidenceThreshold = confidenceLevels[anno.label.toLowerCase()]
+          ? confidenceLevels[anno.label.toLowerCase()][confidenceField] || 0.001
+          : 0.001
 
         if (category && anno.confidence >= confidenceThreshold) {
           if (updatedGroupedAnnotations[category] === undefined) {
             updatedGroupedAnnotations[category] = []
 
             // Use the persistent state for category visibility
-            updatedHideGroups[category] = persistentHiddenCategories[category] || false;
+            updatedHideGroups[category] = persistentHiddenCategories[category] || false
 
             // If category is hidden according to persistent state, hide its annotations
             if (persistentHiddenCategories[category]) {
-              hiddenAnnotationsList.push(index);
+              hiddenAnnotationsList.push(index)
             }
           }
 
@@ -864,18 +1101,18 @@ const AnnotationList = ({
 
           // If category is hidden according to persistent state, hide this annotation
           if (persistentHiddenCategories[category]) {
-            hiddenAnnotationsList.push(index);
+            hiddenAnnotationsList.push(index)
           }
         } else {
           if (updatedGroupedAnnotations["Others"] === undefined) {
             updatedGroupedAnnotations["Others"] = []
-            updatedHideGroups["Others"] = persistentHiddenCategories["Others"] || false;
+            updatedHideGroups["Others"] = persistentHiddenCategories["Others"] || false
           }
           updatedGroupedAnnotations["Others"].push(anno)
 
           // If "Others" category is hidden, hide this annotation
           if (persistentHiddenCategories["Others"]) {
-            hiddenAnnotationsList.push(index);
+            hiddenAnnotationsList.push(index)
           }
         }
       })
@@ -900,7 +1137,7 @@ const AnnotationList = ({
       setHideGroup(updatedHideGroups)
       setHiddenAnnotations([...new Set(hiddenAnnotationsList)])
     }
-  }, [classCategories, annotations, persistentHiddenCategories, confidenceLevels, groupByTooth]);
+  }, [classCategories, annotations, persistentHiddenCategories, confidenceLevels, groupByTooth])
 
   useEffect(() => {
     hiddenAnnotations.length !== annotations.length ? setHideAllAnnotations(false) : setHideAllAnnotations(true)
@@ -924,7 +1161,9 @@ const AnnotationList = ({
         flexDirection: "column",
       }}
     >
-      <CardBody style={{ paddingTop: "0", paddingBottom: "0", paddingLeft: "0px", marginLeft: '0px', marginTop: '15px' }}>
+      <CardBody
+        style={{ paddingTop: "0", paddingBottom: "0", paddingLeft: "0px", marginLeft: "0px", marginTop: "15px" }}
+      >
         <DentalChart
           annotations={annotations}
           classCategories={classCategories}
@@ -947,11 +1186,11 @@ const AnnotationList = ({
                 onChange={() => setGroupByTooth(!groupByTooth)}
                 style={{
                   transform: "scale(1.3)",
-                  marginRight: '10px',
-                  cursor: 'pointer'
+                  marginRight: "10px",
+                  cursor: "pointer",
                 }}
               />
-              <label htmlFor="groupByToothToggle" style={{ marginBottom: '0', cursor: 'pointer' }}>
+              <label htmlFor="groupByToothToggle" style={{ marginBottom: "0", cursor: "pointer" }}>
                 Sort By Tooth
               </label>
             </div>
@@ -993,40 +1232,39 @@ const AnnotationList = ({
               {Object.keys(groupedAnnotations)
                 .sort((a, b) => {
                   // First check if both are numeric (teeth)
-                  const numA = parseInt(a);
-                  const numB = parseInt(b);
+                  const numA = Number.parseInt(a)
+                  const numB = Number.parseInt(b)
 
                   // If both are numbers (teeth), sort numerically
                   if (!isNaN(numA) && !isNaN(numB)) {
-                    return numA - numB;
+                    return numA - numB
                   }
 
                   // If either or both are non-numeric (categories)
                   // Check if they are in the desiredOrder array
-                  const indexA = desiredOrder.indexOf(a);
-                  const indexB = desiredOrder.indexOf(b);
+                  const indexA = desiredOrder.indexOf(a)
+                  const indexB = desiredOrder.indexOf(b)
 
                   // If both are in desiredOrder, sort by their position in desiredOrder
                   if (indexA !== -1 && indexB !== -1) {
-                    return indexA - indexB;
+                    return indexA - indexB
                   }
 
                   // If only one is in desiredOrder, prioritize the one in desiredOrder
-                  if (indexA !== -1) return -1;
-                  if (indexB !== -1) return 1;
+                  if (indexA !== -1) return -1
+                  if (indexB !== -1) return 1
 
                   // If neither is in desiredOrder, sort alphabetically
-                  return a.localeCompare(b);
+                  return a.localeCompare(b)
                 })
                 .map((group) => {
                   if (groupedAnnotations[group]) {
                     return (
                       <div key={group}>
                         {/* Always show header for all groups */}
-                        {(
+                        {
                           <h5>
-                            {groupNames[group]} ({groupedAnnotations[group].length})
-                            {/* Group Expansion Toggle */}
+                            {groupNames[group]} ({groupedAnnotations[group].length}){/* Group Expansion Toggle */}
                             <button
                               id={`btnToggleGroup${group}`}
                               type="button"
@@ -1036,9 +1274,10 @@ const AnnotationList = ({
                                 toggleGroupExpansion(group)
                               }}
                             >
-                              <i className={`ion ${expandedGroups[group] ? "ion-md-arrow-dropdown" : "ion-md-arrow-dropright"}`}></i>
+                              <i
+                                className={`ion ${expandedGroups[group] ? "ion-md-arrow-dropdown" : "ion-md-arrow-dropright"}`}
+                              ></i>
                             </button>
-
                             {/* Existing Hide/Show Button */}
                             <button
                               id={`btnHide${group}`}
@@ -1052,7 +1291,7 @@ const AnnotationList = ({
                               <i className={`ion ${hideGroup[group] ? "ion-md-eye-off" : "ion-md-eye"}`}></i>
                             </button>
                           </h5>
-                        )}
+                        }
 
                         {/* Collapsible Group Content */}
                         <Collapse isOpen={expandedGroups[group]}>
@@ -1094,7 +1333,7 @@ const AnnotationList = ({
                                         disabled={lockedAnnotations.includes(globalIndex)}
                                         style={{
                                           cursor: lockedAnnotations.includes(globalIndex) ? "not-allowed" : "pointer",
-                                          marginRight: "10px"
+                                          marginRight: "10px",
                                         }}
                                       />
 
@@ -1138,30 +1377,45 @@ const AnnotationList = ({
                                       ) : (
                                         <span>
                                           {/* For tooth annotations, display as "Tooth [number]" */}
-                                          {!isNaN(Number.parseInt(anno.label)) ?
-                                            `Tooth [${anno.label}]` :
-                                            /* For non-tooth annotations, display label and associated tooth */
+                                          {!isNaN(Number.parseInt(anno.label))
+                                            ? `Tooth [${anno.label}]`
+                                            : /* For non-tooth annotations, display label and associated tooth */
                                             (() => {
                                               // Get associated tooth for display
-                                              let displayToothInfo = "";
+                                              let displayToothInfo = ""
 
                                               // Special handling for bone loss annotations
                                               if (anno.label.toLowerCase().includes("bone loss")) {
-                                                const toothRange = findToothRangeForBoneLoss(anno, annotations.filter(a => !isNaN(Number.parseInt(a.label))));
-                                                displayToothInfo = toothRange ? ` [${toothRange}]` : (anno.associatedTooth ? ` [${anno.associatedTooth}]` : "");
+                                                const toothRange = findToothRangeForBoneLoss(
+                                                  anno,
+                                                  annotations.filter((a) => !isNaN(Number.parseInt(a.label))),
+                                                )
+                                                displayToothInfo = toothRange
+                                                  ? ` [${toothRange}]`
+                                                  : anno.associatedTooth
+                                                    ? ` [${anno.associatedTooth}]`
+                                                    : ""
                                               }
                                               // For all other non-tooth annotations
                                               else {
                                                 // First try to use the associatedTooth field
-                                                if (anno.associatedTooth !== undefined && anno.associatedTooth !== null) {
-                                                  displayToothInfo = ` [${anno.associatedTooth}]`;
+                                                if (
+                                                  anno.associatedTooth !== undefined &&
+                                                  anno.associatedTooth !== null
+                                                ) {
+                                                  displayToothInfo = ` [${anno.associatedTooth}]`
                                                 }
                                                 // If no associatedTooth, try to find it using overlap
                                                 else {
-                                                  const toothAnnotations = annotations.filter(a => !isNaN(Number.parseInt(a.label)));
-                                                  const associatedTooth = findToothForStoredAnomaly(anno, toothAnnotations);
+                                                  const toothAnnotations = annotations.filter(
+                                                    (a) => !isNaN(Number.parseInt(a.label)),
+                                                  )
+                                                  const associatedTooth = findToothForStoredAnomaly(
+                                                    anno,
+                                                    toothAnnotations,
+                                                  )
                                                   if (associatedTooth) {
-                                                    displayToothInfo = ` [${associatedTooth}]`;
+                                                    displayToothInfo = ` [${associatedTooth}]`
                                                   }
                                                 }
                                               }
@@ -1171,13 +1425,18 @@ const AnnotationList = ({
                                                   {anno.label}
                                                   {displayToothInfo}
                                                 </>
-                                              );
-                                            })()
-                                          }
+                                              )
+                                            })()}
                                           {/* Display annotation source indicator */}
-                                          {anno.created_by ? (anno.created_by.startsWith("Model v") ? "" : (anno.created_by.startsWith("Auto Update Labelling") ? "(A)" : " (M)")) : ""}
+                                          {anno.created_by
+                                            ? anno.created_by.startsWith("Model v")
+                                              ? ""
+                                              : anno.created_by.startsWith("Auto Update Labelling")
+                                                ? "(A)"
+                                                : " (M)"
+                                            : ""}
                                           {/* Display confidence if enabled */}
-                                          {showConfidence && (` (${anno.confidence.toFixed(2).toString().slice(1)})`)}
+                                          {showConfidence && ` (${anno.confidence.toFixed(2).toString().slice(1)})`}
                                         </span>
                                       )}
                                     </div>
@@ -1263,7 +1522,7 @@ const AnnotationList = ({
         }}
       >
         {/* Add to Treatment Plan button */}
-        <Row>
+        {/* <Row>
           <Col md={12}>
             <Button
               color="primary"
@@ -1276,16 +1535,27 @@ const AnnotationList = ({
                 : `Add to Treatment Plan (${Object.keys(globalCheckedAnnotations).length} selected)`}
             </Button>
           </Col>
-        </Row>
+        </Row> */}
 
         {/* Show saved confirmation if applicable */}
-        {treatmentPlanSaved && (
+        {/* {treatmentPlanSaved && (
           <Row className="mt-2">
             <Col md={12}>
               <div className="alert alert-success">Treatment plan saved successfully!</div>
             </Col>
           </Row>
-        )}
+        )} */}
+        <AnnotationPrerequisitesModal
+          isOpen={prerequisitesModalOpen}
+          toggle={handlePrerequisitesModalClose}
+          annotation={selectedAnnotationForPrerequisites?.annotation}
+          apiUrl={apiUrl}
+          sessionManager={sessionManager}
+          onSave={handlePrerequisitesSave}
+          isGeneratingPlan={generatingPlan} // Pass the loading state
+          associatedTooth={selectedAnnotationForPrerequisites?.associatedTooth}
+          patientData={patientDetails}
+        />
       </CardBody>
     </Card>
   )

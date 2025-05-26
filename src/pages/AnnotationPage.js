@@ -3268,6 +3268,7 @@ const AnnotationPage = () => {
                           confidenceLevels={confidenceLevels}
                           showConfidence={showConfidence}
                           smallCanvasData={smallCanvasData}
+                          patientDetails={{age:patient_age, gender:patient_gender, name:`${patient_first_name} ${patient_last_name}`}}
                         />
                       </div>
 
