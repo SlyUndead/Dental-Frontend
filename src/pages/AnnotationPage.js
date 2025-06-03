@@ -18,12 +18,12 @@ import imgEditActive from "../assets/images/editActive.svg"
 import '../assets/scss/custom/custom.scss';
 import { modifyPath } from "./AnnotationTools/path-utils";
 import { logErrorToServer } from "utils/logError";
-import { desiredOrder } from "./AnnotationTools/constants";
 import DentalChatPopup from "./Llama Chat/ChatPopup";
 import { findAdjacentTeeth } from "helpers/DrawingTools/tooth-utils";
 import ConfirmationModal from "./AnnotationTools/ConfirmationModal";
 import sessionManager from "utils/sessionManager";
 const AnnotationPage = () => {
+  document.title="Annotation Page | Oral Wisdom"
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
   const [exitClick, setExitClick] = useState(false);
   const [navigateToTreatmentPlan, setNavigateToTreatmentPlan] = useState(false);

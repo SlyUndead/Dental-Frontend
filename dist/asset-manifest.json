@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/static/css/main.7f9c5275.css",
-    "main.js": "/static/js/main.970efffd.js",
+    "main.js": "/static/js/main.5066d484.js",
     "static/media/materialdesignicons-webfont.eot": "/static/media/materialdesignicons-webfont.52adde0de9840940801f.eot",
     "static/media/materialdesignicons-webfont.ttf?v=5.8.55": "/static/media/materialdesignicons-webfont.506bc8215df8660d8f04.ttf",
     "static/media/fa-solid-900.svg": "/static/media/fa-solid-900.371dbce0dd46bd4d2033.svg",
@@ -23,6 +23,7 @@
     "static/media/ionicons.eot?v=4.5.10-1": "/static/media/ionicons.52cc4717a7334500d1bf.eot",
     "static/media/ionicons.ttf?v=4.5.10-1": "/static/media/ionicons.bbef0241a610f92e1e66.ttf",
     "static/media/fa-solid-900.woff": "/static/media/fa-solid-900.46fdbd2d897f8824e63c.woff",
+    "static/media/Logo-SymbolOnly-01.png": "/static/media/Logo-SymbolOnly-01.b21406768e5b8d783af7.png",
     "static/media/typicons.eot": "/static/media/typicons.17be2f814376a7f36498.eot",
     "static/media/typicons.ttf": "/static/media/typicons.d45316f67adb2dd7191e.ttf",
     "static/media/dripicons-v2.svg": "/static/media/dripicons-v2.4cecedd188b606da855d.svg",
@@ -55,7 +56,6 @@
     "static/media/fa-regular-400.eot": "/static/media/fa-regular-400.08f9891a6f44d9546678.eot",
     "static/media/fa-regular-400.ttf": "/static/media/fa-regular-400.1495f578452eb676f730.ttf",
     "static/media/dripicons-v2.woff": "/static/media/dripicons-v2.f19dcc0358afed69d277.woff",
-    "static/media/logo-sm.png": "/static/media/logo-sm.826ef5e76b3f21c83e91.png",
     "static/media/img-4.jpg": "/static/media/img-4.9723da35ca53e5dd0042.jpg",
     "static/media/logo-dark.png": "/static/media/logo-dark.5caf315bd068f637f425.png",
     "static/media/fa-regular-400.woff": "/static/media/fa-regular-400.1069ea55beaa01060302.woff",
@@ -65,7 +65,6 @@
     "static/media/Dental Laser.png": "/static/media/Dental Laser.25ed1b90d7f332100925.png",
     "static/media/bg-1.png": "/static/media/bg-1.7694411d08a41ca3baef.png",
     "static/media/Surgical Microscope.png": "/static/media/Surgical Microscope.aa68c832a3ca4eef542f.png",
-    "static/media/17.svg": "/static/media/17.ac4ca42f088e8351f9e6d82ee7b8593d.svg",
     "static/media/14.svg": "/static/media/14.34ae85e461c80ac7f3b97b7fdbd84e6e.svg",
     "static/media/03.svg": "/static/media/03.89f109821a955d76890fa6a98d32109b.svg",
     "static/media/18.svg": "/static/media/18.f407a436a3fd548b67864c8b3703ae4a.svg",
@@ -77,6 +76,7 @@
     "static/media/16.svg": "/static/media/16.db70e65d3f3cde4300beb0e0c766c317.svg",
     "static/media/19.svg": "/static/media/19.d457525cb18785c09cae9337847a77b8.svg",
     "static/media/32.svg": "/static/media/32.e0eedd667fdfc8a871f449ab07bd8f1f.svg",
+    "static/media/17.svg": "/static/media/17.cd1de97f814592651c0e19e7e12f3c09.svg",
     "static/media/12.svg": "/static/media/12.36b5c84249cf6d98ee0348545387d132.svg",
     "static/media/05.svg": "/static/media/05.7c222801345730ff8099f390c7a003a8.svg",
     "static/media/22.svg": "/static/media/22.6f5956e3269e975c252bbf953cc8eb6a.svg",
@@ -104,10 +104,10 @@
     "static/media/2D.svg": "/static/media/2D.f6c8ff477376352f2ffe3a793adb1cec.svg",
     "static/media/3D.svg": "/static/media/3D.4c6fdf5ad075f8e8a415c1ad417a0346.svg",
     "main.7f9c5275.css.map": "/static/css/main.7f9c5275.css.map",
-    "main.970efffd.js.map": "/static/js/main.970efffd.js.map"
+    "main.5066d484.js.map": "/static/js/main.5066d484.js.map"
   },
   "entrypoints": [
     "static/css/main.7f9c5275.css",
-    "static/js/main.970efffd.js"
+    "static/js/main.5066d484.js"
   ]
 }

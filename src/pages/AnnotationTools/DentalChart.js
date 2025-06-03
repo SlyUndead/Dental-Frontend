@@ -74,7 +74,7 @@ const DentalChart = ({
 
     // Create ResizeObserver to watch for container size changes
     const resizeObserver = new ResizeObserver(updateContainerWidth)
-    
+
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current)
     }
@@ -83,12 +83,12 @@ const DentalChart = ({
     const handleWindowResize = () => {
       setTimeout(updateContainerWidth, 100) // Small delay to ensure layout is complete
     }
-    
-    window.addEventListener('resize', handleWindowResize)
+
+    window.addEventListener("resize", handleWindowResize)
 
     return () => {
       resizeObserver.disconnect()
-      window.removeEventListener('resize', handleWindowResize)
+      window.removeEventListener("resize", handleWindowResize)
     }
   }, [])
 
@@ -262,39 +262,56 @@ const DentalChart = ({
   const getToothSize = () => {
     if (containerWidth === 0) {
       // Default size while measuring
-      return { width: "24px", height: "48px" }
+      return { width: "16px", height: "32px" }
     }
 
     // Calculate available width per tooth (16 teeth per row)
     // Account for gaps (15 gaps between 16 teeth) and padding
-    const gapSize = 4 // 2px gap * 2 for each side
-    const paddingPerTooth = 4 // 2px padding * 2 for each side
+    const gapSize = containerWidth < 480 ? 1 : containerWidth < 768 ? 2 : 4
+    const paddingPerTooth = containerWidth < 480 ? 1 : containerWidth < 768 ? 2 : 4
     const totalGaps = 15 * gapSize
     const totalPadding = 16 * paddingPerTooth
-    const availableWidth = containerWidth - totalGaps - totalPadding - 20 // Extra margin for safety
-    
-    const toothWidth = Math.max(16, Math.floor(availableWidth / 16)) // Minimum 16px width
-    const toothHeight = Math.max(32, toothWidth * 2) // Height is typically 2x width, minimum 32px
-    
-    // Set reasonable maximum sizes to prevent teeth from becoming too large
-    const maxWidth = 40
-    const maxHeight = 80
-    
+    const safetyMargin = containerWidth < 480 ? 20 : containerWidth < 768 ? 30 : 40
+    const availableWidth = containerWidth - totalGaps - totalPadding - safetyMargin
+
+    const toothWidth = Math.max(8, Math.floor(availableWidth / 16)) // Very small minimum for mobile
+    const toothHeight = Math.max(16, toothWidth * 2) // Maintain 2:1 ratio
+
+    // Set maximum sizes based on screen size - much more conservative
+    const maxWidth = containerWidth < 480 ? 20 : containerWidth < 768 ? 25 : 40
+    const maxHeight = containerWidth < 480 ? 40 : containerWidth < 768 ? 50 : 80
+
     return {
       width: `${Math.min(toothWidth, maxWidth)}px`,
-      height: `${Math.min(toothHeight, maxHeight)}px`
+      height: `${Math.min(toothHeight, maxHeight)}px`,
     }
   }
 
-  // Calculate dynamic font size based on tooth size
+  // Calculate dynamic font size based on tooth size and screen width
   const getFontSize = () => {
     const toothSize = getToothSize()
-    const width = parseInt(toothSize.width)
-    
-    if (width <= 20) return "8px"
-    if (width <= 25) return "9px"
-    if (width <= 30) return "10px"
-    return "11px"
+    const width = Number.parseInt(toothSize.width)
+
+    // More aggressive scaling for smaller screens
+    if (containerWidth < 480) {
+      if (width <= 12) return "5px"
+      if (width <= 16) return "6px"
+      if (width <= 20) return "7px"
+      return "8px"
+    }
+
+    if (containerWidth < 768) {
+      if (width <= 16) return "7px"
+      if (width <= 20) return "8px"
+      if (width <= 25) return "9px"
+      return "10px"
+    }
+
+    // Desktop sizes
+    if (width <= 20) return "9px"
+    if (width <= 25) return "10px"
+    if (width <= 30) return "11px"
+    return "12px"
   }
 
   // Get color based on tooth status
@@ -398,10 +415,16 @@ const DentalChart = ({
   const lowerTeeth = teeth.filter((tooth) => tooth.number >= 17 && tooth.number <= 32).reverse()
 
   return (
-    <div 
+    <div
       ref={containerRef}
-      className="dental-chart-container" 
-      style={{ marginBottom: "20px", maxWidth: "100%", overflowX: "hidden" }}
+      className="dental-chart-container"
+      style={{
+        marginBottom: "20px",
+        maxWidth: "100%",
+        overflowX: "hidden", // Prevent horizontal scroll
+        overflowY: "visible",
+        padding: containerWidth < 480 ? "2px" : containerWidth < 768 ? "5px" : "10px",
+      }}
     >
       <h5 className={headerClassNames}>Dental Chart {selectedTooth ? `(Tooth ${selectedTooth} Selected)` : ""}</h5>
       <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
@@ -410,8 +433,9 @@ const DentalChart = ({
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(16, 1fr)",
-            gap: "2px",
+            gap: containerWidth < 480 ? "1px" : containerWidth < 768 ? "1px" : "2px",
             width: "100%",
+            // Remove minWidth to allow full compression
           }}
         >
           {upperTeeth.map((tooth) => (
@@ -422,7 +446,7 @@ const DentalChart = ({
                 flexDirection: "column",
                 alignItems: "center",
                 cursor: "pointer",
-                padding: "2px",
+                padding: containerWidth < 480 ? "1px" : "2px", // Less padding on mobile
                 backgroundColor: selectedTooth === tooth.number ? "rgba(59, 130, 246, 0.1)" : "transparent",
                 borderRadius: "4px",
               }}
@@ -463,8 +487,9 @@ const DentalChart = ({
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(16, 1fr)",
-            gap: "2px",
+            gap: containerWidth < 480 ? "1px" : containerWidth < 768 ? "1px" : "2px",
             width: "100%",
+            // Remove minWidth to allow full compression
           }}
         >
           {lowerTeeth.map((tooth) => (
@@ -475,7 +500,7 @@ const DentalChart = ({
                 flexDirection: "column",
                 alignItems: "center",
                 cursor: "pointer",
-                padding: "2px",
+                padding: containerWidth < 480 ? "1px" : "2px", // Less padding on mobile
                 backgroundColor: selectedTooth === tooth.number ? "rgba(59, 130, 246, 0.1)" : "transparent",
                 borderRadius: "4px",
               }}
@@ -518,25 +543,54 @@ const DentalChart = ({
             flexWrap: "wrap",
             alignItems: "center",
             justifyContent: "center",
-            gap: "15px",
+            gap: containerWidth < 480 ? "8px" : "15px", // Smaller gap on mobile
             marginTop: "10px",
+            fontSize: containerWidth < 480 ? "10px" : "12px", // Smaller text on mobile
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-            <div style={{ width: "12px", height: "12px", backgroundColor: "#f87171", borderRadius: "2px" }}></div>
-            <span style={{ fontSize: "12px" }}>Anomaly</span>
+            <div
+              style={{
+                width: containerWidth < 480 ? "10px" : "12px",
+                height: containerWidth < 480 ? "10px" : "12px",
+                backgroundColor: "#f87171",
+                borderRadius: "2px",
+              }}
+            ></div>
+            <span style={{ fontSize: containerWidth < 480 ? "10px" : "12px" }}>Anomaly</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-            <div style={{ width: "12px", height: "12px", backgroundColor: "#4ade80", borderRadius: "2px" }}></div>
-            <span style={{ fontSize: "12px" }}>Procedure</span>
+            <div
+              style={{
+                width: containerWidth < 480 ? "10px" : "12px",
+                height: containerWidth < 480 ? "10px" : "12px",
+                backgroundColor: "#4ade80",
+                borderRadius: "2px",
+              }}
+            ></div>
+            <span style={{ fontSize: containerWidth < 480 ? "10px" : "12px" }}>Procedure</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-            <div style={{ width: "12px", height: "12px", backgroundColor: "#93c5fd", borderRadius: "2px" }}></div>
-            <span style={{ fontSize: "12px" }}>Normal</span>
+            <div
+              style={{
+                width: containerWidth < 480 ? "10px" : "12px",
+                height: containerWidth < 480 ? "10px" : "12px",
+                backgroundColor: "#93c5fd",
+                borderRadius: "2px",
+              }}
+            ></div>
+            <span style={{ fontSize: containerWidth < 480 ? "10px" : "12px" }}>Normal</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-            <div style={{ width: "12px", height: "12px", backgroundColor: "#d1d5db", borderRadius: "2px" }}></div>
-            <span style={{ fontSize: "12px" }}>Not Detected</span>
+            <div
+              style={{
+                width: containerWidth < 480 ? "10px" : "12px",
+                height: containerWidth < 480 ? "10px" : "12px",
+                backgroundColor: "#d1d5db",
+                borderRadius: "2px",
+              }}
+            ></div>
+            <span style={{ fontSize: containerWidth < 480 ? "10px" : "12px" }}>Not Detected</span>
           </div>
         </div>
 

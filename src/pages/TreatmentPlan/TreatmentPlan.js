@@ -46,7 +46,7 @@ const DentalTreatmentPlan = (props) => {
   const [hiddenAnnotations, setHiddenAnnotations] = useState([]);
   const [annotations, setAnnotations] = useState([]);
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
-  document.title = "Treatment Plan | AGP Dental Tool";
+  document.title = "Treatment Plan | Oral Wisdom";
   const breadcrumbItems = [
     { title: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, link: "/practiceList" },
     { title: sessionManager.getItem('practiceName'), link: "/patientList" },

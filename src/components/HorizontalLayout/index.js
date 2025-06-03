@@ -50,7 +50,7 @@ const Layout = (props) => {
     let currentage = title.charAt(1).toUpperCase() + title.slice(2);
 
     document.title =
-      currentage + " | AGP Dental Tool";
+      currentage + " | Oral Wisdom";
   }, [pathName.pathname]);
 
   useEffect(() => {

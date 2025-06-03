@@ -16,7 +16,7 @@ import { logErrorToServer } from "utils/logError";
 import sessionManager from "utils/sessionManager"
 const NewPractice = (props) => {
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
-    document.title = "New Patient | AGP Dental Tool";
+    document.title = "New Patient | Oral Wisdom";
     const [practiceName, setPracticeName] = useState("");
     const [telephone, setTelephone] = useState("")
     const [address, setAddress] = useState("")

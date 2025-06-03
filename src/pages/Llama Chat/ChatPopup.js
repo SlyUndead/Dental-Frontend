@@ -48,7 +48,6 @@ const DentalChatPopup = ({ isOpen, toggle, target }) => {
         },
         body: JSON.stringify({
           query: input,
-          promptTemplate: promptTemplate
         }),
       });
 

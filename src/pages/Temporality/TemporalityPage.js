@@ -30,7 +30,7 @@ import DateSlider from "./DateSlider"
 import sessionManager from "utils/sessionManager"
 
 const TemporalityPage = (props) => {
-  document.title = "Temporality View | AGP Dental Tool"
+  document.title = "Temporality View | Oral Wisdom"
   const apiUrl = process.env.REACT_APP_NODEAPIURL
   const printRef = useRef(null)
   const [redirectToLogin, setRedirectToLogin] = useState(false)

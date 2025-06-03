@@ -11,7 +11,7 @@ import sessionManager from "utils/sessionManager"
 const PatientList = (props) => {
     const printRef = useRef();
 
-    document.title = "Patients List | AGP Dental Tool";
+    document.title = "Patients List | Oral Wisdom";
     const breadcrumbItems = [
         { title: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, link: "/practiceList" },
         { title: sessionManager.getItem('practiceName'), link: "/patientList" },

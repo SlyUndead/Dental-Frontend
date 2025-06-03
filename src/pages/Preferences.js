@@ -12,7 +12,7 @@ import { setBreadcrumbItems } from "../store/actions";
 import { logErrorToServer } from '../utils/logError';
 import sessionManager from "utils/sessionManager"
 const Preferences = (props) => {
-    document.title = "Preferences | AGP Dental Tool";
+    document.title = "Preferences | Oral Wisdom";
 
     const breadcrumbItems = [
         { title: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, link: "/practiceList" },

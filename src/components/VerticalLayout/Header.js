@@ -14,7 +14,7 @@ import NotificationDropdown from "../CommonForBoth/TopbarDropdown/NotificationDr
 import ProfileMenu from "../CommonForBoth/TopbarDropdown/ProfileMenu"
 
 // import megamenuImg from "../../assets/images/megamenu-img.png"
-import logo from "../../assets/images/logo-sm.png"
+import logo from "../../assets/images/Logo-SymbolOnly-01.png"
 import logoLightPng from "../../assets/images/logo-light.png"
 import logoDark from "../../assets/images/logo-dark.png"
 import logo3 from "../../assets/images/logo3.png"

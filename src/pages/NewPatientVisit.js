@@ -36,7 +36,7 @@ import sessionManager from "utils/sessionManager"
 import { logErrorToServer } from "utils/logError"
 const NewPatient = (props) => {
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
-    document.title = "Patient Visit | AGP Dental Tool";
+    document.title = "Patient Visit | Oral Wisdom";
     const [loading, setLoading] = useState(false);
     const [dateOfXray, setDateOfXray] = useState(new Date());
     const [dateOfVisit, setDateOfVisit] = useState(new Date());

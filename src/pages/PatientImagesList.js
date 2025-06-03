@@ -8,7 +8,7 @@ import axios from "axios";
 import { logErrorToServer } from 'utils/logError';
 import sessionManager from "utils/sessionManager"
 const PatientImagesList = (props) => {
-    document.title = "Patient Images List | AGP Dental Tool";
+    document.title = "Patient Images List | Oral Wisdom";
     const breadcrumbItems = [
         { title: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, link: "/practiceList" },
         { title: sessionManager.getItem('practiceName'), link: "/patientList" },

@@ -12,6 +12,7 @@ import {
   Input,
   InputGroup,
   Collapse,
+  Toast, ToastBody, ToastHeader
 } from "reactstrap"
 import axios from "axios"
 import { changeMode } from "../../store/actions"
@@ -72,6 +73,7 @@ const AnnotationList = ({
   const [lockedAnnotations, setLockedAnnotations] = useState([])
   const [prerequisitesModalOpen, setPrerequisitesModalOpen] = useState(false)
   const [selectedAnnotationForPrerequisites, setSelectedAnnotationForPrerequisites] = useState(null)
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [persistentHiddenCategories, setPersistentHiddenCategories] = useState(() => {
     // Initialize from localStorage or default to hide 'Dental Chart' and 'Landmark'
     const saved = localStorage.getItem("persistentHiddenCategories")
@@ -471,7 +473,7 @@ const AnnotationList = ({
     }).filter(tooth => tooth.anomalies || tooth.procedures || tooth.foreign_objects) // Only include teeth with data
 
     return {
-      teeth: teethArray
+      teeth: { "teeth": teethArray }
     }
   }
 
@@ -484,25 +486,55 @@ const AnnotationList = ({
       return Math.abs(point1.x - point2.x) < 0.001 && Math.abs(point1.y - point2.y) < 0.001
     })
   }
+  const startRagJob = async (structuredData, query = 'create a treatment plan') => {
+    const response = await axios.post(`${apiUrl}/start-chat-job`, {
+      query: query,
+      json: structuredData.teeth,
+    }, {
+      headers: {
+        Authorization: sessionManager.getItem("token")
+      }
+    });
+    return response.data.jobId;
+  };
+
+  const pollRagJob = async (jobId, maxRetries = 120, interval = 10000) => {
+    for (let i = 0; i < maxRetries; i++) {
+      const response = await axios.get(`${apiUrl}/chat-job-status/${jobId}`, {
+        headers: {
+          Authorization: sessionManager.getItem("token")
+        }
+      });
+
+      const { status, result, error } = response.data;
+      if (status === 'completed') return result;
+      if (status === 'failed') throw new Error(error);
+
+      await new Promise(resolve => setTimeout(resolve, interval));
+    }
+
+    throw new Error("Job timeout");
+  };
   // Fetch CDT codes from RAG system
   const fetchCdtCodesFromRAG = async (selectedAnomaly, convertedCdtCode, selectedAnomalyMetadata = {}, selectedAnomalySegmentation = null) => {
     try {
       // Structure all annotations into the required format
       const structuredData = structureAnnotationsForRAG(selectedAnomaly, selectedAnomalyMetadata, selectedAnomalySegmentation)
 
-      const response = await fetch(`${apiUrl}/chat-with-rag`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: sessionManager.getItem("token"),
-        },
-        body: JSON.stringify({
-          question: `Based on the findings in this dental case (including anomalies and bone loss), what are the corresponding CDT treatment codes for each issue?`,
-          teeth: structuredData.teeth, // Send the structured teeth data
-        }),
-      })
-
-      const ragText = await response.json()
+      // const response = await axios.post(`${apiUrl}/chat-with-rag`, {
+      //     query: `create a treatment plan`,
+      //     json: structuredData.teeth, // Send the structured teeth data
+      //   },
+      //   {
+      //   timeout: 600000,
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //     Authorization: sessionManager.getItem("token"),
+      //   },
+      // })
+      const jobId = await startRagJob(structuredData);
+      const ragText = await pollRagJob(jobId);
+      console.log(ragText)
       return parseCdtCodes(ragText.answer, convertedCdtCode, selectedAnomaly)
     } catch (error) {
       console.error("Error fetching CDT codes:", error)
@@ -690,9 +722,16 @@ const AnnotationList = ({
 
       const data = await response.json()
       if (data.success) {
-        setGlobalCheckedAnnotations({})
-        await loadExistingTreatmentPlan()
-        setTreatmentPlanSaved(true)
+        // setGlobalCheckedAnnotations({})
+        // await loadExistingTreatmentPlan()
+        // setTreatmentPlanSaved(true)
+        setGlobalCheckedAnnotations({});
+        await loadExistingTreatmentPlan();
+        setTreatmentPlanSaved(true);
+        setShowSuccessToast(true);
+
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => setShowSuccessToast(false), 5000);
       }
     } catch (error) {
       console.error("Error saving treatment plan:", error)
@@ -1170,6 +1209,24 @@ const AnnotationList = ({
           confidenceLevels={confidenceLevels}
           setHiddenAnnotations={setHiddenAnnotations}
         />
+        <div
+          style={{
+            position: 'fixed',
+            top: '1rem',
+            right: '1rem',
+            zIndex: 1050,
+            minWidth: '250px'
+          }}
+        >
+          <Toast isOpen={showSuccessToast} className="bg-success text-white">
+            <ToastHeader icon="success" toggle={() => setShowSuccessToast(false)}>
+              Success
+            </ToastHeader>
+            <ToastBody>
+              ✅ Added to Treatment Plan
+            </ToastBody>
+          </Toast>
+        </div>
       </CardBody>
       {/* Header section with title and hide/show all button */}
       <CardBody style={{ paddingBottom: "0" }}>

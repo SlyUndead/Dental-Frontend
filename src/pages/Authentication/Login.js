@@ -13,7 +13,7 @@ import { logErrorToServer } from '../../utils/logError';
 import sessionManager from '../../utils/sessionManager';
 const Login = props => {
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
-  document.title = "Login | AGP Dental Tool";
+  document.title = "Login | Oral Wisdom";
   const [redirect, setRedirect] = useState(false);
   const [loading, setLoading] = useState(true);
 

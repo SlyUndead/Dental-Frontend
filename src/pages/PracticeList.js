@@ -10,7 +10,7 @@ import { logErrorToServer } from '../utils/logError';
 import sessionManager from "utils/sessionManager"
 const PracticeList = (props) => {
     const apiUrl = process.env.REACT_APP_NODEAPIURL;
-    document.title = "Practice List | AGP Dental Tool";
+    document.title = "Practice List | Oral Wisdom";
 
     const breadcrumbItems = [
         { title: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`, link: "/practiceList" },
