@@ -1,15 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Popover, PopoverBody } from 'reactstrap';
+import { Button, Form, Input, Popover, PopoverBody } from 'reactstrap';
 import sessionManager from "utils/sessionManager"
+import axios from 'axios';
 
 const DentalChatPopup = ({ isOpen, toggle, target }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [promptTemplate, setPromptTemplate] = useState("");
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const apiUrl = process.env.REACT_APP_NODEAPIURL;
+  const patientId = sessionManager.getItem('patientId')
 
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
@@ -18,52 +20,153 @@ const DentalChatPopup = ({ isOpen, toggle, target }) => {
   };
 
   useEffect(() => {
-    setPromptTemplate(`${localStorage.getItem('promptTemplate') || "You are an expert in dentistry"}`);
-  }, []);
-
-  useEffect(() => {
     if (isOpen) {
       // Use setTimeout to ensure DOM is updated before scrolling
       setTimeout(scrollToBottom, 0);
     }
   }, [messages, isOpen]);
 
+  // Load chat history when popup opens and patientId is available
+  useEffect(() => {
+    if (isOpen && patientId) {
+      loadChatHistory();
+    }
+  }, [isOpen, patientId]);
+
+  const loadChatHistory = async () => {
+    if (!patientId) return;
+    
+    setIsLoadingHistory(true);
+    try {
+      const response = await axios.get(`${apiUrl}/get-chat-history`, {
+        params: { patientId },
+        headers: {
+          Authorization: sessionManager.getItem("token")
+        }
+      });
+
+      if (response.data.success) {
+        // Convert timestamp to match existing message format
+        const formattedMessages = response.data.messages.map(msg => ({
+          text: msg.text,
+          sender: msg.sender,
+          isError: msg.isError || false,
+          timestamp: msg.timestamp
+        }));
+        setMessages(formattedMessages);
+      }
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const saveChatMessage = async (message) => {
+    if (!patientId) return;
+    
+    try {
+      await axios.post(`${apiUrl}/save-chat-message`, {
+        patientId,
+        message
+      }, {
+        headers: {
+          Authorization: sessionManager.getItem("token")
+        }
+      });
+    } catch (error) {
+      console.error('Error saving chat message:', error);
+    }
+  };
+
+  const startRagJob = async (query) => {
+    const response = await axios.post(`${apiUrl}/start-chat-job`, {
+      query: query,
+    }, {
+      headers: {
+        Authorization: sessionManager.getItem("token")
+      }
+    });
+    return response.data.jobId;
+  };
+
+  const pollRagJob = async (jobId, maxRetries = 120, interval = 10000) => {
+    for (let i = 0; i < maxRetries; i++) {
+      const response = await axios.get(`${apiUrl}/chat-job-status/${jobId}`, {
+        headers: {
+          Authorization: sessionManager.getItem("token")
+        }
+      });
+
+      const { status, result, error } = response.data;
+      if (status === 'completed') return result;
+      if (status === 'failed') throw new Error(error);
+
+      await new Promise(resolve => setTimeout(resolve, interval));
+    }
+
+    throw new Error("Job timeout");
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
 
     // Add user message
-    const userMessage = { text: input, sender: 'user' };
+    const userMessage = { text: input, sender: 'user', timestamp: new Date() };
     setMessages(prev => [...prev, userMessage]);
+    
+    // Save user message to database
+    await saveChatMessage(userMessage);
+    
     setInput('');
     setIsLoading(true);
 
     try {
       // Call backend API with the custom prompt template
-      const response = await fetch(`${apiUrl}/chat-with-rag`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: sessionManager.getItem('token')
-        },
-        body: JSON.stringify({
-          query: input,
-        }),
-      });
-
-      const data = await response.json();
+      const jobId = await startRagJob(input);
+      const ragText = await pollRagJob(jobId);
 
       // Add bot message
-      setMessages(prev => [...prev, { text: data.answer, sender: 'bot' }]);
+      const botMessage = { 
+        text: ragText.answer, 
+        sender: 'bot', 
+        timestamp: new Date() 
+      };
+      setMessages(prev => [...prev, botMessage]);
+      
+      // Save bot message to database
+      await saveChatMessage(botMessage);
     } catch (error) {
       console.error('Error:', error);
-      setMessages(prev => [...prev, {
+      const errorMessage = {
         text: 'Sorry, I encountered an error. Please try again.',
         sender: 'bot',
-        isError: true
-      }]);
+        isError: true,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      
+      // Save error message to database
+      await saveChatMessage(errorMessage);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const clearChatHistory = async () => {
+    if (!patientId) return;
+    
+    try {
+      await axios.delete(`${apiUrl}/clear-chat-history`, {
+        data: { patientId },
+        headers: {
+          Authorization: sessionManager.getItem("token")
+        }
+      });
+      setMessages([]);
+    } catch (error) {
+      console.error('Error clearing chat history:', error);
     }
   };
 
@@ -75,14 +178,13 @@ const DentalChatPopup = ({ isOpen, toggle, target }) => {
       trigger="click"
       placement="bottom"
       className="dental-chat-popover"
-      style={{ width: '100%' }}
+      style={{ width: '60vw', marginLeft:'-30vw' }}
     >
       <div
         className="bg-white rounded-lg shadow-xl"
         style={{
           display: 'flex',
           flexDirection: 'column',
-          height: '500px',
           maxHeight: '80vh'
         }}
       >
@@ -95,13 +197,25 @@ const DentalChatPopup = ({ isOpen, toggle, target }) => {
           }}
         >
           <h5 className="m-0 font-semibold">Dental Assistant</h5>
-          <button
-            onClick={toggle}
-            className="text-black hover:text-black bg-primary border-0"
-            aria-label="Close"
-          >
-            X
-          </button>
+          <div className="flex items-center gap-2">
+            {messages.length > 0 && (
+              <Button
+                onClick={clearChatHistory}
+                className="text-red-600 hover:text-red-800 bg-transparent border-0 p-1"
+                title="Clear chat history"
+                style={{ fontSize: '12px' }}
+              >
+                Clear
+              </Button>
+            )}
+            <Button
+              onClick={toggle}
+              className="text-black hover:text-black bg-primary border-0"
+              aria-label="Close"
+            >
+              X
+            </Button>
+          </div>
         </div>
 
         {/* Messages Container - This is the scrollable area */}
@@ -115,8 +229,12 @@ const DentalChatPopup = ({ isOpen, toggle, target }) => {
             flexDirection: 'column'
           }}
         >
-          {messages.length === 0 ? (
-            <div className="text-center text-black mt-3 mb-auto">
+          {isLoadingHistory ? (
+            <div className="text-center text-black mt-3" style={{fontSize:'16px'}}>
+              Loading chat history...
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="text-center text-black mt-3 mb-auto" style={{fontSize:'20px'}}>
               Ask me anything about dental terms and procedures!
             </div>
           ) : (
@@ -124,7 +242,8 @@ const DentalChatPopup = ({ isOpen, toggle, target }) => {
               {messages.map((msg, index) => (
                 <div
                   key={index}
-                  className={`mb-3 ${msg.sender === 'user' ? 'text-right' : 'text-left'}`}
+                  className={`mb-3 rounded-lg ${msg.sender === 'user' ? 'text-right bg-primary' : 'text-left bg-secondary'}`}
+                  style={{fontSize:'16px'}}
                 >
                   <div
                     className={`inline-block px-3 py-2 rounded-lg ${msg.sender === 'user'
@@ -159,7 +278,7 @@ const DentalChatPopup = ({ isOpen, toggle, target }) => {
         </div>
 
         {/* Input Form */}
-        <form
+        <Form
           onSubmit={handleSubmit}
           className="border-t"
           style={{
@@ -167,24 +286,44 @@ const DentalChatPopup = ({ isOpen, toggle, target }) => {
             flexShrink: 0
           }}
         >
-          <div className="flex">
-            <input
+          <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
+            <Input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask a dental question..."
-              className="flex-1 border rounded-l-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={isLoading}
+              disabled={isLoading || isLoadingHistory}
+              style={{
+                flex: '1',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                padding: '8px 12px',
+                fontSize: '14px',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#007bff'}
+              onBlur={(e) => e.target.style.borderColor = '#ccc'}
             />
-            <button
+            <Button
               type="submit"
-              className="bg-primary hover:bg-primary text-black px-3 py-2 rounded-r-lg"
-              disabled={isLoading}
+              disabled={isLoading || isLoadingHistory}
+              style={{
+                backgroundColor: 'var(--bs-primary, #007bff)',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '8px 16px',
+                color: 'white',
+                fontSize: '14px',
+                cursor: (isLoading || isLoadingHistory) ? 'not-allowed' : 'pointer',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}
             >
               Send
-            </button>
+            </Button>
           </div>
-        </form>
+        </Form>
       </div>
     </Popover>
   );

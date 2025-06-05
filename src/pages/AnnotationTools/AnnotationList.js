@@ -916,8 +916,34 @@ const AnnotationList = ({
     setPrerequisitesModalOpen(false)
     setSelectedAnnotationForPrerequisites(null)
   }
+  const sendInitialContextToLLM = async() =>{
+    try {
+      // Structure all annotations into the required format
+      const structuredData = structureAnnotationsForRAG(null)
+
+      // const response = await axios.post(`${apiUrl}/chat-with-rag`, {
+      //     query: `create a treatment plan`,
+      //     json: structuredData.teeth, // Send the structured teeth data
+      //   },
+      //   {
+      //   timeout: 600000,
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //     Authorization: sessionManager.getItem("token"),
+      //   },
+      // })
+      const jobId = await startRagJob(structuredData, "");
+      const ragText = await pollRagJob(jobId);
+      console.log(ragText)
+    } catch (error) {
+      console.error("Error fetching CDT codes:", error)
+      return []
+    }
+
+  }
   useEffect(() => {
     // Reset checked annotations based on current annotations and persistent state
+    sendInitialContextToLLM()
     const newCheckedAnnotations = annotations.reduce((acc, anno, index) => {
       // Check if the annotation should be checked
       if (isAnnotationChecked(anno)) {
@@ -1116,6 +1142,7 @@ const AnnotationList = ({
 
       annotations.forEach((anno, index) => {
         const category = classCategories[anno.label.toLowerCase()]
+        console.log(category, anno.label.toLowerCase())
         // Get the image group from the annotation's image
         const imageGroup = smallCanvasData[mainImageIndex]?.annotations?.annotations?.group || "pano"
         const confidenceField = `${imageGroup}_confidence`
@@ -1142,7 +1169,7 @@ const AnnotationList = ({
           if (persistentHiddenCategories[category]) {
             hiddenAnnotationsList.push(index)
           }
-        } else {
+        } else if(anno.confidence >= confidenceThreshold){
           if (updatedGroupedAnnotations["Others"] === undefined) {
             updatedGroupedAnnotations["Others"] = []
             updatedHideGroups["Others"] = persistentHiddenCategories["Others"] || false
@@ -1171,7 +1198,7 @@ const AnnotationList = ({
           return a.label.localeCompare(b.label)
         })
       })
-
+      console.log(updatedGroupedAnnotations)
       setGroupedAnnotations(updatedGroupedAnnotations)
       setHideGroup(updatedHideGroups)
       setHiddenAnnotations([...new Set(hiddenAnnotationsList)])
@@ -1493,7 +1520,7 @@ const AnnotationList = ({
                                                 : " (M)"
                                             : ""}
                                           {/* Display confidence if enabled */}
-                                          {showConfidence && ` (${anno.confidence.toFixed(2).toString().slice(1)})`}
+                                          {showConfidence && anno.confidence ? ` (${anno.confidence.toFixed(2).toString().slice(1)})`: showConfidence && "NA"}
                                         </span>
                                       )}
                                     </div>

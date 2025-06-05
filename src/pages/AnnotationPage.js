@@ -1668,7 +1668,7 @@ const AnnotationPage = () => {
       }
 
       // Spacebar to complete drawing
-      if (e.key === ' ' && !e.ctrlKey && !e.shiftKey) {
+      if (e.key === ' ' && !e.ctrlKey && !e.shiftKey && (isHybridDrawingActive || isDrawingFreehand || isLiveWireTracingActive ||isLineDrawingActive) ) {
         e.preventDefault();
         if (isHybridDrawingActive && isDrawingStartedRef.current) {
           completeHybridDrawing();
@@ -2210,6 +2210,7 @@ const AnnotationPage = () => {
         segmentation: newBoxVertices,
         created_by: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`,
         created_on: date,
+        confidence: 1
       };
     }
     else {
@@ -2218,6 +2219,7 @@ const AnnotationPage = () => {
         vertices: newBoxVertices,
         created_by: `${sessionManager.getItem('firstName')} ${sessionManager.getItem('lastName')}`,
         created_on: date,
+        confidence: 1
       };
     }
     saveAnnotations([...annotations, newAnnotation])

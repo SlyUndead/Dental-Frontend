@@ -38,5 +38,5 @@ export const groupNames = {
   "Landmark":"Landmarks",
   "Procedure":"Existing Procedures",
   "Dental Chart":"Dental Chart",
-  "Other":"Others"
+  "Others":"Others"
 }
